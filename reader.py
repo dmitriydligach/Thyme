@@ -23,7 +23,13 @@ def main(xml_dir, text_dir, xml_regex, context_size):
       context = text[start-context_size:end+context_size].replace('\n', '')
       event = text[start:end]
       dtr = data.properties['DocTimeRel']
+
+      left = text[start-context_size:start]
+      right = text[end:end+context_size]
+      tagged = left + ' [ES] ' + event + ' [EE] ' + right
       print('{}|{}|{}'.format(dtr, event, context))
+      print(tagged)
+      print()
 
 if __name__ == "__main__":
 
@@ -34,6 +40,6 @@ if __name__ == "__main__":
   xml_dir = os.path.join(base, cfg.get('data', 'train_xml'))
   text_dir = os.path.join(base, cfg.get('data', 'train_text'))
   xml_regex = cfg.get('data', 'xml_regex')
-  context_size = cfg.getint('args', 'context_size')
+  context_size = 10
 
   main(xml_dir, text_dir, xml_regex, context_size)

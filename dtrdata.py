@@ -9,6 +9,8 @@ from keras.preprocessing.sequence import pad_sequences
 
 import anafora
 
+event_start = 'es'
+event_end = 'ee'
 max_len = 512
 
 class DTRData:
@@ -23,6 +25,7 @@ class DTRData:
     """Constructor"""
 
     ids = []
+    labels = []
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', do_lower_case=True)
 
     for sub_dir, text_name, file_names in anafora.walk(xml_dir, xml_regex):
@@ -33,16 +36,25 @@ class DTRData:
       text = open(text_path).read()
 
       for event in ref_data.annotations.select_type('EVENT'):
+        labels.append(event.properties['DocTimeRel'])
+
         start, end = event.spans[0]
-        dtr = event.properties['DocTimeRel']
-        context = text[start-context_size:end+context_size].replace('\n', '')
         event = text[start:end]
+        left = text[start-context_size:start]
+        right = text[end:end+context_size]
+        context = '[CLS] ' + left + ' [ES] ' + event + ' [EE] ' + right + ' [SEP]'
 
         tokenized = tokenizer.tokenize(context)
         ids.append(tokenizer.convert_tokens_to_ids(tokenized))
 
     ids = pad_sequences(ids, maxlen=max_len, dtype='long', truncating='post', padding='post')
-    print(ids)
+
+    # create attention masks
+    attention_masks = []
+    for seq in ids:
+      # use 1s for tokens and 0s for padding
+      seq_mask = [float(i > 0) for i in seq]
+      attention_masks.append(seq_mask)
 
 if __name__ == "__main__":
 
