@@ -6,7 +6,7 @@ sys.path.append('./Anafora/')
 import os, configparser
 import anafora
 
-def main(xml_dir, text_dir, xml_regex):
+def main(xml_dir, text_dir, xml_regex, context_size):
   """Main Driver"""
 
   for sub_dir, text_name, file_names in anafora.walk(xml_dir, xml_regex):
@@ -18,8 +18,9 @@ def main(xml_dir, text_dir, xml_regex):
     text = open(text_path).read()
 
     for data in ref_data.annotations.select_type('EVENT'):
+
       start, end = data.spans[0]
-      context = text[start-20:end+20].replace('\n', '')
+      context = text[start-context_size:end+context_size].replace('\n', '')
       event = text[start:end]
       dtr = data.properties['DocTimeRel']
       print('{}|{}|{}'.format(dtr, event, context))
@@ -33,5 +34,6 @@ if __name__ == "__main__":
   xml_dir = os.path.join(base, cfg.get('data', 'train_xml'))
   text_dir = os.path.join(base, cfg.get('data', 'train_text'))
   xml_regex = cfg.get('data', 'xml_regex')
+  context_size = cfg.getint('args', 'context_size')
 
-  main(xml_dir, text_dir, xml_regex)
+  main(xml_dir, text_dir, xml_regex, context_size)
