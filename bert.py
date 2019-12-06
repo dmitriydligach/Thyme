@@ -32,7 +32,7 @@ lr = 1e-3
 max_grad_norm = 1.0
 num_total_steps = 1000
 num_warmup_steps = 100
-warmup_proportion = float(num_warmup_steps) / float(num_total_steps)  # 0.1
+warmup_proportion = float(num_warmup_steps) / float(num_total_steps)
 
 def flat_accuracy(preds, labels):
   """Calculate the accuracy of our predictions vs labels"""
@@ -78,11 +78,11 @@ def main():
   train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=batch_size)
   dev_dataloader = DataLoader(dev_data, sampler=dev_sampler, batch_size=batch_size)
 
-  device = 'cpu' # torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+  torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
   # load pretrained bert model with a single linear classification layer on top
   model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=2)
-  # model.cuda()
+  model.cuda()
 
   param_optimizer = list(model.named_parameters())
   no_decay = ['bias', 'gamma', 'beta']
@@ -96,56 +96,42 @@ def main():
   optimizer = AdamW(optimizer_grouped_parameters, lr=2e-5)
   scheduler = WarmupLinearSchedule(optimizer, warmup_steps=num_warmup_steps, t_total=num_total_steps)
 
-  # store our loss and accuracy for plotting
-  train_loss_set = []
-
   # training loop
   for epoch in trange(epochs, desc="epoch"):
-
-    # Set our model to training mode (as opposed to evaluation mode)
     model.train()
 
     # Tracking variables
-    tr_loss = 0
-    nb_tr_examples, nb_tr_steps = 0, 0
+    train_loss = 0
+    num_train_examples = 0
+    num_train_steps = 0
 
     # train for one epoch
     for step, batch in enumerate(train_dataloader):
 
       # add batch to GPU
       batch = tuple(t.to(device) for t in batch)
-
-      # unpack the inputs from our dataloader
       b_input_ids, b_input_mask, b_labels = batch
-
-      # clear out the gradients (by default they accumulate)
       optimizer.zero_grad()
 
-      # forward pass
       loss, logits = model(b_input_ids, token_type_ids=None, attention_mask=b_input_mask, labels=b_labels)
-      train_loss_set.append(loss.item())
 
-      # backward pass
       loss.backward()
 
-      # update parameters and take a step using the computed gradient
       torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
       optimizer.step()
       scheduler.step()
 
-      # update tracking variables
-      tr_loss += loss.item()
-      nb_tr_examples += b_input_ids.size(0)
-      nb_tr_steps += 1
+      train_loss += loss.item()
+      num_train_examples += b_input_ids.size(0)
+      num_train_steps += 1
 
-    print("epoch: {}, loss: {}".format(epoch, tr_loss/nb_tr_steps))
+    print("epoch: {}, loss: {}".format(epoch, train_loss/num_train_steps))
 
     # put model in evaluation mode to evaluate loss on the validation set
     model.eval()
 
-    # tracking variables
     eval_loss, eval_accuracy = 0, 0
-    nb_eval_steps, nb_eval_examples = 0, 0
+    num_eval_steps, num_eval_examples = 0, 0
 
     # evaluate data for one epoch
     for batch in validation_dataloader:
@@ -153,10 +139,8 @@ def main():
       # add batch to GPU
       batch = tuple(t.to(device) for t in batch)
 
-      # unpack the inputs from our dataloader
       b_input_ids, b_input_mask, b_labels = batch
 
-      # don't compute or store gradients
       with torch.no_grad():
         # forward pass; only logits returned since labels not provided
         [logits] = model(b_input_ids, token_type_ids=None, attention_mask=b_input_mask)
@@ -168,9 +152,9 @@ def main():
       tmp_eval_accuracy = flat_accuracy(logits, label_ids)
 
       eval_accuracy += tmp_eval_accuracy
-      nb_eval_steps += 1
+      num_eval_steps += 1
 
-    print("validation accuracy: {}\n".format(eval_accuracy/nb_eval_steps))
+    print("validation accuracy: {}\n".format(eval_accuracy/num_eval_steps))
 
 if __name__ == "__main__":
 
