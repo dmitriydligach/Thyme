@@ -7,7 +7,7 @@ import torch
 
 from transformers import BertConfig, AdamW
 from transformers import BertForSequenceClassification
-from transformers import WarmupLinearSchedule
+from transformers import get_linear_schedule_with_warmup as WarmupLinearSchedule
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
 
 from tqdm import tqdm, trange
@@ -78,7 +78,7 @@ def main():
   train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=batch_size)
   dev_dataloader = DataLoader(dev_data, sampler=dev_sampler, batch_size=batch_size)
 
-  torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+  device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
   # load pretrained bert model with a single linear classification layer on top
   model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=2)
@@ -94,7 +94,7 @@ def main():
 
   # this variable contains all of the hyperparemeter information our training loop needs
   optimizer = AdamW(optimizer_grouped_parameters, lr=2e-5)
-  scheduler = WarmupLinearSchedule(optimizer, warmup_steps=num_warmup_steps, t_total=num_total_steps)
+  scheduler = WarmupLinearSchedule(optimizer, num_warmup_steps=num_warmup_steps, num_training_steps=num_total_steps)
 
   # training loop
   for epoch in trange(epochs, desc="epoch"):
