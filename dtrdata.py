@@ -13,6 +13,8 @@ event_start = 'es'
 event_end = 'ee'
 max_len = 512
 
+label2int = {'BEFORE':1, 'OVERLAP':2, 'BEFORE/OVERLAP':3, 'AFTER':4}
+
 class DTRData:
   """Make x and y from raw data"""
 
@@ -45,7 +47,8 @@ class DTRData:
       text = open(text_path).read()
 
       for event in ref_data.annotations.select_type('EVENT'):
-        labels.append(event.properties['DocTimeRel'])
+        label = event.properties['DocTimeRel']
+        labels.append(label2int[label])
 
         start, end = event.spans[0]
         event = text[start:end]
@@ -80,5 +83,3 @@ if __name__ == "__main__":
 
   dtr_data = DTRData(xml_dir, text_dir, xml_regex, context_size)
   inputs, labels, masks = dtr_data()
-  print(inputs.shape)
-  print(len(labels))
