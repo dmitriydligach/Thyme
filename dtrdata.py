@@ -24,15 +24,24 @@ class DTRData:
     context_size):
     """Constructor"""
 
-    ids = []
+    self.xml_dir = xml_dir
+    self.text_dir = text_dir
+    self.xml_regex = xml_regex
+    self.context_size = context_size
+
+  def __call__(self):
+    """Make x, y etc."""
+
+    inputs = []
     labels = []
+
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', do_lower_case=True)
 
-    for sub_dir, text_name, file_names in anafora.walk(xml_dir, xml_regex):
-      xml_path = os.path.join(xml_dir, sub_dir, file_names[0])
+    for sub_dir, text_name, file_names in anafora.walk(self.xml_dir, self.xml_regex):
+      xml_path = os.path.join(self.xml_dir, sub_dir, file_names[0])
       ref_data = anafora.AnaforaData.from_file(xml_path)
 
-      text_path = os.path.join(text_dir, text_name)
+      text_path = os.path.join(self.text_dir, text_name)
       text = open(text_path).read()
 
       for event in ref_data.annotations.select_type('EVENT'):
@@ -40,21 +49,23 @@ class DTRData:
 
         start, end = event.spans[0]
         event = text[start:end]
-        left = text[start-context_size:start]
-        right = text[end:end+context_size]
+        left = text[start - self.context_size : start]
+        right = text[end : end + self.context_size]
         context = '[CLS] ' + left + ' [ES] ' + event + ' [EE] ' + right + ' [SEP]'
 
         tokenized = tokenizer.tokenize(context)
-        ids.append(tokenizer.convert_tokens_to_ids(tokenized))
+        inputs.append(tokenizer.convert_tokens_to_ids(tokenized))
 
-    ids = pad_sequences(ids, maxlen=max_len, dtype='long', truncating='post', padding='post')
+    inputs = pad_sequences(inputs, maxlen=max_len, dtype='long', truncating='post', padding='post')
 
     # create attention masks
-    attention_masks = []
-    for seq in ids:
+    masks = []
+    for seq in inputs:
       # use 1s for tokens and 0s for padding
       seq_mask = [float(i > 0) for i in seq]
-      attention_masks.append(seq_mask)
+      masks.append(seq_mask)
+
+    return inputs, labels, masks
 
 if __name__ == "__main__":
 
@@ -62,9 +73,12 @@ if __name__ == "__main__":
   cfg.read(sys.argv[1])
   base = os.environ['DATA_ROOT']
 
-  xml_dir = os.path.join(base, cfg.get('data', 'train_xml'))
-  text_dir = os.path.join(base, cfg.get('data', 'train_text'))
+  xml_dir = os.path.join(base, cfg.get('data', 'dev_xml'))
+  text_dir = os.path.join(base, cfg.get('data', 'dev_text'))
   xml_regex = cfg.get('data', 'xml_regex')
   context_size = cfg.getint('args', 'context_size')
 
   dtr_data = DTRData(xml_dir, text_dir, xml_regex, context_size)
+  inputs, labels, masks = dtr_data()
+  print(inputs.shape)
+  print(len(labels))
