@@ -42,8 +42,8 @@ def flat_accuracy(preds, labels):
 
   return np.sum(pred_flat == labels_flat) / len(labels_flat)
 
-def main():
-  """Fine-tune bert"""
+def make_data_loaders():
+  """DataLoader(s) for train and dev sets"""
 
   xml_regex = cfg.get('data', 'xml_regex')
   context_size = cfg.getint('args', 'context_size')
@@ -92,11 +92,23 @@ def main():
     sampler=dev_sampler,
     batch_size=batch_size)
 
-  device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+  return train_data_loader, dev_data_loader
 
-  # load pretrained bert model with a single linear classification layer on top
-  model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=4)
-  model.cuda()
+def main():
+  """Fine-tune bert"""
+
+  train_data_loader, dev_data_loader = make_data_loaders()
+
+  device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+  print('device:', device)
+
+  model = BertForSequenceClassification.from_pretrained(
+    "bert-base-uncased",
+    num_labels=4)
+  if torch.cuda.is_available():
+    model.cuda()
+  else:
+    model.cpu()
 
   param_optimizer = list(model.named_parameters())
   no_decay = ['bias', 'gamma', 'beta']
