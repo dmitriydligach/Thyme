@@ -9,8 +9,6 @@ from keras.preprocessing.sequence import pad_sequences
 
 import anafora
 
-event_start = 'es'
-event_end = 'ee'
 max_len = 512
 
 label2int = {'BEFORE':1, 'OVERLAP':2, 'BEFORE/OVERLAP':3, 'AFTER':4}
