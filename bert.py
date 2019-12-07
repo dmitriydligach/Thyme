@@ -185,6 +185,11 @@ def main():
       logits = logits.detach().cpu().numpy()
       label_ids = b_labels.to('cpu').numpy()
 
+      print('logits:', logits)
+      print('label_ids:', label_ids)
+      print('logits shape:', logits.shape)
+      print('label_ids shape:', label_ids.shape)
+
       tmp_eval_accuracy = flat_accuracy(logits, label_ids)
 
       eval_accuracy += tmp_eval_accuracy
