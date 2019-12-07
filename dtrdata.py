@@ -11,7 +11,7 @@ import anafora
 
 max_len = 512
 
-label2int = {'BEFORE':1, 'OVERLAP':2, 'BEFORE/OVERLAP':3, 'AFTER':4}
+label2int = {'BEFORE':0, 'OVERLAP':1, 'BEFORE/OVERLAP':2, 'AFTER':3}
 
 class DTRData:
   """Make x and y from raw data"""
@@ -35,7 +35,9 @@ class DTRData:
     inputs = []
     labels = []
 
-    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', do_lower_case=True)
+    tokenizer = BertTokenizer.from_pretrained(
+      'bert-base-uncased',
+      do_lower_case=True)
 
     for sub_dir, text_name, file_names in anafora.walk(self.xml_dir, self.xml_regex):
       xml_path = os.path.join(self.xml_dir, sub_dir, file_names[0])
@@ -57,7 +59,12 @@ class DTRData:
         tokenized = tokenizer.tokenize(context)
         inputs.append(tokenizer.convert_tokens_to_ids(tokenized))
 
-    inputs = pad_sequences(inputs, maxlen=max_len, dtype='long', truncating='post', padding='post')
+    inputs = pad_sequences(
+      inputs,
+      maxlen=max_len,
+      dtype='long',
+      truncating='post',
+      padding='post')
 
     # create attention masks
     masks = []
