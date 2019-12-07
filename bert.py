@@ -139,14 +139,14 @@ def main():
 
       # add batch to GPU
       batch = tuple(t.to(device) for t in batch)
-      b_input_ids, b_input_mask, b_labels = batch
+      batch_inputs, batch_masks, batch_labels = batch
       optimizer.zero_grad()
 
       loss, logits = model(
-        b_input_ids,
+        batch_inputs,
         token_type_ids=None,
-        attention_mask=b_input_mask,
-        labels=b_labels)
+        attention_mask=batch_masks,
+        labels=batch_labels)
 
       loss.backward()
 
@@ -155,7 +155,7 @@ def main():
       scheduler.step()
 
       train_loss += loss.item()
-      num_train_examples += b_input_ids.size(0)
+      num_train_examples += batch_inputs.size(0)
       num_train_steps += 1
 
     print("epoch: {}, loss: {}".format(epoch, train_loss/num_train_steps))
@@ -172,18 +172,18 @@ def main():
       # add batch to GPU
       batch = tuple(t.to(device) for t in batch)
 
-      b_input_ids, b_input_mask, b_labels = batch
+      batch_inputs, batch_masks, batch_labels = batch
 
       with torch.no_grad():
         # forward pass; only logits returned since labels not provided
         [logits] = model(
-          b_input_ids,
+          batch_inputs,
           token_type_ids=None,
-          attention_mask=b_input_mask)
+          attention_mask=batch_masks)
 
       # move logits and labels to CPU
       logits = logits.detach().cpu().numpy()
-      label_ids = b_labels.to('cpu').numpy()
+      label_ids = batch_labels.to('cpu').numpy()
 
       print('logits:', logits)
       print('label_ids:', label_ids)
