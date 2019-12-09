@@ -29,7 +29,7 @@ logging.getLogger("transformers.tokenization_utils").setLevel(logging.ERROR)
 gpu_num = 0
 max_len = 512
 batch_size = 8
-epochs = 2
+epochs = 4
 
 # scheduler
 lr = 1e-3
