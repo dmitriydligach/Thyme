@@ -12,6 +12,10 @@ from torch.utils.data import TensorDataset, DataLoader, RandomSampler, Sequentia
 
 from tqdm import tqdm, trange
 
+from sklearn.metrics import f1_score
+from sklearn.metrics import precision_score
+from sklearn.metrics import recall_score
+
 import numpy as np
 import glob, os, logging, configparser
 
@@ -34,13 +38,28 @@ num_total_steps = 1000
 num_warmup_steps = 100
 warmup_proportion = float(num_warmup_steps) / float(num_total_steps)
 
+def performance_metrics(preds, labels):
+  """Report performance metrics"""
+
+  predictions = np.argmax(preds, axis=1).flatten()
+  f1 = f1_score(labels, predictions, average='macro')
+  print('macro f1:', f1)
+
+  f1 = f1_score(labels, predictions, average=None)
+  for index, f1 in enumerate(f1):
+    print(index, "->", f1)
+
 def flat_accuracy(preds, labels):
   """Calculate the accuracy of our predictions vs labels"""
 
-  pred_flat = np.argmax(preds, axis=1).flatten()
-  labels_flat = labels.flatten()
+  # pred_flat = np.argmax(preds, axis=1).flatten()
+  # labels_flat = labels.flatten()
+  # return np.sum(pred_flat == labels_flat) / len(labels_flat)
 
-  return np.sum(pred_flat == labels_flat) / len(labels_flat)
+  predictions = np.argmax(preds, axis=1).flatten()
+  f1 = f1_score(labels, predictions, average='macro')
+
+  return f1
 
 def make_data_loaders():
   """DataLoader(s) for train and dev sets"""
@@ -160,6 +179,10 @@ def main():
 
     print("epoch: {}, loss: {}".format(epoch, train_loss/num_train_steps))
 
+    #
+    # evaluation starts here ...
+    #
+
     # put model in evaluation mode to evaluate loss on the validation set
     model.eval()
 
@@ -185,10 +208,10 @@ def main():
       logits = logits.detach().cpu().numpy()
       label_ids = batch_labels.to('cpu').numpy()
 
-      print('logits:', logits)
-      print('label_ids:', label_ids)
-      print('logits shape:', logits.shape)
-      print('label_ids shape:', label_ids.shape)
+      # print('logits:', logits)
+      # print('label_ids:', label_ids)
+      # print('logits shape:', logits.shape)
+      # print('label_ids shape:', label_ids.shape)
 
       tmp_eval_accuracy = flat_accuracy(logits, label_ids)
 
