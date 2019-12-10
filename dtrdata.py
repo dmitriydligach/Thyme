@@ -54,10 +54,10 @@ class DTRData:
         event = text[start:end]
         left = text[start - self.context_size : start]
         right = text[end : end + self.context_size]
-        context = '[CLS] ' + left + ' ES ' + event + ' EE ' + right + ' [SEP]'
 
-        tokenized = tokenizer.tokenize(context)
-        inputs.append(tokenizer.convert_tokens_to_ids(tokenized))
+        # context = '[CLS] ' + left + ' ES ' + event + ' EE ' + right + ' [SEP]'
+        context = left + ' es ' + event + ' ee ' + right
+        inputs.append(tokenizer.encode(context))
 
     inputs = pad_sequences(
       inputs,

@@ -137,7 +137,7 @@ def main():
     {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)],
      'weight_decay_rate': 0.0}]
 
-  # this variable contains all of the hyperparemeter information our training loop needs
+  # this variable contains all of the hyperparemeter information
   optimizer = AdamW(optimizer_grouped_parameters, lr=2e-5)
   scheduler = WarmupLinearSchedule(
     optimizer,
@@ -148,15 +148,10 @@ def main():
   for epoch in trange(epochs, desc="epoch"):
     model.train()
 
-    # Tracking variables
-    train_loss = 0
-    num_train_examples = 0
-    num_train_steps = 0
+    train_loss, num_train_examples, num_train_steps = 0, 0, 0
 
-    # train for one epoch
     for step, batch in enumerate(train_data_loader):
 
-      # add batch to GPU
       batch = tuple(t.to(device) for t in batch)
       batch_inputs, batch_masks, batch_labels = batch
       optimizer.zero_grad()
@@ -183,38 +178,25 @@ def main():
     # evaluation starts here ...
     #
 
-    # put model in evaluation mode to evaluate loss on the validation set
     model.eval()
 
     eval_loss, eval_accuracy = 0, 0
     num_eval_steps, num_eval_examples = 0, 0
 
-    # evaluate data for one epoch
     for batch in dev_data_loader:
-
-      # add batch to GPU
       batch = tuple(t.to(device) for t in batch)
-
       batch_inputs, batch_masks, batch_labels = batch
 
       with torch.no_grad():
-        # forward pass; only logits returned since labels not provided
         [logits] = model(
           batch_inputs,
           token_type_ids=None,
           attention_mask=batch_masks)
 
-      # move logits and labels to CPU
       logits = logits.detach().cpu().numpy()
       label_ids = batch_labels.to('cpu').numpy()
 
-      # print('logits:', logits)
-      # print('label_ids:', label_ids)
-      # print('logits shape:', logits.shape)
-      # print('label_ids shape:', label_ids.shape)
-
       tmp_eval_accuracy = flat_accuracy(logits, label_ids)
-
       eval_accuracy += tmp_eval_accuracy
       num_eval_steps += 1
 
