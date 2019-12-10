@@ -39,7 +39,8 @@ class DTRData:
       'bert-base-uncased',
       do_lower_case=True)
 
-    for sub_dir, text_name, file_names in anafora.walk(self.xml_dir, self.xml_regex):
+    for sub_dir, text_name, file_names in \
+            anafora.walk(self.xml_dir, self.xml_regex):
       xml_path = os.path.join(self.xml_dir, sub_dir, file_names[0])
       ref_data = anafora.AnaforaData.from_file(xml_path)
 
@@ -55,7 +56,6 @@ class DTRData:
         left = text[start - self.context_size : start]
         right = text[end : end + self.context_size]
 
-        # context = '[CLS] ' + left + ' ES ' + event + ' EE ' + right + ' [SEP]'
         context = left + ' es ' + event + ' ee ' + right
         inputs.append(tokenizer.encode(context))
 
