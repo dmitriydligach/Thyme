@@ -9,8 +9,6 @@ from keras.preprocessing.sequence import pad_sequences
 
 import anafora
 
-max_len = 512
-
 label2int = {'BEFORE':0, 'OVERLAP':1, 'BEFORE/OVERLAP':2, 'AFTER':3}
 
 class DTRData:
@@ -21,13 +19,15 @@ class DTRData:
     xml_dir,
     text_dir,
     xml_regex,
-    context_size):
+    context_size,
+    max_length):
     """Constructor"""
 
     self.xml_dir = xml_dir
     self.text_dir = text_dir
     self.xml_regex = xml_regex
     self.context_size = context_size
+    self.max_length = max_length
 
   def __call__(self):
     """Make x, y etc."""
@@ -45,7 +45,7 @@ class DTRData:
       ref_data = anafora.AnaforaData.from_file(xml_path)
 
       text_path = os.path.join(self.text_dir, text_name)
-      text = open(text_path).read()
+      text = open(text_path).read().replace('\n', '')
 
       for event in ref_data.annotations.select_type('EVENT'):
         label = event.properties['DocTimeRel']
@@ -58,10 +58,11 @@ class DTRData:
 
         context = left + ' es ' + event + ' ee ' + right
         inputs.append(tokenizer.encode(context))
+        print(context)
 
     inputs = pad_sequences(
       inputs,
-      maxlen=max_len,
+      maxlen=self.max_length,
       dtype='long',
       truncating='post',
       padding='post')
@@ -86,5 +87,10 @@ if __name__ == "__main__":
   xml_regex = cfg.get('data', 'xml_regex')
   context_size = cfg.getint('args', 'context_size')
 
-  dtr_data = DTRData(xml_dir, text_dir, xml_regex, context_size)
+  dtr_data = DTRData(
+    xml_dir,
+    text_dir,
+    xml_regex,
+    cfg.getint('args', 'context_size'),
+    cfg.getint('bert', 'max_len'))
   inputs, labels, masks = dtr_data()

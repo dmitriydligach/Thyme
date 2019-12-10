@@ -24,10 +24,6 @@ from dtrdata import DTRData
 def performance_metrics(preds, labels):
   """Report performance metrics"""
 
-  predictions = np.argmax(preds, axis=1).flatten()
-  f1 = f1_score(labels, predictions, average='macro')
-  print('macro f1:', f1)
-
   f1 = f1_score(labels, predictions, average=None)
   for index, f1 in enumerate(f1):
     print(index, "->", f1)
@@ -36,7 +32,7 @@ def flat_accuracy(preds, labels):
   """Calculate the accuracy of our predictions vs labels"""
 
   predictions = np.argmax(preds, axis=1).flatten()
-  f1 = f1_score(labels, predictions, average='macro')
+  f1 = f1_score(labels, predictions, average='micro')
 
   return f1
 
@@ -44,7 +40,6 @@ def make_data_loaders():
   """DataLoader(s) for train and dev sets"""
 
   xml_regex = cfg.get('data', 'xml_regex')
-  context_size = cfg.getint('args', 'context_size')
 
   train_xml_dir = os.path.join(base, cfg.get('data', 'train_xml'))
   train_text_dir = os.path.join(base, cfg.get('data', 'train_text'))
@@ -56,12 +51,14 @@ def make_data_loaders():
     train_xml_dir,
     train_text_dir,
     xml_regex,
-    context_size)
+    cfg.getint('args', 'context_size'),
+    cfg.getint('bert', 'max_len'))
   dev_data = DTRData(
     dev_xml_dir,
     dev_text_dir,
     xml_regex,
-    context_size)
+    cfg.getint('args', 'context_size'),
+    cfg.getint('bert', 'max_len'))
 
   train_inputs, train_labels, train_masks = train_data()
   dev_inputs, dev_labels, dev_masks = dev_data()
