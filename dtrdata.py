@@ -11,6 +11,8 @@ import anafora
 
 label2int = {'BEFORE':0, 'OVERLAP':1, 'BEFORE/OVERLAP':2, 'AFTER':3}
 
+# TODO: All questions  es were answ ee ered.
+
 class DTRData:
   """Make x and y from raw data"""
 
@@ -45,7 +47,7 @@ class DTRData:
       ref_data = anafora.AnaforaData.from_file(xml_path)
 
       text_path = os.path.join(self.text_dir, text_name)
-      text = open(text_path).read().replace('\n', '')
+      text = open(text_path).read()
 
       for event in ref_data.annotations.select_type('EVENT'):
         label = event.properties['DocTimeRel']
@@ -57,7 +59,7 @@ class DTRData:
         right = text[end : end + self.context_size]
 
         context = left + ' es ' + event + ' ee ' + right
-        inputs.append(tokenizer.encode(context))
+        inputs.append(tokenizer.encode(context.replace('\n', '')))
 
     inputs = pad_sequences(
       inputs,
