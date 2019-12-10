@@ -5,9 +5,9 @@ sys.dont_write_bytecode = True
 
 import torch
 
-from transformers import BertConfig, AdamW
+from transformers import BertConfig, AdamW, get_linear_schedule_with_warmup
 from transformers import BertForSequenceClassification
-from transformers import get_linear_schedule_with_warmup as WarmupLinearSchedule
+
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
 
 from tqdm import tqdm, trange
@@ -21,43 +21,18 @@ import glob, os, logging, configparser
 
 from dtrdata import DTRData
 
-logging.getLogger("transformers.configuration_utils").setLevel(logging.ERROR)
-logging.getLogger("transformers.modeling_utils").setLevel(logging.ERROR)
-logging.getLogger("transformers.tokenization_utils").setLevel(logging.ERROR)
-
-# settings
-gpu_num = 0
-max_len = 512
-batch_size = 8
-epochs = 4
-
-# scheduler
-lr = 1e-3
-max_grad_norm = 1.0
-num_total_steps = 1000
-num_warmup_steps = 100
-warmup_proportion = float(num_warmup_steps) / float(num_total_steps)
-
 def performance_metrics(preds, labels):
   """Report performance metrics"""
-
-  predictions = np.argmax(preds, axis=1).flatten()
-  f1 = f1_score(labels, predictions, average='macro')
-  print('macro f1:', f1)
 
   f1 = f1_score(labels, predictions, average=None)
   for index, f1 in enumerate(f1):
     print(index, "->", f1)
 
-def flat_accuracy(preds, labels):
+def f1_micro(preds, labels):
   """Calculate the accuracy of our predictions vs labels"""
 
-  # pred_flat = np.argmax(preds, axis=1).flatten()
-  # labels_flat = labels.flatten()
-  # return np.sum(pred_flat == labels_flat) / len(labels_flat)
-
   predictions = np.argmax(preds, axis=1).flatten()
-  f1 = f1_score(labels, predictions, average='macro')
+  f1 = f1_score(labels, predictions, average='micro')
 
   return f1
 
@@ -65,7 +40,6 @@ def make_data_loaders():
   """DataLoader(s) for train and dev sets"""
 
   xml_regex = cfg.get('data', 'xml_regex')
-  context_size = cfg.getint('args', 'context_size')
 
   train_xml_dir = os.path.join(base, cfg.get('data', 'train_xml'))
   train_text_dir = os.path.join(base, cfg.get('data', 'train_text'))
@@ -77,12 +51,14 @@ def make_data_loaders():
     train_xml_dir,
     train_text_dir,
     xml_regex,
-    context_size)
+    cfg.getint('args', 'context_size'),
+    cfg.getint('bert', 'max_len'))
   dev_data = DTRData(
     dev_xml_dir,
     dev_text_dir,
     xml_regex,
-    context_size)
+    cfg.getint('args', 'context_size'),
+    cfg.getint('bert', 'max_len'))
 
   train_inputs, train_labels, train_masks = train_data()
   dev_inputs, dev_labels, dev_masks = dev_data()
@@ -105,11 +81,11 @@ def make_data_loaders():
   train_data_loader = DataLoader(
     train_data,
     sampler=train_sampler,
-    batch_size=batch_size)
+    batch_size=cfg.getint('bert', 'batch_size'))
   dev_data_loader = DataLoader(
     dev_data,
     sampler=dev_sampler,
-    batch_size=batch_size)
+    batch_size=cfg.getint('bert', 'batch_size'))
 
   return train_data_loader, dev_data_loader
 
@@ -122,30 +98,32 @@ def main():
   print('device:', device)
 
   model = BertForSequenceClassification.from_pretrained(
-    "bert-base-uncased",
+    'bert-base-uncased',
     num_labels=4)
   if torch.cuda.is_available():
     model.cuda()
   else:
     model.cpu()
 
-  param_optimizer = list(model.named_parameters())
-  no_decay = ['bias', 'gamma', 'beta']
+  # Prepare optimizer and schedule (linear warmup and decay)
+  no_decay = ['bias', 'LayerNorm.weight']
   optimizer_grouped_parameters = [
-    {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)],
-     'weight_decay_rate': 0.01},
-    {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)],
-     'weight_decay_rate': 0.0}]
-
-  # this variable contains all of the hyperparemeter information
-  optimizer = AdamW(optimizer_grouped_parameters, lr=2e-5)
-  scheduler = WarmupLinearSchedule(
+      {'params': [p for n, p in model.named_parameters() \
+        if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
+      {'params': [p for n, p in model.named_parameters() \
+        if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}]
+  optimizer = AdamW(
+    optimizer_grouped_parameters,
+    lr=cfg.getfloat('bert', 'lr'),
+    eps=1e-8)
+  scheduler = get_linear_schedule_with_warmup(
     optimizer,
-    num_warmup_steps=num_warmup_steps,
-    num_training_steps=num_total_steps)
+    num_warmup_steps=100,
+    num_training_steps=1000)
 
   # training loop
-  for epoch in trange(epochs, desc="epoch"):
+  for epoch in trange(cfg.getint('bert', 'num_epochs'), desc='epoch'):
+
     model.train()
 
     train_loss, num_train_examples, num_train_steps = 0, 0, 0
@@ -164,7 +142,7 @@ def main():
 
       loss.backward()
 
-      torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
+      torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
       optimizer.step()
       scheduler.step()
 
@@ -196,7 +174,7 @@ def main():
       logits = logits.detach().cpu().numpy()
       label_ids = batch_labels.to('cpu').numpy()
 
-      tmp_eval_accuracy = flat_accuracy(logits, label_ids)
+      tmp_eval_accuracy = f1_micro(logits, label_ids)
       eval_accuracy += tmp_eval_accuracy
       num_eval_steps += 1
 
