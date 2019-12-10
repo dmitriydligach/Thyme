@@ -28,7 +28,7 @@ def performance_metrics(preds, labels):
   for index, f1 in enumerate(f1):
     print(index, "->", f1)
 
-def flat_accuracy(preds, labels):
+def f1_micro(preds, labels):
   """Calculate the accuracy of our predictions vs labels"""
 
   predictions = np.argmax(preds, axis=1).flatten()
@@ -174,7 +174,7 @@ def main():
       logits = logits.detach().cpu().numpy()
       label_ids = batch_labels.to('cpu').numpy()
 
-      tmp_eval_accuracy = flat_accuracy(logits, label_ids)
+      tmp_eval_accuracy = f1_micro(logits, label_ids)
       eval_accuracy += tmp_eval_accuracy
       num_eval_steps += 1
 

@@ -58,7 +58,6 @@ class DTRData:
 
         context = left + ' es ' + event + ' ee ' + right
         inputs.append(tokenizer.encode(context))
-        print(context)
 
     inputs = pad_sequences(
       inputs,
