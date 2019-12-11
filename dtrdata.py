@@ -21,14 +21,14 @@ class DTRData:
     xml_dir,
     text_dir,
     xml_regex,
-    context_size,
+    context_chars,
     max_length):
     """Constructor"""
 
     self.xml_dir = xml_dir
     self.text_dir = text_dir
     self.xml_regex = xml_regex
-    self.context_size = context_size
+    self.context_chars = context_chars
     self.max_length = max_length
 
   def __call__(self):
@@ -54,9 +54,9 @@ class DTRData:
         labels.append(label2int[label])
 
         start, end = event.spans[0]
-        event = text[start:end]
-        left = text[start - self.context_size : start]
-        right = text[end : end + self.context_size]
+        event = text[start:end] # should be end+1?
+        left = text[start - self.context_chars : start]
+        right = text[end : end + self.context_chars]
 
         context = left + ' es ' + event + ' ee ' + right
         inputs.append(tokenizer.encode(context.replace('\n', '')))
@@ -68,12 +68,10 @@ class DTRData:
       truncating='post',
       padding='post')
 
-    # create attention masks
-    masks = []
-    for seq in inputs:
-      # use 1s for tokens and 0s for padding
-      seq_mask = [float(i > 0) for i in seq]
-      masks.append(seq_mask)
+    masks = [] # attention masks
+    for sequence in inputs:
+      mask = [float(value > 0) for value in sequence]
+      masks.append(mask)
 
     return inputs, labels, masks
 
@@ -86,12 +84,12 @@ if __name__ == "__main__":
   xml_dir = os.path.join(base, cfg.get('data', 'dev_xml'))
   text_dir = os.path.join(base, cfg.get('data', 'dev_text'))
   xml_regex = cfg.get('data', 'xml_regex')
-  context_size = cfg.getint('args', 'context_size')
+  context_chars = cfg.getint('args', 'context_chars')
 
   dtr_data = DTRData(
     xml_dir,
     text_dir,
     xml_regex,
-    cfg.getint('args', 'context_size'),
+    cfg.getint('args', 'context_chars'),
     cfg.getint('bert', 'max_len'))
   inputs, labels, masks = dtr_data()

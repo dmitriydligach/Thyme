@@ -51,13 +51,13 @@ def make_data_loaders():
     train_xml_dir,
     train_text_dir,
     xml_regex,
-    cfg.getint('args', 'context_size'),
+    cfg.getint('args', 'context_chars'),
     cfg.getint('bert', 'max_len'))
   dev_data = DTRData(
     dev_xml_dir,
     dev_text_dir,
     xml_regex,
-    cfg.getint('args', 'context_size'),
+    cfg.getint('args', 'context_chars'),
     cfg.getint('bert', 'max_len'))
 
   train_inputs, train_labels, train_masks = train_data()
