@@ -201,7 +201,7 @@ def main():
 
     batch_logits = logits.detach().cpu().numpy()
     batch_labels = batch_labels.to('cpu').numpy()
-    batch_preds = np.argmax(logits, axis=1).flatten()
+    batch_preds = np.argmax(batch_logits, axis=1).flatten()
 
     labels.extend(batch_labels.tolist())
     predictions.extend(batch_preds.tolist())
