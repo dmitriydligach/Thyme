@@ -178,7 +178,38 @@ def main():
       eval_accuracy += tmp_eval_accuracy
       num_eval_steps += 1
 
-    print("validation accuracy: {}\n".format(eval_accuracy/num_eval_steps))
+    print('validation accuracy: {}\n'.format(eval_accuracy/num_eval_steps))
+
+  #
+  # Evaluate trained model
+  #
+
+  model.eval()
+
+  labels = []
+  predictions = []
+
+  for batch in dev_data_loader:
+    batch = tuple(t.to(device) for t in batch)
+    batch_inputs, batch_masks, batch_labels = batch
+
+    with torch.no_grad():
+      [logits] = model(
+        batch_inputs,
+        token_type_ids=None,
+        attention_mask=batch_masks)
+
+    batch_logits = logits.detach().cpu().numpy()
+    batch_labels = batch_labels.to('cpu').numpy()
+    batch_preds = np.argmax(logits, axis=1).flatten()
+
+    labels.extend(batch_labels.tolist())
+    predictions.extend(batch_preds.tolist())
+
+  print('labels:', len(labels))
+  print('predictions:', len(predictions))
+  f1 = f1_score(labels, predictions, average='micro')
+  print('final eval micro f1:', f1)
 
 if __name__ == "__main__":
 
