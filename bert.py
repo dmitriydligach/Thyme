@@ -182,7 +182,7 @@ def main():
 
     print("epoch: {}, loss: {}".format(epoch, train_loss/num_train_steps))
 
-  evaluate(model, data_loader, device)
+  evaluate(model, dev_data_loader, device)
 
 if __name__ == "__main__":
 
