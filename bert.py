@@ -21,21 +21,6 @@ import glob, os, logging, configparser
 
 from dtrdata import DTRData
 
-def performance_metrics(preds, labels):
-  """Report performance metrics"""
-
-  f1 = f1_score(labels, predictions, average=None)
-  for index, f1 in enumerate(f1):
-    print(index, "->", f1)
-
-def f1_micro(preds, labels):
-  """Calculate the accuracy of our predictions vs labels"""
-
-  predictions = np.argmax(preds, axis=1).flatten()
-  f1 = f1_score(labels, predictions, average='micro')
-
-  return f1
-
 def make_data_loaders():
   """DataLoader(s) for train and dev sets"""
 
@@ -65,16 +50,13 @@ def make_data_loaders():
 
   train_inputs = torch.tensor(train_inputs)
   dev_inputs = torch.tensor(dev_inputs)
-
   train_labels = torch.tensor(train_labels)
   dev_labels = torch.tensor(dev_labels)
-
   train_masks = torch.tensor(train_masks)
   dev_masks = torch.tensor(dev_masks)
 
   train_data = TensorDataset(train_inputs, train_masks, train_labels)
   dev_data = TensorDataset(dev_inputs, dev_masks, dev_labels)
-
   train_sampler = RandomSampler(train_data)
   dev_sampler = SequentialSampler(dev_data)
 
@@ -89,35 +71,39 @@ def make_data_loaders():
 
   return train_data_loader, dev_data_loader
 
+def performance_metrics(labels, predictions):
+  """Report performance metrics"""
+
+  f1_micro = f1_score(labels, predictions, average='micro')
+  print('f1[micro] = %.3f' % f1_micro)
+
+  f1 = f1_score(labels, predictions, average=None)
+  for index, f1 in enumerate(f1):
+    print('f1[%s] = %.3f' % (dtrdata.int2label[index], f1))
+
 def evaluate(model, data_loader, device):
   """Model evaluation"""
 
   model.eval()
 
-  labels = []
-  predictions = []
+  all_labels = []
+  all_predictions = []
 
   for batch in data_loader:
     batch = tuple(t.to(device) for t in batch)
     batch_inputs, batch_masks, batch_labels = batch
 
     with torch.no_grad():
-      [logits] = model(
-        batch_inputs,
-        # token_type_ids=None,
-        attention_mask=batch_masks)
+      [logits] = model(batch_inputs, attention_mask=batch_masks)
 
     batch_logits = logits.detach().cpu().numpy()
     batch_labels = batch_labels.to('cpu').numpy()
-    batch_preds = np.argmax(batch_logits, axis=1) #.flatten()
+    batch_preds = np.argmax(batch_logits, axis=1)
 
-    labels.extend(batch_labels.tolist())
-    predictions.extend(batch_preds.tolist())
+    all_labels.extend(batch_labels.tolist())
+    all_predictions.extend(batch_preds.tolist())
 
-  print('labels:', len(labels))
-  print('predictions:', len(predictions))
-  f1 = f1_score(labels, predictions, average='micro')
-  print('final eval micro f1:', f1)
+  performance_metrics(all_labels, all_predictions)
 
 def main():
   """Fine-tune bert"""
@@ -151,9 +137,7 @@ def main():
     num_warmup_steps=100,
     num_training_steps=1000)
 
-  # training loop
   for epoch in trange(cfg.getint('bert', 'num_epochs'), desc='epoch'):
-
     model.train()
 
     train_loss, num_train_examples, num_train_steps = 0, 0, 0
@@ -166,12 +150,10 @@ def main():
 
       loss, logits = model(
         batch_inputs,
-        token_type_ids=None,
         attention_mask=batch_masks,
         labels=batch_labels)
 
       loss.backward()
-
       torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
       optimizer.step()
       scheduler.step()
@@ -180,7 +162,7 @@ def main():
       num_train_examples += batch_inputs.size(0)
       num_train_steps += 1
 
-    print("epoch: {}, loss: {}".format(epoch, train_loss/num_train_steps))
+    print('epoch: %d, loss: %.4f' % (epoch, train_loss / num_train_steps))
 
   evaluate(model, dev_data_loader, device)
 

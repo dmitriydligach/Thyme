@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 
-import os, sys, configparser
+import sys
+sys.dont_write_bytecode = True
 sys.path.append('./Anafora')
+
+import os, configparser
 
 from transformers import BertTokenizer
 
@@ -10,6 +13,7 @@ from keras.preprocessing.sequence import pad_sequences
 import anafora
 
 label2int = {'BEFORE':0, 'OVERLAP':1, 'BEFORE/OVERLAP':2, 'AFTER':3}
+int2label = {0:'BEFORE', 1:'OVERLAP', 2:'BEFORE/OVERLAP', 3:'AFTER'}
 
 # TODO: All questions  es were answ ee ered.
 
@@ -93,3 +97,7 @@ if __name__ == "__main__":
     cfg.getint('args', 'context_chars'),
     cfg.getint('bert', 'max_len'))
   inputs, labels, masks = dtr_data()
+
+  print('inputs shape:', inputs.shape)
+  print('number of labels:', len(labels))
+  print('number of masks:', len(masks))
