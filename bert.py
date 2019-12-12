@@ -19,7 +19,7 @@ from sklearn.metrics import recall_score
 import numpy as np
 import glob, os, logging, configparser
 
-from dtrdata import DTRData
+import dtrdata
 
 def make_data_loaders():
   """DataLoader(s) for train and dev sets"""
@@ -32,13 +32,13 @@ def make_data_loaders():
   dev_xml_dir = os.path.join(base, cfg.get('data', 'dev_xml'))
   dev_text_dir = os.path.join(base, cfg.get('data', 'dev_text'))
 
-  train_data = DTRData(
+  train_data = dtrdata.DTRData(
     train_xml_dir,
     train_text_dir,
     xml_regex,
     cfg.getint('args', 'context_chars'),
     cfg.getint('bert', 'max_len'))
-  dev_data = DTRData(
+  dev_data = dtrdata.DTRData(
     dev_xml_dir,
     dev_text_dir,
     xml_regex,

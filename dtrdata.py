@@ -98,6 +98,10 @@ if __name__ == "__main__":
     cfg.getint('bert', 'max_len'))
   inputs, labels, masks = dtr_data()
 
+  print('inputs:\n', inputs[:2])
+  print('labels:\n', labels[:2])
+  print('masks:\n', masks[:2])
+
   print('inputs shape:', inputs.shape)
   print('number of labels:', len(labels))
   print('number of masks:', len(masks))
