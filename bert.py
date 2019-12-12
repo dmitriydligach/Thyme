@@ -89,6 +89,36 @@ def make_data_loaders():
 
   return train_data_loader, dev_data_loader
 
+def evaluate(model, data_loader, device):
+  """Model evaluation"""
+
+  model.eval()
+
+  labels = []
+  predictions = []
+
+  for batch in data_loader:
+    batch = tuple(t.to(device) for t in batch)
+    batch_inputs, batch_masks, batch_labels = batch
+
+    with torch.no_grad():
+      [logits] = model(
+        batch_inputs,
+        # token_type_ids=None,
+        attention_mask=batch_masks)
+
+    batch_logits = logits.detach().cpu().numpy()
+    batch_labels = batch_labels.to('cpu').numpy()
+    batch_preds = np.argmax(batch_logits, axis=1) #.flatten()
+
+    labels.extend(batch_labels.tolist())
+    predictions.extend(batch_preds.tolist())
+
+  print('labels:', len(labels))
+  print('predictions:', len(predictions))
+  f1 = f1_score(labels, predictions, average='micro')
+  print('final eval micro f1:', f1)
+
 def main():
   """Fine-tune bert"""
 
@@ -152,64 +182,7 @@ def main():
 
     print("epoch: {}, loss: {}".format(epoch, train_loss/num_train_steps))
 
-    #
-    # evaluation starts here ...
-    #
-
-    model.eval()
-
-    eval_loss, eval_accuracy = 0, 0
-    num_eval_steps, num_eval_examples = 0, 0
-
-    for batch in dev_data_loader:
-      batch = tuple(t.to(device) for t in batch)
-      batch_inputs, batch_masks, batch_labels = batch
-
-      with torch.no_grad():
-        [logits] = model(
-          batch_inputs,
-          token_type_ids=None,
-          attention_mask=batch_masks)
-
-      logits = logits.detach().cpu().numpy()
-      label_ids = batch_labels.to('cpu').numpy()
-
-      tmp_eval_accuracy = f1_micro(logits, label_ids)
-      eval_accuracy += tmp_eval_accuracy
-      num_eval_steps += 1
-
-    print('validation accuracy: {}\n'.format(eval_accuracy/num_eval_steps))
-
-  #
-  # Evaluate trained model
-  #
-
-  model.eval()
-
-  labels = []
-  predictions = []
-
-  for batch in dev_data_loader:
-    batch = tuple(t.to(device) for t in batch)
-    batch_inputs, batch_masks, batch_labels = batch
-
-    with torch.no_grad():
-      [logits] = model(
-        batch_inputs,
-        token_type_ids=None,
-        attention_mask=batch_masks)
-
-    batch_logits = logits.detach().cpu().numpy()
-    batch_labels = batch_labels.to('cpu').numpy()
-    batch_preds = np.argmax(batch_logits, axis=1).flatten()
-
-    labels.extend(batch_labels.tolist())
-    predictions.extend(batch_preds.tolist())
-
-  print('labels:', len(labels))
-  print('predictions:', len(predictions))
-  f1 = f1_score(labels, predictions, average='micro')
-  print('final eval micro f1:', f1)
+  evaluate(model, data_loader, device)
 
 if __name__ == "__main__":
 
