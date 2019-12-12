@@ -2,7 +2,7 @@
 
 import sys
 sys.dont_write_bytecode = True
-sys.path.append('./Anafora')
+sys.path.append('../Anafora')
 
 import os, configparser
 
@@ -25,15 +25,13 @@ class DTRData:
     xml_dir,
     text_dir,
     xml_regex,
-    context_chars,
-    max_length):
+    context_chars):
     """Constructor"""
 
     self.xml_dir = xml_dir
     self.text_dir = text_dir
     self.xml_regex = xml_regex
     self.context_chars = context_chars
-    self.max_length = max_length
 
   def __call__(self):
     """Make x, y etc."""
@@ -63,21 +61,10 @@ class DTRData:
         right = text[end : end + self.context_chars]
 
         context = left + ' es ' + event + ' ee ' + right
-        inputs.append(tokenizer.encode(context))
+        tokens = tokenizer.tokenize(context.replace('\n', ''))
+        inputs.append(' '.join(tokens))
 
-    inputs = pad_sequences(
-      inputs,
-      maxlen=self.max_length,
-      dtype='long',
-      truncating='post',
-      padding='post')
-
-    masks = [] # attention masks
-    for sequence in inputs:
-      mask = [float(value > 0) for value in sequence]
-      masks.append(mask)
-
-    return inputs, labels, masks
+    return inputs, labels
 
 if __name__ == "__main__":
 
@@ -96,12 +83,10 @@ if __name__ == "__main__":
     xml_regex,
     cfg.getint('args', 'context_chars'),
     cfg.getint('bert', 'max_len'))
-  inputs, labels, masks = dtr_data()
+  inputs, labels = dtr_data()
 
   print('inputs:\n', inputs[:2])
   print('labels:\n', labels[:2])
-  print('masks:\n', masks[:2])
 
-  print('inputs shape:', inputs.shape)
+  print('number of inputs:', len(inputs))
   print('number of labels:', len(labels))
-  print('number of masks:', len(masks))
