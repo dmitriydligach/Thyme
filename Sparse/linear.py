@@ -66,7 +66,7 @@ def get_data():
   x_train, y_train = train_data()
   x_dev, y_dev = dev_data()
 
-  vectorizer = TfidfVectorizer(tokenizer=tokenizer, token_pattern=None)
+  vectorizer = TfidfVectorizer(tokenizer=tokenizer, token_pattern=None, ngram_range=(1, 3))
   x_train = vectorizer.fit_transform(x_train)
   x_dev = vectorizer.transform(x_dev)
 
