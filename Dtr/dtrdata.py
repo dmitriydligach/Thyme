@@ -15,6 +15,8 @@ import anafora
 label2int = {'BEFORE':0, 'OVERLAP':1, 'BEFORE/OVERLAP':2, 'AFTER':3}
 int2label = {0:'BEFORE', 1:'OVERLAP', 2:'BEFORE/OVERLAP', 3:'AFTER'}
 
+# TODO: does bert have ee and es in its vocabulary?
+
 class DTRData:
   """Make x and y from raw data"""
 
@@ -61,7 +63,7 @@ class DTRData:
         right = text[end : end + self.context_chars]
 
         context = left + ' es ' + event + ' ee ' + right
-        inputs.append(tokenizer.encode(context.replace('\n', '')))
+        inputs.append(tokenizer.encode(context))
 
     inputs = pad_sequences(
       inputs,
