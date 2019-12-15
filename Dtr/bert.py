@@ -21,7 +21,7 @@ import glob, os, logging, configparser
 
 import dtrdata
 
-def make_data_loaders():
+def make_data_loaders_depreciated():
   """DataLoader(s) for train and dev sets"""
 
   xml_regex = cfg.get('data', 'xml_regex')
@@ -105,10 +105,33 @@ def evaluate(model, data_loader, device):
 
   performance_metrics(all_labels, all_predictions)
 
+def make_data_loader(xml_dir, text_dir, sampler=RandomSampler):
+  """DataLoader objects for train or dev/test sets"""
+
+  dtr_data = dtrdata.DTRData(
+    xml_dir,
+    text_dir,
+    cfg.get('data', 'xml_regex'),
+    cfg.getint('args', 'context_chars'),
+    cfg.getint('bert', 'max_len'))
+  inputs, labels, masks = dtr_data()
+
+  inputs = torch.tensor(inputs)
+  labels = torch.tensor(labels)
+  masks = torch.tensor(masks)
+
+  tensor_dataset = TensorDataset(inputs, masks, labels)
+  rnd_or_seq_sampler = sampler(tensor_dataset)
+
+  data_loader = DataLoader(
+    tensor_dataset,
+    sampler=rnd_or_seq_sampler,
+    batch_size=cfg.getint('bert', 'batch_size'))
+
+  return data_loader
+
 def main():
   """Fine-tune bert"""
-
-  train_data_loader, dev_data_loader = make_data_loaders()
 
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
   print('device:', device)
@@ -121,7 +144,7 @@ def main():
   else:
     model.cpu()
 
-  # Prepare optimizer and schedule (linear warmup and decay)
+  # this is still a mystery to me
   no_decay = ['bias', 'LayerNorm.weight']
   optimizer_grouped_parameters = [
       {'params': [p for n, p in model.named_parameters() \
@@ -136,6 +159,11 @@ def main():
     optimizer,
     num_warmup_steps=100,
     num_training_steps=1000)
+
+  train_data_loader = make_data_loader(
+    os.path.join(base, cfg.get('data', 'train_xml')),
+    os.path.join(base, cfg.get('data', 'train_text')),
+    sampler=RandomSampler)
 
   for epoch in trange(cfg.getint('bert', 'num_epochs'), desc='epoch'):
     model.train()
@@ -163,6 +191,11 @@ def main():
       num_train_steps += 1
 
     print('epoch: %d, loss: %.4f' % (epoch, train_loss / num_train_steps))
+
+  dev_data_loader = make_data_loader(
+    os.path.join(base, cfg.get('data', 'dev_xml')),
+    os.path.join(base, cfg.get('data', 'dev_text')),
+    sampler=SequentialSampler)
 
   evaluate(model, dev_data_loader, device)
 
