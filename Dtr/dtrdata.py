@@ -47,6 +47,7 @@ class DTRData:
 
     for sub_dir, text_name, file_names in \
             anafora.walk(self.xml_dir, self.xml_regex):
+            
       xml_path = os.path.join(self.xml_dir, sub_dir, file_names[0])
       ref_data = anafora.AnaforaData.from_file(xml_path)
 
