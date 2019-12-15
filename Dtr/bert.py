@@ -21,56 +21,6 @@ import glob, os, logging, configparser
 
 import dtrdata
 
-def make_data_loaders_depreciated():
-  """DataLoader(s) for train and dev sets"""
-
-  xml_regex = cfg.get('data', 'xml_regex')
-
-  train_xml_dir = os.path.join(base, cfg.get('data', 'train_xml'))
-  train_text_dir = os.path.join(base, cfg.get('data', 'train_text'))
-
-  dev_xml_dir = os.path.join(base, cfg.get('data', 'dev_xml'))
-  dev_text_dir = os.path.join(base, cfg.get('data', 'dev_text'))
-
-  train_data = dtrdata.DTRData(
-    train_xml_dir,
-    train_text_dir,
-    xml_regex,
-    cfg.getint('args', 'context_chars'),
-    cfg.getint('bert', 'max_len'))
-  dev_data = dtrdata.DTRData(
-    dev_xml_dir,
-    dev_text_dir,
-    xml_regex,
-    cfg.getint('args', 'context_chars'),
-    cfg.getint('bert', 'max_len'))
-
-  train_inputs, train_labels, train_masks = train_data()
-  dev_inputs, dev_labels, dev_masks = dev_data()
-
-  train_inputs = torch.tensor(train_inputs)
-  dev_inputs = torch.tensor(dev_inputs)
-  train_labels = torch.tensor(train_labels)
-  dev_labels = torch.tensor(dev_labels)
-  train_masks = torch.tensor(train_masks)
-  dev_masks = torch.tensor(dev_masks)
-
-  train_data = TensorDataset(train_inputs, train_masks, train_labels)
-  dev_data = TensorDataset(dev_inputs, dev_masks, dev_labels)
-  train_sampler = RandomSampler(train_data)
-  dev_sampler = SequentialSampler(dev_data)
-
-  train_data_loader = DataLoader(
-    train_data,
-    sampler=train_sampler,
-    batch_size=cfg.getint('bert', 'batch_size'))
-  dev_data_loader = DataLoader(
-    dev_data,
-    sampler=dev_sampler,
-    batch_size=cfg.getint('bert', 'batch_size'))
-
-  return train_data_loader, dev_data_loader
-
 def performance_metrics(labels, predictions):
   """Report performance metrics"""
 
