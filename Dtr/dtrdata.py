@@ -125,15 +125,10 @@ if __name__ == "__main__":
   cfg.read(sys.argv[1])
   base = os.environ['DATA_ROOT']
 
-  xml_dir = os.path.join(base, cfg.get('data', 'dev_xml'))
-  text_dir = os.path.join(base, cfg.get('data', 'dev_text'))
-  xml_regex = cfg.get('data', 'xml_regex')
-  context_chars = cfg.getint('args', 'context_chars')
-
   dtr_data = DTRData(
-    xml_dir,
-    text_dir,
-    xml_regex,
+    os.path.join(base, cfg.get('data', 'dev_xml')),
+    os.path.join(base, cfg.get('data', 'dev_text')),
+    cfg.get('data', 'xml_regex'),
     cfg.get('data', 'out_dir'),
     cfg.getint('args', 'context_chars'),
     cfg.getint('bert', 'max_len'))
