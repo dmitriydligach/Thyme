@@ -15,10 +15,6 @@ import anafora
 label2int = {'BEFORE':0, 'OVERLAP':1, 'BEFORE/OVERLAP':2, 'AFTER':3}
 int2label = {0:'BEFORE', 1:'OVERLAP', 2:'BEFORE/OVERLAP', 3:'AFTER'}
 
-# TODO: check xml regex in reader
-# TODO: does bert have ee and es in its vocabulary?
-# TODO: python -m anafora.evaluate -r ../thymedata/coloncancer/Dev/ -p ../systemdata/coloncancer/Dev/ -x "(?i).*clin.*Temp.*[.]xml$"
-
 class DTRData:
   """Make x and y from raw data"""
 
