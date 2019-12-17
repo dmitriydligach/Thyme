@@ -57,16 +57,9 @@ def evaluate(model, data_loader, device):
 
   return all_predictions
 
-def make_data_loader(xml_dir, text_dir, sampler=RandomSampler):
+def make_data_loader(dtr_data, sampler=RandomSampler):
   """DataLoader objects for train or dev/test sets"""
 
-  dtr_data = dtrdata.DTRData(
-    xml_dir,
-    text_dir,
-    cfg.get('data', 'xml_regex'),
-    cfg.get('data', 'out_dir'),
-    cfg.getint('args', 'context_chars'),
-    cfg.getint('bert', 'max_len'))
   inputs, labels, masks = dtr_data.read()
 
   inputs = torch.tensor(inputs)
@@ -87,7 +80,6 @@ def main():
   """Fine-tune bert"""
 
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-  print('device:', device)
 
   model = BertForSequenceClassification.from_pretrained(
     'bert-base-uncased',
@@ -113,17 +105,22 @@ def main():
     num_warmup_steps=100,
     num_training_steps=1000)
 
-  train_data_loader = make_data_loader(
+  train_data = dtrdata.DTRData(
     os.path.join(base, cfg.get('data', 'train_xml')),
     os.path.join(base, cfg.get('data', 'train_text')),
-    sampler=RandomSampler)
+    cfg.get('data', 'xml_regex'),
+    cfg.get('data', 'out_dir'),
+    cfg.getint('args', 'context_chars'),
+    cfg.getint('bert', 'max_len'))
+
+  train_loader = make_data_loader(train_data, sampler=RandomSampler)
 
   for epoch in trange(cfg.getint('bert', 'num_epochs'), desc='epoch'):
     model.train()
 
     train_loss, num_train_examples, num_train_steps = 0, 0, 0
 
-    for step, batch in enumerate(train_data_loader):
+    for step, batch in enumerate(train_loader):
 
       batch = tuple(t.to(device) for t in batch)
       batch_inputs, batch_masks, batch_labels = batch
@@ -145,22 +142,16 @@ def main():
 
     print('epoch: %d, loss: %.4f' % (epoch, train_loss / num_train_steps))
 
-  dev_data_loader = make_data_loader(
-    os.path.join(base, cfg.get('data', 'dev_xml')),
-    os.path.join(base, cfg.get('data', 'dev_text')),
-    sampler=SequentialSampler)
-
-  predictions = evaluate(model, dev_data_loader, device)
-
-  # ugly hacky stuff
-
-  dtr_data = dtrdata.DTRData(
+  dev_data = dtrdata.DTRData(
     os.path.join(base, cfg.get('data', 'dev_xml')),
     os.path.join(base, cfg.get('data', 'dev_text')),
     cfg.get('data', 'xml_regex'),
     cfg.get('data', 'out_dir'),
     cfg.getint('args', 'context_chars'),
     cfg.getint('bert', 'max_len'))
+
+  dev_loader = make_data_loader(dev_data, sampler=SequentialSampler)
+  predictions = evaluate(model, dev_data_loader, device)
   dtr_data.write(predictions)
 
 if __name__ == "__main__":
