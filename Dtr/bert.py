@@ -154,7 +154,7 @@ def main():
 
   # ugly hacky stuff
 
-  dtr_data = DTRData(
+  dtr_data = dtrdata.DTRData(
     os.path.join(base, cfg.get('data', 'dev_xml')),
     os.path.join(base, cfg.get('data', 'dev_text')),
     cfg.get('data', 'xml_regex'),
