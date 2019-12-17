@@ -55,6 +55,8 @@ def evaluate(model, data_loader, device):
 
   performance_metrics(all_labels, all_predictions)
 
+  return all_predictions
+
 def make_data_loader(xml_dir, text_dir, sampler=RandomSampler):
   """DataLoader objects for train or dev/test sets"""
 
@@ -62,9 +64,10 @@ def make_data_loader(xml_dir, text_dir, sampler=RandomSampler):
     xml_dir,
     text_dir,
     cfg.get('data', 'xml_regex'),
+    cfg.get('data', 'out_dir'),
     cfg.getint('args', 'context_chars'),
     cfg.getint('bert', 'max_len'))
-  inputs, labels, masks = dtr_data()
+  inputs, labels, masks = dtr_data.read()
 
   inputs = torch.tensor(inputs)
   labels = torch.tensor(labels)
@@ -147,7 +150,18 @@ def main():
     os.path.join(base, cfg.get('data', 'dev_text')),
     sampler=SequentialSampler)
 
-  evaluate(model, dev_data_loader, device)
+  predictions = evaluate(model, dev_data_loader, device)
+
+  # ugly hacky stuff
+
+  dtr_data = DTRData(
+    os.path.join(base, cfg.get('data', 'dev_xml')),
+    os.path.join(base, cfg.get('data', 'dev_text')),
+    cfg.get('data', 'xml_regex'),
+    cfg.get('data', 'out_dir'),
+    cfg.getint('args', 'context_chars'),
+    cfg.getint('bert', 'max_len'))
+  dtr_data.write(predictions)
 
 if __name__ == "__main__":
 
