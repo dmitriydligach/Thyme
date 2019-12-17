@@ -151,7 +151,7 @@ def main():
     cfg.getint('bert', 'max_len'))
 
   dev_loader = make_data_loader(dev_data, sampler=SequentialSampler)
-  predictions = evaluate(model, dev_data_loader, device)
+  predictions = evaluate(model, dev_loader, device)
   dtr_data.write(predictions)
 
 if __name__ == "__main__":
