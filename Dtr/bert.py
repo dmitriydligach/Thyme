@@ -152,7 +152,7 @@ def main():
 
   dev_loader = make_data_loader(dev_data, sampler=SequentialSampler)
   predictions = evaluate(model, dev_loader, device)
-  dtr_data.write(predictions)
+  dev_data.write(predictions)
 
 if __name__ == "__main__":
 
