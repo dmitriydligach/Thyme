@@ -40,6 +40,7 @@ class DTRData:
     type_system = load_typesystem(type_system_file)
 
     for xmi_path in glob.glob(self.xmi_dir + '*.xmi'):
+      print(xmi_path)
 
       xmi_file = open(xmi_path, 'rb')
       cas = load_cas_from_xmi(xmi_file, typesystem=type_system)

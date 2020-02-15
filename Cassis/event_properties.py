@@ -3,7 +3,7 @@
 from cassis import *
 
 type_system_path = './TypeSystem.xml'
-xmi_path = '/Users/Dima/Loyola/Data/Thyme/Xmi/ID078_clinic_230.xmi'
+xmi_path = '/Users/Dima/Loyola/Data/Thyme/Xmi/ID130_clinic_381.xmi'
 event_type = 'org.apache.ctakes.typesystem.type.textsem.EventMention'
 sent_type = 'org.apache.ctakes.typesystem.type.textspan.Sentence'
 
