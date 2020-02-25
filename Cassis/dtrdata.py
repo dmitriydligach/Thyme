@@ -19,9 +19,10 @@ sent_type = 'org.apache.ctakes.typesystem.type.textspan.Sentence'
 class DTRData:
   """Make x and y from raw data"""
 
-  def __init__(self, xmi_dir, out_dir, max_length):
+  def __init__(self, type_system, xmi_dir, out_dir, max_length):
     """Constructor"""
 
+    self.type_system = type_system
     self.xmi_dir = xmi_dir
     self.out_dir = out_dir
     self.max_length = max_length
@@ -36,12 +37,10 @@ class DTRData:
       'bert-base-uncased',
       do_lower_case=True)
 
-    type_system_file = open(cfg.get('data', 'type_system'), 'rb')
+    type_system_file = open(self.type_system, 'rb')
     type_system = load_typesystem(type_system_file)
 
     for xmi_path in glob.glob(self.xmi_dir + '*.xmi'):
-      print(xmi_path)
-
       xmi_file = open(xmi_path, 'rb')
       cas = load_cas_from_xmi(xmi_file, typesystem=type_system)
 
@@ -118,6 +117,7 @@ if __name__ == "__main__":
   base = os.environ['DATA_ROOT']
 
   dtr_data = DTRData(
+    cfg.get('data', 'type_system'),
     os.path.join(base, cfg.get('data', 'dev_xmi')),
     cfg.get('data', 'out_dir'),
     cfg.getint('bert', 'max_len'))
@@ -131,5 +131,5 @@ if __name__ == "__main__":
   print('number of labels:', len(labels))
   print('number of masks:', len(masks))
 
-  predictions = [label for label in labels]
-  dtr_data.write(predictions)
+  # predictions = [label for label in labels]
+  # dtr_data.write(predictions)
