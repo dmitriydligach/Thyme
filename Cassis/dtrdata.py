@@ -134,7 +134,7 @@ if __name__ == "__main__":
 
   dtr_data = DTRData(
     cfg.get('data', 'type_system'),
-    os.path.join(base, cfg.get('data', 'dev_xmi')),
+    os.path.join(base, cfg.get('data', 'xmi_dir')),
     cfg.get('data', 'out_dir'),
     cfg.getint('bert', 'max_len'),
     'train')

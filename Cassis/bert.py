@@ -107,7 +107,7 @@ def main():
 
   train_data = dtrdata.DTRData(
     cfg.get('data', 'type_system'),
-    os.path.join(base, cfg.get('data', 'dev_xmi')),
+    os.path.join(base, cfg.get('data', 'xmi_dir')),
     cfg.get('data', 'out_dir'),
     cfg.getint('bert', 'max_len'),
     'train')
@@ -143,7 +143,7 @@ def main():
 
   dev_data = dtrdata.DTRData(
     cfg.get('data', 'type_system'),
-    os.path.join(base, cfg.get('data', 'dev_xmi')),
+    os.path.join(base, cfg.get('data', 'xmi_dir')),
     cfg.get('data', 'out_dir'),
     cfg.getint('bert', 'max_len'),
     'dev')
