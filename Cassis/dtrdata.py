@@ -10,6 +10,11 @@ from keras.preprocessing.sequence import pad_sequences
 from cassis import *
 import anafora
 
+splits = {
+  'train': set([0,1,2,3]),
+  'dev': set([4,5]),
+  'test': set([6,7])}
+
 label2int = {'BEFORE':0, 'OVERLAP':1, 'BEFORE/OVERLAP':2, 'AFTER':3}
 int2label = {0:'BEFORE', 1:'OVERLAP', 2:'BEFORE/OVERLAP', 3:'AFTER'}
 
@@ -17,15 +22,22 @@ event_type = 'org.apache.ctakes.typesystem.type.textsem.EventMention'
 sent_type = 'org.apache.ctakes.typesystem.type.textspan.Sentence'
 
 class DTRData:
-  """Make x and y from raw data"""
+  """Make x and y from XMI files for train, dev, or test set"""
 
-  def __init__(self, type_system, xmi_dir, out_dir, max_length):
+  def __init__(
+    self,
+    type_system,
+    xmi_dir,
+    out_dir,
+    max_length,
+    partition):
     """Constructor"""
 
     self.type_system = type_system
     self.xmi_dir = xmi_dir
     self.out_dir = out_dir
     self.max_length = max_length
+    self.partition = partition
 
   def read(self):
     """Make x, y etc."""
@@ -41,6 +53,10 @@ class DTRData:
     type_system = load_typesystem(type_system_file)
 
     for xmi_path in glob.glob(self.xmi_dir + '*.xmi'):
+      id = int(xmi_path.split('/')[-1].split('_')[0][-3:])
+      if id % 8 not in splits[self.partition]:
+        continue
+
       xmi_file = open(xmi_path, 'rb')
       cas = load_cas_from_xmi(xmi_file, typesystem=type_system)
 
@@ -120,7 +136,8 @@ if __name__ == "__main__":
     cfg.get('data', 'type_system'),
     os.path.join(base, cfg.get('data', 'dev_xmi')),
     cfg.get('data', 'out_dir'),
-    cfg.getint('bert', 'max_len'))
+    cfg.getint('bert', 'max_len'),
+    'train')
   inputs, labels, masks = dtr_data.read()
 
   print('inputs:\n', inputs[:1])

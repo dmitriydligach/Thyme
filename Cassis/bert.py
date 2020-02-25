@@ -109,7 +109,8 @@ def main():
     cfg.get('data', 'type_system'),
     os.path.join(base, cfg.get('data', 'dev_xmi')),
     cfg.get('data', 'out_dir'),
-    cfg.getint('bert', 'max_len'))
+    cfg.getint('bert', 'max_len'),
+    'train')
 
   train_loader = make_data_loader(train_data, sampler=RandomSampler)
 
@@ -144,7 +145,8 @@ def main():
     cfg.get('data', 'type_system'),
     os.path.join(base, cfg.get('data', 'dev_xmi')),
     cfg.get('data', 'out_dir'),
-    cfg.getint('bert', 'max_len'))
+    cfg.getint('bert', 'max_len'),
+    'dev')
 
   dev_loader = make_data_loader(dev_data, sampler=SequentialSampler)
   predictions = evaluate(model, dev_loader, device)
