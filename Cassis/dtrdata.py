@@ -30,10 +30,14 @@ class DTRData:
     xmi_dir,
     out_dir,
     max_length,
-    partition):
+    partition,
+    xml_dir=None,
+    xml_regex=None):
     """Constructor"""
 
     self.type_system = type_system
+    self.xml_dir = xml_dir
+    self.xml_regex = xml_regex
     self.xmi_dir = xmi_dir
     self.out_dir = out_dir
     self.max_length = max_length
@@ -44,6 +48,7 @@ class DTRData:
 
     inputs = []
     labels = []
+    offsets = []
 
     tokenizer = BertTokenizer.from_pretrained(
       'bert-base-uncased',
@@ -76,6 +81,7 @@ class DTRData:
 
           inputs.append(tokenizer.encode(context.replace('\n', '')))
           labels.append(label2int[dtr_label])
+          offsets.append((xmi_path.split('/')[-1].split('.')[0], event.begin, event.end))
 
     inputs = pad_sequences(
       inputs,
@@ -89,12 +95,10 @@ class DTRData:
       mask = [float(value > 0) for value in sequence]
       masks.append(mask)
 
-    return inputs, labels, masks
+    return inputs, labels, masks, offsets
 
   def write(self, predictions):
     """Write predictions in anafora XML format"""
-
-    index = 0
 
     if os.path.isdir(self.out_dir):
       shutil.rmtree(self.out_dir)
@@ -109,13 +113,18 @@ class DTRData:
       data = anafora.AnaforaData()
 
       for event in ref_data.annotations.select_type('EVENT'):
-        entity = anafora.AnaforaEntity()
 
+        # make a new entity
+        entity = anafora.AnaforaEntity()
         entity.id = event.id
         start, end = event.spans[0]
         entity.spans = event.spans
         entity.type = event.type
-        entity.properties['DocTimeRel'] = int2label[predictions[index]]
+
+        # lookup the prediction
+        label = predictions[(sub_dir, start, end)]
+        print('looked up label:', label)
+        entity.properties['DocTimeRel'] = int2label[label]
 
         data.annotations.append(entity)
         index = index + 1
@@ -137,12 +146,13 @@ if __name__ == "__main__":
     os.path.join(base, cfg.get('data', 'xmi_dir')),
     cfg.get('data', 'out_dir'),
     cfg.getint('bert', 'max_len'),
-    'train')
-  inputs, labels, masks = dtr_data.read()
+    'dev')
+  inputs, labels, masks, offsets = dtr_data.read()
 
   print('inputs:\n', inputs[:1])
   print('labels:\n', labels[:5])
   print('masks:\n', masks[:1])
+  print('offsets:\n', offsets[:25])
 
   print('inputs shape:', inputs.shape)
   print('number of labels:', len(labels))

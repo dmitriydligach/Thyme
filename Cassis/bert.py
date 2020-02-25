@@ -38,10 +38,11 @@ def evaluate(model, data_loader, device):
 
   all_labels = []
   all_predictions = []
+  all_offsets = []
 
   for batch in data_loader:
     batch = tuple(t.to(device) for t in batch)
-    batch_inputs, batch_masks, batch_labels = batch
+    batch_inputs, batch_masks, batch_labels, batch_offsets = batch
 
     with torch.no_grad():
       [logits] = model(batch_inputs, attention_mask=batch_masks)
@@ -52,21 +53,23 @@ def evaluate(model, data_loader, device):
 
     all_labels.extend(batch_labels.tolist())
     all_predictions.extend(batch_preds.tolist())
+    all_offsets.extend(batch_offsets.tolist())
 
   performance_metrics(all_labels, all_predictions)
 
-  return all_predictions
+  return all_predictions, all_offsets
 
 def make_data_loader(dtr_data, sampler=RandomSampler):
   """DataLoader objects for train or dev/test sets"""
 
-  inputs, labels, masks = dtr_data.read()
+  inputs, labels, masks, offsets = dtr_data.read()
 
   inputs = torch.tensor(inputs)
   labels = torch.tensor(labels)
   masks = torch.tensor(masks)
+  offsets = torch.tensor(masks)
 
-  tensor_dataset = TensorDataset(inputs, masks, labels)
+  tensor_dataset = TensorDataset(inputs, masks, labels, offsets)
   rnd_or_seq_sampler = sampler(tensor_dataset)
 
   data_loader = DataLoader(
@@ -122,7 +125,7 @@ def main():
     for step, batch in enumerate(train_loader):
 
       batch = tuple(t.to(device) for t in batch)
-      batch_inputs, batch_masks, batch_labels = batch
+      batch_inputs, batch_masks, batch_labels, batch_offsets = batch
       optimizer.zero_grad()
 
       loss, logits = model(
@@ -146,11 +149,13 @@ def main():
     os.path.join(base, cfg.get('data', 'xmi_dir')),
     cfg.get('data', 'out_dir'),
     cfg.getint('bert', 'max_len'),
-    'dev')
+    'dev',
+    cfg.get('data', 'dev_xml'),
+    cfg.get('data', 'xml_regex'))
 
   dev_loader = make_data_loader(dev_data, sampler=SequentialSampler)
-  predictions = evaluate(model, dev_loader, device)
-  # dev_data.write(predictions)
+  predictions, offsets = evaluate(model, dev_loader, device)
+  dev_data.write(dict(zip(offsets, predictions)))
 
 if __name__ == "__main__":
 
