@@ -122,12 +122,14 @@ class DTRData:
         entity.type = event.type
 
         # lookup the prediction
+        if (sub_dir, start, end) not in predictions:
+          print('missing key:', (sub_dir, start, end))
+          continue
+        
         label = predictions[(sub_dir, start, end)]
-        print('looked up label:', label)
         entity.properties['DocTimeRel'] = int2label[label]
 
         data.annotations.append(entity)
-        index = index + 1
 
       os.mkdir(os.path.join(self.out_dir, sub_dir))
       out_path = os.path.join(self.out_dir, sub_dir, file_names[0])

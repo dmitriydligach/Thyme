@@ -147,7 +147,7 @@ def main():
     cfg.get('data', 'out_dir'),
     cfg.getint('bert', 'max_len'),
     'dev',
-    cfg.get('data', 'dev_xml'),
+    os.path.join(base, cfg.get('data', 'dev_xml')),
     cfg.get('data', 'xml_regex'))
 
   dev_loader, offsets = make_data_loader(dev_data, sampler=SequentialSampler)
