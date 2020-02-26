@@ -38,11 +38,10 @@ def evaluate(model, data_loader, device):
 
   all_labels = []
   all_predictions = []
-  all_offsets = []
 
   for batch in data_loader:
     batch = tuple(t.to(device) for t in batch)
-    batch_inputs, batch_masks, batch_labels, batch_offsets = batch
+    batch_inputs, batch_masks, batch_labels = batch
 
     with torch.no_grad():
       [logits] = model(batch_inputs, attention_mask=batch_masks)
@@ -53,11 +52,10 @@ def evaluate(model, data_loader, device):
 
     all_labels.extend(batch_labels.tolist())
     all_predictions.extend(batch_preds.tolist())
-    all_offsets.extend(batch_offsets.tolist())
 
   performance_metrics(all_labels, all_predictions)
 
-  return all_predictions, all_offsets
+  return all_predictions
 
 def make_data_loader(dtr_data, sampler=RandomSampler):
   """DataLoader objects for train or dev/test sets"""
@@ -67,9 +65,8 @@ def make_data_loader(dtr_data, sampler=RandomSampler):
   inputs = torch.tensor(inputs)
   labels = torch.tensor(labels)
   masks = torch.tensor(masks)
-  offsets = torch.tensor(masks)
 
-  tensor_dataset = TensorDataset(inputs, masks, labels, offsets)
+  tensor_dataset = TensorDataset(inputs, masks, labels)
   rnd_or_seq_sampler = sampler(tensor_dataset)
 
   data_loader = DataLoader(
@@ -77,7 +74,7 @@ def make_data_loader(dtr_data, sampler=RandomSampler):
     sampler=rnd_or_seq_sampler,
     batch_size=cfg.getint('bert', 'batch_size'))
 
-  return data_loader
+  return data_loader, offsets
 
 def main():
   """Fine-tune bert"""
@@ -115,7 +112,7 @@ def main():
     cfg.getint('bert', 'max_len'),
     'train')
 
-  train_loader = make_data_loader(train_data, sampler=RandomSampler)
+  train_loader, offsets = make_data_loader(train_data, sampler=RandomSampler)
 
   for epoch in trange(cfg.getint('bert', 'num_epochs'), desc='epoch'):
     model.train()
@@ -125,7 +122,7 @@ def main():
     for step, batch in enumerate(train_loader):
 
       batch = tuple(t.to(device) for t in batch)
-      batch_inputs, batch_masks, batch_labels, batch_offsets = batch
+      batch_inputs, batch_masks, batch_labels = batch
       optimizer.zero_grad()
 
       loss, logits = model(
@@ -153,8 +150,8 @@ def main():
     cfg.get('data', 'dev_xml'),
     cfg.get('data', 'xml_regex'))
 
-  dev_loader = make_data_loader(dev_data, sampler=SequentialSampler)
-  predictions, offsets = evaluate(model, dev_loader, device)
+  dev_loader, offsets = make_data_loader(dev_data, sampler=SequentialSampler)
+  predictions = evaluate(model, dev_loader, device)
   dev_data.write(dict(zip(offsets, predictions)))
 
 if __name__ == "__main__":
