@@ -105,21 +105,27 @@ class DTRData:
   def write(self, predictions):
     """Write predictions in anafora XML format"""
 
-    if os.path.isdir(self.out_dir):
-      shutil.rmtree(self.out_dir)
-    os.mkdir(self.out_dir)
+    # predictions are in the same order in which they were read
+    prediction_lookup = dict(zip(self.offsets, predictions))
 
+    # make a directory to write anafora xml
+    if os.path.isdir(self.xml_out_dir):
+      shutil.rmtree(self.xml_out_dir)
+    os.mkdir(self.xml_out_dir)
+
+    # iterate over reference xml files
+    # look up the DTR prediction for each event
+    # and write it in anafora format to specificed dir
     for sub_dir, text_name, file_names in \
-            anafora.walk(self.xml_dir, xml_regex):
+            anafora.walk(self.xml_ref_dir, xml_regex):
 
-      xml_path = os.path.join(self.xml_dir, sub_dir, file_names[0])
-      ref_data = anafora.AnaforaData.from_file(xml_path)
-
+      path = os.path.join(self.xml_ref_dir, sub_dir, file_names[0])
+      ref_data = anafora.AnaforaData.from_file(path)
       data = anafora.AnaforaData()
 
       for event in ref_data.annotations.select_type('EVENT'):
 
-        # make a new entity
+        # make a new entity and copy some ref info
         entity = anafora.AnaforaEntity()
         entity.id = event.id
         start, end = event.spans[0]
@@ -127,19 +133,18 @@ class DTRData:
         entity.type = event.type
 
         # lookup the prediction
-        if (sub_dir, start, end) not in predictions:
+        if (sub_dir, start, end) not in prediction_lookup:
           print('missing key:', (sub_dir, start, end))
           continue
 
-        label = predictions[(sub_dir, start, end)]
+        label = prediction_lookup[(sub_dir, start, end)]
         entity.properties['DocTimeRel'] = int2label[label]
 
         data.annotations.append(entity)
 
-      os.mkdir(os.path.join(self.out_dir, sub_dir))
-      out_path = os.path.join(self.out_dir, sub_dir, file_names[0])
-
       data.indent()
+      os.mkdir(os.path.join(self.xml_out_dir, sub_dir))
+      out_path = os.path.join(self.xml_out_dir, sub_dir, file_names[0])
       data.to_file(out_path)
 
 if __name__ == "__main__":

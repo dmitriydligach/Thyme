@@ -57,10 +57,10 @@ def evaluate(model, data_loader, device):
 
   return all_predictions
 
-def make_data_loader(dtr_data, sampler=RandomSampler):
+def make_data_loader(dtr_data, sampler):
   """DataLoader objects for train or dev/test sets"""
 
-  inputs, labels, masks, offsets = dtr_data.read()
+  inputs, labels, masks = dtr_data.read()
 
   inputs = torch.tensor(inputs)
   labels = torch.tensor(labels)
@@ -74,7 +74,7 @@ def make_data_loader(dtr_data, sampler=RandomSampler):
     sampler=rnd_or_seq_sampler,
     batch_size=cfg.getint('bert', 'batch_size'))
 
-  return data_loader, offsets
+  return data_loader
 
 def make_optimizer_and_scheduler(model):
   """This is still a mystery to me"""
@@ -98,26 +98,21 @@ def make_optimizer_and_scheduler(model):
 def main():
   """Fine-tune bert"""
 
-  device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
   model = BertForSequenceClassification.from_pretrained(
     'bert-base-uncased',
     num_labels=4)
+
   if torch.cuda.is_available():
+    device = torch.device('cuda')
     model.cuda()
   else:
+    device = torch.device('cpu')
     model.cpu()
 
   optimizer, scheduler = make_optimizer_and_scheduler(model)
 
-  train_data = dtrdata.DTRData(
-    cfg.get('data', 'type_system'),
-    os.path.join(base, cfg.get('data', 'xmi_dir')),
-    cfg.get('data', 'out_dir'),
-    cfg.getint('bert', 'max_len'),
-    'train')
-
-  train_loader, offsets = make_data_loader(train_data, sampler=RandomSampler)
+  train_data = dtrdata.DTRData(os.path.join(base, cfg.get('data', 'xmi_dir')))
+  train_loader = make_data_loader(train_data, RandomSampler)
 
   for epoch in trange(cfg.getint('bert', 'num_epochs'), desc='epoch'):
     model.train()
@@ -147,17 +142,15 @@ def main():
     print('epoch: %d, loss: %.4f' % (epoch, train_loss / num_train_steps))
 
   dev_data = dtrdata.DTRData(
-    cfg.get('data', 'type_system'),
     os.path.join(base, cfg.get('data', 'xmi_dir')),
-    cfg.get('data', 'out_dir'),
-    cfg.getint('bert', 'max_len'),
-    'dev',
-    os.path.join(base, cfg.get('data', 'dev_xml')),
-    cfg.get('data', 'xml_regex'))
+    partition='dev',
+    xml_ref_dir=os.path.join(base, cfg.get('data', 'ref_xml_dir')),
+    xml_out_dir=cfg.get('data', 'out_xml_dir'))
+  dev_loader = make_data_loader(dev_data, sampler=SequentialSampler)
 
-  dev_loader, offsets = make_data_loader(dev_data, sampler=SequentialSampler)
   predictions = evaluate(model, dev_loader, device)
-  dev_data.write(dict(zip(offsets, predictions)))
+
+  dev_data.write(predictions)
 
 if __name__ == "__main__":
 
