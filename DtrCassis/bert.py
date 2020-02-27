@@ -120,7 +120,6 @@ def main():
     train_loss, num_train_examples, num_train_steps = 0, 0, 0
 
     for step, batch in enumerate(train_loader):
-
       batch = tuple(t.to(device) for t in batch)
       batch_inputs, batch_masks, batch_labels = batch
       optimizer.zero_grad()
@@ -146,10 +145,9 @@ def main():
     partition='dev',
     xml_ref_dir=os.path.join(base, cfg.get('data', 'ref_xml_dir')),
     xml_out_dir=cfg.get('data', 'out_xml_dir'))
+
   dev_loader = make_data_loader(dev_data, sampler=SequentialSampler)
-
   predictions = evaluate(model, dev_loader, device)
-
   dev_data.write(predictions)
 
 if __name__ == "__main__":
