@@ -76,6 +76,25 @@ def make_data_loader(dtr_data, sampler=RandomSampler):
 
   return data_loader, offsets
 
+def make_optimizer_and_scheduler(model):
+  """This is still a mystery to me"""
+
+  no_decay = ['bias', 'LayerNorm.weight']
+  optimizer_grouped_parameters = [
+      {'params': [p for n, p in model.named_parameters() \
+        if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
+      {'params': [p for n, p in model.named_parameters() \
+        if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}]
+  optimizer = AdamW(
+    params=optimizer_grouped_parameters,
+    lr=cfg.getfloat('bert', 'lr'))
+  scheduler = get_linear_schedule_with_warmup(
+    optimizer,
+    num_warmup_steps=100,
+    num_training_steps=1000)
+
+  return optimizer, scheduler
+
 def main():
   """Fine-tune bert"""
 
@@ -89,21 +108,7 @@ def main():
   else:
     model.cpu()
 
-  # this is still a mystery to me
-  no_decay = ['bias', 'LayerNorm.weight']
-  optimizer_grouped_parameters = [
-      {'params': [p for n, p in model.named_parameters() \
-        if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
-      {'params': [p for n, p in model.named_parameters() \
-        if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}]
-  optimizer = AdamW(
-    optimizer_grouped_parameters,
-    lr=cfg.getfloat('bert', 'lr'),
-    eps=1e-8)
-  scheduler = get_linear_schedule_with_warmup(
-    optimizer,
-    num_warmup_steps=100,
-    num_training_steps=1000)
+  optimizer, scheduler = make_optimizer_and_scheduler(model)
 
   train_data = dtrdata.DTRData(
     cfg.get('data', 'type_system'),
