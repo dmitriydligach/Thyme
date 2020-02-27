@@ -10,6 +10,9 @@ from keras.preprocessing.sequence import pad_sequences
 from cassis import *
 import anafora
 
+type_system_path = './TypeSystem.xml'
+xml_regex = '.*[.]Temporal.*[.]xml'
+
 splits = {
   'train': set([0,1,2,3]),
   'dev': set([4,5]),
@@ -26,45 +29,44 @@ class DTRData:
 
   def __init__(
     self,
-    type_system,
     xmi_dir,
-    out_dir,
-    max_length,
-    partition,
-    xml_dir=None,
-    xml_regex=None):
+    partition='train',
+    xml_ref_dir=None,
+    xml_out_dir=None):
     """Constructor"""
 
-    self.type_system = type_system
-    self.xml_dir = xml_dir
-    self.xml_regex = xml_regex
     self.xmi_dir = xmi_dir
-    self.out_dir = out_dir
-    self.max_length = max_length
     self.partition = partition
+    self.xml_ref_dir = xml_ref_dir
+    self.xml_out_dir = xml_out_dir
+
+    # (note_id, begin, end) tuples
+    self.offsets = []
 
   def read(self):
     """Make x, y etc."""
 
     inputs = []
     labels = []
-    offsets = []
 
     tokenizer = BertTokenizer.from_pretrained(
       'bert-base-uncased',
       do_lower_case=True)
 
-    type_system_file = open(self.type_system, 'rb')
+    type_system_file = open(type_system_path, 'rb')
     type_system = load_typesystem(type_system_file)
 
+    # read xmi files and make instances to feed into bert
     for xmi_path in glob.glob(self.xmi_dir + '*.xmi'):
-      id = int(xmi_path.split('/')[-1].split('_')[0][-3:])
+      xmi_file_name = xmi_path.split('/')[-1]
+
+      # does this xmi belong to train, dev, or test?
+      id = int(xmi_file_name.split('_')[0][-3:])
       if id % 8 not in splits[self.partition]:
         continue
 
       xmi_file = open(xmi_path, 'rb')
       cas = load_cas_from_xmi(xmi_file, typesystem=type_system)
-
       gold_view = cas.get_view('GoldView')
       sys_view = cas.get_view('_InitialView')
 
@@ -78,14 +80,17 @@ class DTRData:
           left = sent_text[: event.begin - sentence.begin]
           right = sent_text[event.end - sentence.begin :]
           context = left + ' es ' + event_text + ' ee ' + right
+          context = context.replace('\n', '')
 
-          inputs.append(tokenizer.encode(context.replace('\n', '')))
+          inputs.append(tokenizer.encode(context))
           labels.append(label2int[dtr_label])
-          offsets.append((xmi_path.split('/')[-1].split('.')[0], event.begin, event.end))
+
+          note_name = xmi_file_name.split('.')[0]
+          self.offsets.append((note_name, event.begin, event.end))
 
     inputs = pad_sequences(
       inputs,
-      maxlen=self.max_length,
+      maxlen=128, # TODO: what is this???
       dtype='long',
       truncating='post',
       padding='post')
@@ -95,7 +100,7 @@ class DTRData:
       mask = [float(value > 0) for value in sequence]
       masks.append(mask)
 
-    return inputs, labels, masks, offsets
+    return inputs, labels, masks
 
   def write(self, predictions):
     """Write predictions in anafora XML format"""
@@ -105,7 +110,7 @@ class DTRData:
     os.mkdir(self.out_dir)
 
     for sub_dir, text_name, file_names in \
-            anafora.walk(self.xml_dir, self.xml_regex):
+            anafora.walk(self.xml_dir, xml_regex):
 
       xml_path = os.path.join(self.xml_dir, sub_dir, file_names[0])
       ref_data = anafora.AnaforaData.from_file(xml_path)
@@ -125,7 +130,7 @@ class DTRData:
         if (sub_dir, start, end) not in predictions:
           print('missing key:', (sub_dir, start, end))
           continue
-        
+
         label = predictions[(sub_dir, start, end)]
         entity.properties['DocTimeRel'] = int2label[label]
 
@@ -144,17 +149,18 @@ if __name__ == "__main__":
   base = os.environ['DATA_ROOT']
 
   dtr_data = DTRData(
-    cfg.get('data', 'type_system'),
     os.path.join(base, cfg.get('data', 'xmi_dir')),
-    cfg.get('data', 'out_dir'),
-    cfg.getint('bert', 'max_len'),
-    'dev')
-  inputs, labels, masks, offsets = dtr_data.read()
+    partition='dev',
+    xml_ref_dir=os.path.join(base, cfg.get('data', 'ref_xml_dir')),
+    xml_out_dir=cfg.get('data', 'out_xml_dir'))
+
+  inputs, labels, masks = dtr_data.read()
 
   print('inputs:\n', inputs[:1])
   print('labels:\n', labels[:5])
   print('masks:\n', masks[:1])
-  print('offsets:\n', offsets[:25])
+
+  print('offsets:\n', dtr_data.offsets[:50])
 
   print('inputs shape:', inputs.shape)
   print('number of labels:', len(labels))
