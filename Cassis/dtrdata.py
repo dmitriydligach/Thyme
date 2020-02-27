@@ -90,7 +90,7 @@ class DTRData:
 
     inputs = pad_sequences(
       inputs,
-      maxlen=128, # TODO: what is this???
+      maxlen=max([len(seq) for seq in inputs]),
       dtype='long',
       truncating='post',
       padding='post')
@@ -171,5 +171,5 @@ if __name__ == "__main__":
   print('number of labels:', len(labels))
   print('number of masks:', len(masks))
 
-  # predictions = [label for label in labels]
-  # dtr_data.write(predictions)
+  predictions = [label for label in labels]
+  dtr_data.write(predictions)
