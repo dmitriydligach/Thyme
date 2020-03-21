@@ -95,29 +95,33 @@ class RelData:
         for event in gold_view.select_covered(event_type, sentence):
           for time in gold_view.select_covered(time_type, sentence):
 
+            event_text = event.get_covered_text()
+            time_text = time.get_covered_text()
             label = 'none'
 
             if (time, event) in rel_lookup:
-              label = 'contains'
-              print('time-event:', rel_lookup[(time, event)])
+              label = rel_lookup[(time, event)]
+
+              if time.begin < event.begin:
+                left = sent_text[: time.begin - sentence.begin]
+                middle = sent_text[time.end - sentence.begin : event.begin - sentence.begin]
+                right = sent_text[event.end - sentence.begin :]
+                context = left + ' [ts] ' + time_text + ' [te] ' + \
+                          middle + ' [es] ' + event_text + ' [ee] ' + right
+                context = context.replace('\n', '')
+                print('context:', context)
+                print('sentence:', sent_text)
+                print('middle:', middle)
+                print()
 
             if (event, time) in rel_lookup:
-              label = 'contains-1'
-              print('event-time:', rel_lookup[(event, time)])
+              label = rel_lookup[(event, time)]
 
-            event_text = event.get_covered_text()
-            dtr_label = event.event.properties.docTimeRel
+            # inputs.append(tokenizer.encode(context))
+            # labels.append(label2int[dtr_label])
 
-            left = sent_text[: event.begin - sentence.begin]
-            right = sent_text[event.end - sentence.begin :]
-            context = left + ' es ' + event_text + ' ee ' + right
-            context = context.replace('\n', '')
-
-            inputs.append(tokenizer.encode(context))
-            labels.append(label2int[dtr_label])
-
-            note_name = xmi_file_name.split('.')[0]
-            self.offsets.append((note_name, event.begin, event.end))
+            # note_name = xmi_file_name.split('.')[0]
+            # self.offsets.append((note_name, event.begin, event.end))
 
     inputs = pad_sequences(
       inputs,
