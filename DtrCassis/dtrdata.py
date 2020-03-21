@@ -13,14 +13,17 @@ import anafora
 type_system_path = './TypeSystem.xml'
 xml_regex = '.*[.]Temporal.*[.]xml'
 
+# thyme official splits
 splits = {
   'train': set([0,1,2,3]),
   'dev': set([4,5]),
   'test': set([6,7])}
 
+# pytorch needs numeric labels
 label2int = {'BEFORE':0, 'OVERLAP':1, 'BEFORE/OVERLAP':2, 'AFTER':3}
 int2label = {0:'BEFORE', 1:'OVERLAP', 2:'BEFORE/OVERLAP', 3:'AFTER'}
 
+# full java path from type system file
 event_type = 'org.apache.ctakes.typesystem.type.textsem.EventMention'
 sent_type = 'org.apache.ctakes.typesystem.type.textspan.Sentence'
 
