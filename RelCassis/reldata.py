@@ -26,8 +26,22 @@ event_type = 'org.apache.ctakes.typesystem.type.textsem.EventMention'
 time_type = 'org.apache.ctakes.typesystem.type.textsem.TimeMention'
 sent_type = 'org.apache.ctakes.typesystem.type.textspan.Sentence'
 
+def index_relations(gold_view):
+  """Map arguments to relation types"""
+
+  rel_lookup = {}
+
+  for rel in gold_view.select(rel_type):
+    a1 = rel.arg1.argument
+    a2 = rel.arg2.argument
+
+    if rel.category == 'CONTAINS':
+      rel_lookup[(a1, a2)] = rel.category
+
+  return rel_lookup
+
 class RelData:
-  """Make x and y from XMI files for train, dev, or test set"""
+  """Make x and y from XMI files for train, dev, or test partition"""
 
   def __init__(
     self,
@@ -44,21 +58,6 @@ class RelData:
 
     # (note_id, begin, end) tuples
     self.offsets = []
-
-  def index_relations(self, gold_view):
-    """Map arguments to relation types"""
-
-    rel_lookup = {}
-
-    for rel in gold_view.select(rel_type):
-
-      a1 = rel.arg1.argument
-      a2 = rel.arg2.argument
-
-      if rel.category == 'CONTAINS':
-        rel_lookup[(a1, a2)] = rel.category
-
-    return rel_lookup
 
   def read(self):
     """Make x, y etc."""
@@ -77,7 +76,7 @@ class RelData:
     for xmi_path in glob.glob(self.xmi_dir + '*.xmi'):
       xmi_file_name = xmi_path.split('/')[-1]
 
-      # does this xmi belong to train, dev, or test?
+      # does this xmi belong to the right partition?
       id = int(xmi_file_name.split('_')[0][-3:])
       if id % 8 not in splits[self.partition]:
         continue
@@ -87,16 +86,24 @@ class RelData:
       gold_view = cas.get_view('GoldView')
       sys_view = cas.get_view('_InitialView')
 
-      rel_lookup = self.index_relations(gold_view)
+      rel_lookup = index_relations(gold_view)
 
+      # iterate over sentences, extracting relations
       for sentence in sys_view.select(sent_type):
         sent_text = sentence.get_covered_text()
 
         for event in gold_view.select_covered(event_type, sentence):
           for time in gold_view.select_covered(time_type, sentence):
 
+            label = 'none'
+
+            if (time, event) in rel_lookup:
+              label = 'contains'
+              print('time-event:', rel_lookup[(time, event)])
+
             if (event, time) in rel_lookup:
-              print('found relation:', rel_lookup[(event, time)])
+              label = 'contains-1'
+              print('event-time:', rel_lookup[(event, time)])
 
             event_text = event.get_covered_text()
             dtr_label = event.event.properties.docTimeRel
