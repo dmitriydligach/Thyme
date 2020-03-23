@@ -18,8 +18,8 @@ splits = {
   'dev': set([4,5]),
   'test': set([6,7])}
 
-label2int = {'BEFORE':0, 'OVERLAP':1, 'BEFORE/OVERLAP':2, 'AFTER':3}
-int2label = {0:'BEFORE', 1:'OVERLAP', 2:'BEFORE/OVERLAP', 3:'AFTER'}
+label2int = {'NONE':0, 'CONTAINS':1, 'CONTAINS-1':2}
+int2label = {0:'NONE', 1:'CONTAINS', 2:'CONTAINS-1'}
 
 # ctakes type system types
 rel_type = 'org.apache.ctakes.typesystem.type.relation.TemporalTextRelation'
@@ -120,24 +120,21 @@ class RelData:
         for event in gold_view.select_covered(event_type, sent):
           for time in gold_view.select_covered(time_type, sent):
 
-            event_text = event.get_covered_text()
-            time_text = time.get_covered_text()
-            label = 'none'
-
+            label = 'NONE'
             if (time, event) in rel_lookup:
               label = rel_lookup[(time, event)]
-
-              if time.begin < event.begin:
-                context = get_context(sys_view, sent, time, event, 't', 'e')
-                print(sent.get_covered_text())
-                print(context)
-                print()
-
             if (event, time) in rel_lookup:
-              label = rel_lookup[(event, time)]
+              label = rel_lookup[(event, time)] + '-1'
 
-            # inputs.append(tokenizer.encode(context))
-            # labels.append(label2int[dtr_label])
+            if time.begin < event.begin:
+              context = get_context(sys_view, sent, time, event, 't', 'e')
+            else:
+              context = get_context(sys_view, sent, event, time, 'e', 't')
+
+            print('%s|%s' % (label, context))
+
+            inputs.append(tokenizer.encode(context))
+            labels.append(label2int[label])
 
             # note_name = xmi_file_name.split('.')[0]
             # self.offsets.append((note_name, event.begin, event.end))
