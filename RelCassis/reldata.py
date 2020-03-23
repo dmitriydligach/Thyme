@@ -21,10 +21,14 @@ splits = {
 label2int = {'BEFORE':0, 'OVERLAP':1, 'BEFORE/OVERLAP':2, 'AFTER':3}
 int2label = {0:'BEFORE', 1:'OVERLAP', 2:'BEFORE/OVERLAP', 3:'AFTER'}
 
+# ctakes type system types
 rel_type = 'org.apache.ctakes.typesystem.type.relation.TemporalTextRelation'
 event_type = 'org.apache.ctakes.typesystem.type.textsem.EventMention'
 time_type = 'org.apache.ctakes.typesystem.type.textsem.TimeMention'
 sent_type = 'org.apache.ctakes.typesystem.type.textspan.Sentence'
+
+# use base token here to capture punctuation; cassis issue here?
+token_type = 'org.apache.ctakes.typesystem.type.syntax.WordToken'
 
 def index_relations(gold_view):
   """Map arguments to relation types"""
@@ -32,13 +36,35 @@ def index_relations(gold_view):
   rel_lookup = {}
 
   for rel in gold_view.select(rel_type):
-    a1 = rel.arg1.argument
-    a2 = rel.arg2.argument
+    arg1 = rel.arg1.argument
+    arg2 = rel.arg2.argument
 
     if rel.category == 'CONTAINS':
-      rel_lookup[(a1, a2)] = rel.category
+      rel_lookup[(arg1, arg2)] = rel.category
 
   return rel_lookup
+
+def get_context(sys_view, sent, larg, rarg, lmarker, rmarker):
+  """Build a context string using left and right arguments"""
+
+  sent_text = sent.get_covered_text()
+  left_text = larg.get_covered_text()
+  right_text = rarg.get_covered_text()
+
+  left_context = sent_text[: larg.begin - sent.begin]
+  middle_context = sent_text[larg.end - sent.begin : rarg.begin - sent.begin]
+  right_context = sent_text[rarg.end - sent.begin :]
+
+  left_start = ' [s%s] ' % lmarker
+  left_end = ' [e%s] ' % lmarker
+  right_start = ' [s%s] ' % rmarker
+  right_end = ' [e%s] ' % rmarker
+
+  context = left_context + left_start + left_text + left_end + \
+            middle_context + right_start + right_text + \
+            right_end + right_context
+
+  return context.replace('\n', '')
 
 class RelData:
   """Make x and y from XMI files for train, dev, or test partition"""
@@ -49,7 +75,7 @@ class RelData:
     partition='train',
     xml_ref_dir=None,
     xml_out_dir=None):
-    """Constructor"""
+    """Xml ref and out dirs would typically be given for a test set"""
 
     self.xmi_dir = xmi_dir
     self.partition = partition
@@ -59,7 +85,7 @@ class RelData:
     # (note_id, begin, end) tuples
     self.offsets = []
 
-  def read(self):
+  def read_partition(self):
     """Make x, y etc."""
 
     inputs = []
@@ -89,11 +115,10 @@ class RelData:
       rel_lookup = index_relations(gold_view)
 
       # iterate over sentences, extracting relations
-      for sentence in sys_view.select(sent_type):
-        sent_text = sentence.get_covered_text()
+      for sent in sys_view.select(sent_type):
 
-        for event in gold_view.select_covered(event_type, sentence):
-          for time in gold_view.select_covered(time_type, sentence):
+        for event in gold_view.select_covered(event_type, sent):
+          for time in gold_view.select_covered(time_type, sent):
 
             event_text = event.get_covered_text()
             time_text = time.get_covered_text()
@@ -103,15 +128,9 @@ class RelData:
               label = rel_lookup[(time, event)]
 
               if time.begin < event.begin:
-                left = sent_text[: time.begin - sentence.begin]
-                middle = sent_text[time.end - sentence.begin : event.begin - sentence.begin]
-                right = sent_text[event.end - sentence.begin :]
-                context = left + ' [ts] ' + time_text + ' [te] ' + \
-                          middle + ' [es] ' + event_text + ' [ee] ' + right
-                context = context.replace('\n', '')
-                print('context:', context)
-                print('sentence:', sent_text)
-                print('middle:', middle)
+                context = get_context(sys_view, sent, time, event, 't', 'e')
+                print(sent.get_covered_text())
+                print(context)
                 print()
 
             if (event, time) in rel_lookup:
@@ -149,7 +168,7 @@ if __name__ == "__main__":
     xml_ref_dir=os.path.join(base, cfg.get('data', 'ref_xml_dir')),
     xml_out_dir=cfg.get('data', 'out_xml_dir'))
 
-  inputs, labels, masks = dtr_data.read()
+  inputs, labels, masks = dtr_data.read_partition()
 
   print('inputs:\n', inputs[:1])
   print('labels:\n', labels[:5])
