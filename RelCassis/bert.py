@@ -24,12 +24,13 @@ import reldata
 def performance_metrics(labels, predictions):
   """Report performance metrics"""
 
-  f1_micro = f1_score(labels, predictions, average='micro')
-  print('f1[micro] = %.3f' % f1_micro)
-
   f1 = f1_score(labels, predictions, average=None)
   for index, f1 in enumerate(f1):
     print('f1[%s] = %.3f' % (reldata.int2label[index], f1))
+
+  ids = [reldata.label2int['CONTAINS'], reldata.label2int['CONTAINS-1']]
+  contains_f1 = f1_score(labels, predictions, labels=ids, average='micro')
+  print('f1[contains average] = %.3f' % contains_f1)
 
 def evaluate(model, data_loader, device):
   """Model evaluation"""
