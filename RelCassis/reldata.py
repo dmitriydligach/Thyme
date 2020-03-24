@@ -26,9 +26,10 @@ rel_type = 'org.apache.ctakes.typesystem.type.relation.TemporalTextRelation'
 event_type = 'org.apache.ctakes.typesystem.type.textsem.EventMention'
 time_type = 'org.apache.ctakes.typesystem.type.textsem.TimeMention'
 sent_type = 'org.apache.ctakes.typesystem.type.textspan.Sentence'
-
-# use base token here to capture punctuation; cassis issue here?
 token_type = 'org.apache.ctakes.typesystem.type.syntax.WordToken'
+
+# TODO: generating about 1/2 of the relations we need to generate?
+# TODO: use base token instead of word token to get punctuation
 
 def index_relations(gold_view):
   """Map arguments to relation types"""
@@ -45,7 +46,7 @@ def index_relations(gold_view):
   return rel_lookup
 
 def get_context(sys_view, sent, larg, rarg, lmarker, rmarker):
-  """Build a context string using left and right arguments"""
+  """Build a context string using left and right arguments and their markers"""
 
   sent_text = sent.get_covered_text()
   left_text = larg.get_covered_text()
@@ -86,7 +87,7 @@ class RelData:
     self.offsets = []
 
   def read_partition(self):
-    """Make x, y etc."""
+    """Make x, y etc. for a specified partition"""
 
     inputs = []
     labels = []
@@ -102,7 +103,7 @@ class RelData:
     for xmi_path in glob.glob(self.xmi_dir + '*.xmi'):
       xmi_file_name = xmi_path.split('/')[-1]
 
-      # does this xmi belong to the right partition?
+      # does this xmi belong to the sought partition?
       id = int(xmi_file_name.split('_')[0][-3:])
       if id % 8 not in splits[self.partition]:
         continue
@@ -131,11 +132,10 @@ class RelData:
             else:
               context = get_context(sys_view, sent, event, time, 'e', 't')
 
-            print('%s|%s' % (label, context))
-
             inputs.append(tokenizer.encode(context))
             labels.append(label2int[label])
 
+            # print('%s|%s' % (label, context))
             # note_name = xmi_file_name.split('.')[0]
             # self.offsets.append((note_name, event.begin, event.end))
 
@@ -167,7 +167,7 @@ if __name__ == "__main__":
 
   inputs, labels, masks = dtr_data.read_partition()
 
-  print('inputs:\n', inputs[:1])
+  print('inputs:\n', inputs[:2])
   print('labels:\n', labels[:5])
   print('masks:\n', masks[:1])
 
