@@ -100,7 +100,7 @@ def main():
 
   model = BertForSequenceClassification.from_pretrained(
     'bert-base-uncased',
-    num_labels=4)
+    num_labels=3)
 
   if torch.cuda.is_available():
     device = torch.device('cuda')
@@ -148,7 +148,7 @@ def main():
 
   dev_loader = make_data_loader(dev_data, sampler=SequentialSampler)
   predictions = evaluate(model, dev_loader, device)
-  dev_data.write(predictions)
+  # dev_data.write(predictions)
 
 if __name__ == "__main__":
 
