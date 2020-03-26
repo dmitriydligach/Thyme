@@ -86,7 +86,7 @@ class RelData:
     # (note_id, begin, end) tuples
     self.offsets = []
 
-  def read_partition(self):
+  def event_time_relations(self):
     """Make x, y etc. for a specified partition"""
 
     inputs = []
@@ -153,6 +153,75 @@ class RelData:
 
     return inputs, labels, masks
 
+  def event_event_relations(self):
+    """Make x, y etc. for a specified partition"""
+
+    inputs = []
+    labels = []
+
+    tokenizer = BertTokenizer.from_pretrained(
+      'bert-base-uncased',
+      do_lower_case=True)
+
+    type_system_file = open(type_system_path, 'rb')
+    type_system = load_typesystem(type_system_file)
+
+    # read xmi files and make instances to feed into bert
+    for xmi_path in glob.glob(self.xmi_dir + '*.xmi'):
+      xmi_file_name = xmi_path.split('/')[-1]
+
+      # does this xmi belong to the sought partition?
+      id = int(xmi_file_name.split('_')[0][-3:])
+      if id % 8 not in splits[self.partition]:
+        continue
+
+      xmi_file = open(xmi_path, 'rb')
+      cas = load_cas_from_xmi(xmi_file, typesystem=type_system)
+      gold_view = cas.get_view('GoldView')
+      sys_view = cas.get_view('_InitialView')
+
+      rel_lookup = index_relations(gold_view)
+
+      # iterate over sentences, extracting relations
+      for sent in sys_view.select(sent_type):
+
+        for event1 in gold_view.select_covered(event_type, sent):
+          for event2 in gold_view.select_covered(event_type, sent):
+
+            label = 'NONE'
+            if (event1, event2) in rel_lookup:
+              label = rel_lookup[(event1, event2)]
+            if (event2, event1) in rel_lookup:
+              label = rel_lookup[(event2, event1)] + '-1'
+
+            if event1.begin < event2.begin:
+              context = get_context(sys_view, sent, event1, event2, 'e1', 'e2')
+            else:
+              context = get_context(sys_view, sent, event2, event1, 'e2', 'e1')
+
+            if label != 'NONE': print(label + "|" + context)
+
+            inputs.append(tokenizer.encode(context))
+            labels.append(label2int[label])
+
+            # print('%s|%s' % (label, context))
+            # note_name = xmi_file_name.split('.')[0]
+            # self.offsets.append((note_name, event.begin, event.end))
+
+    inputs = pad_sequences(
+      inputs,
+      maxlen=max([len(seq) for seq in inputs]),
+      dtype='long',
+      truncating='post',
+      padding='post')
+
+    masks = [] # attention masks
+    for sequence in inputs:
+      mask = [float(value > 0) for value in sequence]
+      masks.append(mask)
+
+    return inputs, labels, masks
+
 if __name__ == "__main__":
 
   cfg = configparser.ConfigParser()
@@ -165,7 +234,7 @@ if __name__ == "__main__":
     xml_ref_dir=os.path.join(base, cfg.get('data', 'ref_xml_dir')),
     xml_out_dir=cfg.get('data', 'out_xml_dir'))
 
-  inputs, labels, masks = dtr_data.read_partition()
+  inputs, labels, masks = dtr_data.event_event_relations()
 
   print('inputs:\n', inputs[:2])
   print('labels:\n', labels[:5])
