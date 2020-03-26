@@ -4,7 +4,7 @@ import sys
 sys.dont_write_bytecode = True
 sys.path.append('../Anafora')
 
-import os, configparser, shutil, glob
+import os, configparser, shutil, glob, itertools
 from transformers import BertTokenizer
 from keras.preprocessing.sequence import pad_sequences
 from cassis import *
@@ -184,29 +184,27 @@ class RelData:
 
       # iterate over sentences, extracting relations
       for sent in sys_view.select(sent_type):
+        sent_events = gold_view.select_covered(event_type, sent)
 
-        for event1 in gold_view.select_covered(event_type, sent):
-          for event2 in gold_view.select_covered(event_type, sent):
+        for event1, event2 in itertools.combinations(sent_events, 2):
 
-            label = 'NONE'
-            if (event1, event2) in rel_lookup:
-              label = rel_lookup[(event1, event2)]
-            if (event2, event1) in rel_lookup:
-              label = rel_lookup[(event2, event1)] + '-1'
+          label = 'NONE'
+          if (event1, event2) in rel_lookup:
+            label = rel_lookup[(event1, event2)]
+          if (event2, event1) in rel_lookup:
+            label = rel_lookup[(event2, event1)] + '-1'
 
-            if event1.begin < event2.begin:
-              context = get_context(sys_view, sent, event1, event2, 'e1', 'e2')
-            else:
-              context = get_context(sys_view, sent, event2, event1, 'e2', 'e1')
+          if event1.begin < event2.begin:
+            context = get_context(sys_view, sent, event1, event2, 'e1', 'e2')
+          else:
+            context = get_context(sys_view, sent, event2, event1, 'e2', 'e1')
 
-            if label != 'NONE': print(label + "|" + context)
+          inputs.append(tokenizer.encode(context))
+          labels.append(label2int[label])
 
-            inputs.append(tokenizer.encode(context))
-            labels.append(label2int[label])
-
-            # print('%s|%s' % (label, context))
-            # note_name = xmi_file_name.split('.')[0]
-            # self.offsets.append((note_name, event.begin, event.end))
+          # print('%s|%s' % (label, context))
+          # note_name = xmi_file_name.split('.')[0]
+          # self.offsets.append((note_name, event.begin, event.end))
 
     inputs = pad_sequences(
       inputs,
