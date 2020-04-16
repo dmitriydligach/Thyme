@@ -58,10 +58,10 @@ def evaluate(model, data_loader, device):
 
   return all_predictions
 
-def make_data_loader(dtr_data, sampler):
+def make_data_loader(data_provider, sampler):
   """DataLoader objects for train or dev/test sets"""
 
-  inputs, labels, masks = dtr_data.read_partition()
+  inputs, labels, masks = data_provider.event_time_relations()
 
   inputs = torch.tensor(inputs)
   labels = torch.tensor(labels)
