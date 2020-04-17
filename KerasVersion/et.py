@@ -58,7 +58,10 @@ def get_model():
   sentence_encoding = tf.keras.layers.Dropout(0.1)(sentence_encoding)
 
   # Final output layer
-  outputs = tf.keras.layers.Dense(N_OUTPUTS, activation='sigmoid', name='outputs')(sentence_encoding)
+  outputs = tf.keras.layers.Dense(
+    len(reldata.label2int),
+    activation='sigmoid',
+    name='outputs')(sentence_encoding)
 
   # Define model
   model = tf.keras.Model(inputs=[token_inputs, mask_inputs, segment_inputs], outputs=[outputs])
@@ -87,7 +90,20 @@ def main():
   train_texts = to_inputs(train_texts)
 
   model = get_model()
-  model.fit(x=train_texts, y=train_labels, epochs=cfg.getint('data', 'num_epochs'))
+
+  model.compile(
+    optimizer=tf.keras.optimizers.Adam(
+      learning_rate=cfg.getfloat('bert', 'lr'),
+      epsilon=1e-08,
+      clipnorm=1.0),
+    loss=tf.keras.losses.SparseCategoricalCrossentropy(),
+    metrics=[tf.keras.metrics.SparseCategoricalAccuracy('accuracy')])
+
+  model.fit(
+    x=train_texts,
+    y=train_labels,
+    epochs=cfg.getint('bert', 'num_epochs'),
+    batch_size=cfg.getint('bert', 'batch_size'))
 
   dev_data = reldata.RelData(
     os.path.join(base, cfg.get('data', 'xmi_dir')),
