@@ -6,6 +6,7 @@ sys.path.append('../Anafora')
 
 import os, configparser, shutil, glob, itertools
 from cassis import *
+import numpy as np
 
 type_system_path = './TypeSystem.xml'
 
