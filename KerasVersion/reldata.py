@@ -118,7 +118,7 @@ class RelData:
             texts.append(context)
             labels.append(label2int[label])
 
-    return texts, labels
+    return texts, np.array(labels)
 
 if __name__ == "__main__":
 
