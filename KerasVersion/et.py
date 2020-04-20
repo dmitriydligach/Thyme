@@ -24,7 +24,7 @@ class BERT(transformers.TFBertModel):
 def to_inputs(texts, pad_token=0):
   """Converts texts into input matrices required by BERT"""
 
-  tokenizer = transformers.BertTokenizer.from_pretrained('bert-base-cased')
+  tokenizer = transformers.BertTokenizer.from_pretrained('bert-base-uncased')
 
   rows = [tokenizer.encode(text, add_special_tokens=True) for text in texts]
   shape = (len(rows), max(len(row) for row in rows))
@@ -48,7 +48,7 @@ def get_model():
   segment_inputs = tf.keras.Input(shape=(None,), name='segment_inputs', dtype='int32')
 
   # Load model and collect encodings
-  bert = BERT.from_pretrained('bert-base-cased')
+  bert = BERT.from_pretrained('bert-base-uncased')
   token_encodings = bert([token_inputs, mask_inputs, segment_inputs])[0]
 
   # Keep only [CLS] token encoding
@@ -90,7 +90,6 @@ def main():
   train_texts = to_inputs(train_texts)
 
   model = get_model()
-
   model.compile(
     optimizer=tf.keras.optimizers.Adam(
       learning_rate=cfg.getfloat('bert', 'lr'),
@@ -98,7 +97,6 @@ def main():
       clipnorm=1.0),
     loss=tf.keras.losses.SparseCategoricalCrossentropy(),
     metrics=[tf.keras.metrics.SparseCategoricalAccuracy('accuracy')])
-
   model.fit(
     x=train_texts,
     y=train_labels,
@@ -111,7 +109,8 @@ def main():
 
   dev_texts, dev_labels = dev_data.event_time_relations()
   dev_texts = to_inputs(dev_texts)
-  model.predict(dev_texts)
+  dev_predictions = model.predict(dev_texts)
+  performance_metrics(dev_labels, dev_predictions)
 
 if __name__ == "__main__":
 
