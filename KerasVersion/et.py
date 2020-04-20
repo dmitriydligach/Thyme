@@ -60,7 +60,7 @@ def get_model():
   # Final output layer
   outputs = tf.keras.layers.Dense(
     len(reldata.label2int),
-    activation='sigmoid',
+    activation='softmax',
     name='outputs')(sentence_encoding)
 
   # Define model
