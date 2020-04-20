@@ -110,6 +110,7 @@ def main():
   dev_texts, dev_labels = dev_data.event_time_relations()
   dev_texts = to_inputs(dev_texts)
   dev_predictions = model.predict(dev_texts)
+  dev_predictions = np.argmax(dev_predictions, axis=1)
   performance_metrics(dev_labels, dev_predictions)
 
 if __name__ == "__main__":
