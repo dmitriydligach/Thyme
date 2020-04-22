@@ -20,29 +20,12 @@ import glob, logging, configparser, transformers
 
 import reldata
 
-# required according to https://github.com/huggingface/transformers/issues/1350
 class BERT(transformers.TFBertModel):
+  """See https://github.com/huggingface/transformers/issues/1350"""
+
   def __init__(self, config, *inputs, **kwargs):
     super(BERT, self).__init__(config, *inputs, **kwargs)
     self.bert.call = tf.function(self.bert.call)
-
-def to_inputs(texts, pad_token=0):
-  """Converts texts into input matrices required by BERT"""
-
-  tokenizer = transformers.BertTokenizer.from_pretrained('bert-base-uncased')
-
-  rows = [tokenizer.encode(text, add_special_tokens=True) for text in texts]
-  shape = (len(rows), max(len(row) for row in rows))
-  token_ids = np.full(shape=shape, fill_value=pad_token)
-  is_token = np.zeros(shape=shape)
-
-  for i, row in enumerate(rows):
-    token_ids[i, :len(row)] = row
-    is_token[i, :len(row)] = 1
-
-  return dict(word_inputs=token_ids,
-              mask_inputs=is_token,
-              segment_inputs=np.zeros(shape=shape))
 
 def get_model():
   """Model definition"""
@@ -74,6 +57,24 @@ def get_model():
   model.summary()
   return model
 
+def to_inputs(texts, pad_token=0):
+  """Converts texts into input matrices required by BERT"""
+
+  tokenizer = transformers.BertTokenizer.from_pretrained('bert-base-uncased')
+
+  rows = [tokenizer.encode(text, add_special_tokens=True) for text in texts]
+  shape = (len(rows), max(len(row) for row in rows))
+  token_ids = np.full(shape=shape, fill_value=pad_token)
+  is_token = np.zeros(shape=shape)
+
+  for i, row in enumerate(rows):
+    token_ids[i, :len(row)] = row
+    is_token[i, :len(row)] = 1
+
+  return dict(word_inputs=token_ids,
+              mask_inputs=is_token,
+              segment_inputs=np.zeros(shape=shape))
+
 def performance_metrics(labels, predictions):
   """Report performance metrics"""
 
@@ -94,7 +95,7 @@ def main():
 
   train_texts, train_labels = train_data.event_time_relations()
   train_texts = to_inputs(train_texts)
-  print('train texts shape:', train_texts['word_inputs'].shape)
+  print('train text shape:', train_texts['word_inputs'].shape)
 
   model = get_model()
   model.compile(
