@@ -47,30 +47,31 @@ def to_inputs(texts, pad_token=0):
 def get_model():
   """Model definition"""
 
-  # Define inputs (token_ids, mask_ids, segment_ids)
+  # define inputs (token_ids, mask_ids, segment_ids)
   token_inputs = tf.keras.Input(shape=(None,), name='word_inputs', dtype='int32')
   mask_inputs = tf.keras.Input(shape=(None,), name='mask_inputs', dtype='int32')
   segment_inputs = tf.keras.Input(shape=(None,), name='segment_inputs', dtype='int32')
 
-  # Load model and collect encodings
+  # collect encodings (batch_size, seq_len, hidden_size=768)
   bert = BERT.from_pretrained('bert-base-uncased')
   token_encodings = bert([token_inputs, mask_inputs, segment_inputs])[0]
 
-  # Keep only [CLS] token encoding
+  # keep only [CLS] token encoding (batch_size, hidden_size=768)
   sentence_encoding = tf.squeeze(token_encodings[:, 0:1, :], axis=1)
 
-  # Apply dropout
+  # apply dropout
   sentence_encoding = tf.keras.layers.Dropout(0.1)(sentence_encoding)
 
-  # Final output layer
+  # final output layer
   outputs = tf.keras.layers.Dense(
     len(reldata.label2int),
     activation='softmax',
     name='outputs')(sentence_encoding)
 
-  # Define model
+  # define model
   model = tf.keras.Model(inputs=[token_inputs, mask_inputs, segment_inputs], outputs=[outputs])
 
+  model.summary()
   return model
 
 def performance_metrics(labels, predictions):
@@ -93,6 +94,7 @@ def main():
 
   train_texts, train_labels = train_data.event_time_relations()
   train_texts = to_inputs(train_texts)
+  print('train texts shape:', train_texts['word_inputs'].shape)
 
   model = get_model()
   model.compile(
