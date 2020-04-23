@@ -20,11 +20,11 @@ import glob, logging, configparser, transformers
 
 import reldata
 
-class BERT(transformers.TFBertModel):
+class Bert(transformers.TFBertModel):
   """See https://github.com/huggingface/transformers/issues/1350"""
 
   def __init__(self, config, *inputs, **kwargs):
-    super(BERT, self).__init__(config, *inputs, **kwargs)
+    super(Bert, self).__init__(config, *inputs, **kwargs)
     self.bert.call = tf.function(self.bert.call)
 
 def get_model():
@@ -36,7 +36,7 @@ def get_model():
   segment_inputs = tf.keras.Input(shape=(None,), name='segment_inputs', dtype='int32')
 
   # collect encodings (batch_size, seq_len, hidden_size=768)
-  bert = BERT.from_pretrained('bert-base-uncased')
+  bert = Bert.from_pretrained('bert-base-uncased')
   token_encodings = bert([token_inputs, mask_inputs, segment_inputs])[0]
 
   # keep only [CLS] token encoding (batch_size, hidden_size=768)
@@ -46,10 +46,7 @@ def get_model():
   sentence_encoding = tf.keras.layers.Dropout(0.1)(sentence_encoding)
 
   # final output layer
-  outputs = tf.keras.layers.Dense(
-    len(reldata.label2int),
-    activation='softmax',
-    name='outputs')(sentence_encoding)
+  outputs = tf.keras.layers.Dense(3, activation='softmax')(sentence_encoding)
 
   # define model
   model = tf.keras.Model(inputs=[token_inputs, mask_inputs, segment_inputs], outputs=[outputs])
