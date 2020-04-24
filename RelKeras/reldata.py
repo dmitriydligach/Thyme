@@ -86,7 +86,8 @@ class RelData:
     type_system_file = open(type_system_path, 'rb')
     type_system = load_typesystem(type_system_file)
 
-    for xmi_path in tqdm(glob.glob(self.xmi_dir + '*.xmi')[:]):
+    xmi_paths = glob.glob(self.xmi_dir + '*.xmi')[:]
+    for xmi_path in tqdm(xmi_paths, desc='reading data'):
 
       # does this xmi belong to the sought partition?
       xmi_file_name = xmi_path.split('/')[-1]
