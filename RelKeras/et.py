@@ -11,6 +11,7 @@ np.random.seed(1337)
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ['PYTHONHASHSEED'] = '0'
+os.environ['TF_DETERMINISTIC_OPS'] = '1'
 
 from sklearn.metrics import f1_score
 from sklearn.metrics import precision_score
