@@ -5,6 +5,7 @@ sys.dont_write_bytecode = True
 sys.path.append('../Anafora')
 
 import os, configparser, shutil, glob, itertools
+from tqdm import tqdm
 from cassis import *
 import numpy as np
 
@@ -85,7 +86,7 @@ class RelData:
     type_system_file = open(type_system_path, 'rb')
     type_system = load_typesystem(type_system_file)
 
-    for xmi_path in glob.glob(self.xmi_dir + '*.xmi')[:]:
+    for xmi_path in tqdm(glob.glob(self.xmi_dir + '*.xmi')[:]):
 
       # does this xmi belong to the sought partition?
       xmi_file_name = xmi_path.split('/')[-1]
