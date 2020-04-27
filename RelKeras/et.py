@@ -3,15 +3,17 @@
 import sys
 sys.dont_write_bytecode = True
 
+import random
+random.seed(12345)
 import numpy as np
+np.random.seed(12345)
 import tensorflow as tf
-tf.random.set_seed(42)
-np.random.seed(1337)
+tf.random.set_seed(12345)
 
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ['PYTHONHASHSEED'] = '0'
 os.environ['TF_DETERMINISTIC_OPS'] = '1'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 from sklearn.metrics import f1_score
 from sklearn.metrics import precision_score
