@@ -10,9 +10,12 @@ np.random.seed(12345)
 import tensorflow as tf
 tf.random.set_seed(12345)
 
+from tfdeterminism import patch
+patch()
+
 import os
 os.environ['PYTHONHASHSEED'] = '0'
-os.environ['TF_DETERMINISTIC_OPS'] = '1'
+os.environ['TF_DETERMINISTIC_OPS'] = '10'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 from sklearn.metrics import f1_score
