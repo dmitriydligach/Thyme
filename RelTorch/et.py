@@ -11,9 +11,7 @@ from transformers import BertTokenizer
 
 from torch.utils.data import TensorDataset, DataLoader
 from torch.utils.data import RandomSampler, SequentialSampler
-from keras.preprocessing.sequence import pad_sequences
 
-from tqdm import trange
 import numpy as np
 import os, configparser, reldata
 
@@ -29,32 +27,6 @@ def performance_metrics(labels, predictions):
   ids = [reldata.label2int['CONTAINS'], reldata.label2int['CONTAINS-1']]
   contains_f1 = f1_score(labels, predictions, labels=ids, average='micro')
   print('f1[contains average] = %.3f' % contains_f1)
-
-def evaluate(model, data_loader, device):
-  """Model evaluation"""
-
-  model.eval()
-
-  all_labels = []
-  all_predictions = []
-
-  for batch in data_loader:
-    batch = tuple(t.to(device) for t in batch)
-    batch_inputs, batch_masks, batch_labels = batch
-
-    with torch.no_grad():
-      [logits] = model(batch_inputs, attention_mask=batch_masks)
-
-    batch_logits = logits.detach().cpu().numpy()
-    batch_labels = batch_labels.to('cpu').numpy()
-    batch_preds = np.argmax(batch_logits, axis=1)
-
-    all_labels.extend(batch_labels.tolist())
-    all_predictions.extend(batch_preds.tolist())
-
-  performance_metrics(all_labels, all_predictions)
-
-  return all_predictions
 
 def to_inputs(texts, pad_token=0):
   """Converts texts into input matrices required by BERT"""
@@ -111,31 +83,13 @@ def make_optimizer_and_scheduler(model):
 
   return optimizer, scheduler
 
-def main():
-  """Fine-tune bert"""
-
-  model = BertForSequenceClassification.from_pretrained(
-    'bert-base-uncased',
-    num_labels=3)
-
-  if torch.cuda.is_available():
-    device = torch.device('cuda')
-    model.cuda()
-  else:
-    device = torch.device('cpu')
-    model.cpu()
+def train(model, train_loader, device):
+  """Training routine"""
 
   optimizer, scheduler = make_optimizer_and_scheduler(model)
 
-  train_data = reldata.RelData(
-    os.path.join(base, cfg.get('data', 'xmi_dir')),
-    partition='train')
-  texts, labels = train_data.event_time_relations()
-  train_loader = make_data_loader(texts, labels, RandomSampler)
-
-  for epoch in trange(cfg.getint('bert', 'num_epochs'), desc='epoch'):
+  for epoch in range(cfg.getint('bert', 'num_epochs')):
     model.train()
-
     train_loss, num_train_examples, num_train_steps = 0, 0, 0
 
     for batch in train_loader:
@@ -156,11 +110,60 @@ def main():
 
     print('epoch: %d, loss: %.4f' % (epoch, train_loss / num_train_steps))
 
+def evaluate(model, data_loader, device):
+  """Evaluation routine"""
+
+  model.eval()
+
+  all_labels = []
+  all_predictions = []
+
+  for batch in data_loader:
+    batch = tuple(t.to(device) for t in batch)
+    batch_inputs, batch_masks, batch_labels = batch
+
+    with torch.no_grad():
+      [logits] = model(batch_inputs, attention_mask=batch_masks)
+
+    batch_logits = logits.detach().cpu().numpy()
+    batch_labels = batch_labels.to('cpu').numpy()
+    batch_preds = np.argmax(batch_logits, axis=1)
+
+    all_labels.extend(batch_labels.tolist())
+    all_predictions.extend(batch_preds.tolist())
+
+  performance_metrics(all_labels, all_predictions)
+
+  return all_predictions
+
+def main():
+  """Fine-tune bert"""
+
+  model = BertForSequenceClassification.from_pretrained(
+    'bert-base-uncased',
+    num_labels=3)
+
+  if torch.cuda.is_available():
+    device = torch.device('cuda')
+    model.cuda()
+  else:
+    device = torch.device('cpu')
+    model.cpu()
+
+  train_data = reldata.RelData(
+    os.path.join(base, cfg.get('data', 'xmi_dir')),
+    partition='train')
+  texts, labels = train_data.event_time_relations()
+  train_loader = make_data_loader(texts, labels, RandomSampler)
+
+  train(model, train_loader, device)
+
   dev_data = reldata.RelData(
     os.path.join(base, cfg.get('data', 'xmi_dir')),
     partition='dev')
   texts, labels = dev_data.event_time_relations()
   dev_loader = make_data_loader(texts, labels, sampler=SequentialSampler)
+
   evaluate(model, dev_loader, device)
 
 if __name__ == "__main__":
