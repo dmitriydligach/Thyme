@@ -70,51 +70,18 @@ def to_inputs(texts, pad_token=0):
     token_ids[i, :len(row)] = row
     is_token[i, :len(row)] = 1
 
-  return token_ids, is_token, np.zeros(shape=shape)
+  token_ids = torch.tensor(token_ids)
+  is_token = torch.tensor(is_token)
+  segment_ids = torch.tensor(np.zeros(shape=shape))
+
+  return token_ids, is_token, segment_ids
 
 def make_data_loader(data_provider, sampler):
   """DataLoader objects for train or dev/test sets"""
 
   texts, labels = data_provider.event_time_relations()
-
   inputs, masks, _ = to_inputs(texts)
-
-  inputs = torch.tensor(inputs)
   labels = torch.tensor(labels)
-  masks = torch.tensor(masks)
-
-  tensor_dataset = TensorDataset(inputs, masks, labels)
-  rnd_or_seq_sampler = sampler(tensor_dataset)
-
-  data_loader = DataLoader(
-    tensor_dataset,
-    sampler=rnd_or_seq_sampler,
-    batch_size=cfg.getint('bert', 'batch_size'))
-
-  return data_loader
-
-def make_data_loader_old(data_provider, sampler):
-  """DataLoader objects for train or dev/test sets"""
-
-  texts, labels = data_provider.event_time_relations()
-
-  tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-
-  inputs = [tokenizer.encode(text) for text in texts]
-  inputs = pad_sequences(
-    inputs,
-    maxlen=max([len(seq) for seq in inputs]),
-    dtype='long',
-    truncating='post',
-    padding='post')
-  masks = []  # attention masks
-  for sequence in inputs:
-    mask = [float(value > 0) for value in sequence]
-    masks.append(mask)
-
-  inputs = torch.tensor(inputs)
-  labels = torch.tensor(labels)
-  masks = torch.tensor(masks)
 
   tensor_dataset = TensorDataset(inputs, masks, labels)
   rnd_or_seq_sampler = sampler(tensor_dataset)
