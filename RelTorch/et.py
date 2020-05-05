@@ -5,21 +5,19 @@ sys.dont_write_bytecode = True
 
 import torch
 
-from transformers import BertConfig, AdamW, get_linear_schedule_with_warmup
+from transformers import AdamW, get_linear_schedule_with_warmup
 from transformers import BertForSequenceClassification
+from transformers import BertTokenizer
 
-from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
+from torch.utils.data import TensorDataset, DataLoader
+from torch.utils.data import RandomSampler, SequentialSampler
+from keras.preprocessing.sequence import pad_sequences
 
-from tqdm import tqdm, trange
+from tqdm import trange
+import numpy as np
+import os, configparser, reldata
 
 from sklearn.metrics import f1_score
-from sklearn.metrics import precision_score
-from sklearn.metrics import recall_score
-
-import numpy as np
-import glob, os, logging, configparser
-
-import reldata
 
 def performance_metrics(labels, predictions):
   """Report performance metrics"""
@@ -58,10 +56,43 @@ def evaluate(model, data_loader, device):
 
   return all_predictions
 
+def to_inputs(texts, pad_token=0):
+  """Converts texts into input matrices required by BERT"""
+
+  tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+
+  rows = [tokenizer.encode(text, add_special_tokens=True) for text in texts]
+  shape = (len(rows), max(len(row) for row in rows))
+  token_ids = np.full(shape=shape, fill_value=pad_token)
+  is_token = np.zeros(shape=shape)
+
+  for i, row in enumerate(rows):
+    token_ids[i, :len(row)] = row
+    is_token[i, :len(row)] = 1
+
+  return token_ids, is_token, np.zeros(shape=shape)
+
 def make_data_loader(data_provider, sampler):
   """DataLoader objects for train or dev/test sets"""
 
-  inputs, labels, masks = data_provider.event_time_relations()
+  # inputs, labels, masks = data_provider.event_time_relations()
+  tokenizer = BertTokenizer.from_pretrained(
+    'bert-base-uncased',
+    do_lower_case=True)
+
+  texts, labels = data_provider.event_time_relations()
+
+  inputs = [tokenizer.encode(text) for text in texts]
+  inputs = pad_sequences(
+    inputs,
+    maxlen=max([len(seq) for seq in inputs]),
+    dtype='long',
+    truncating='post',
+    padding='post')
+  masks = []  # attention masks
+  for sequence in inputs:
+    mask = [float(value > 0) for value in sequence]
+    masks.append(mask)
 
   inputs = torch.tensor(inputs)
   labels = torch.tensor(labels)

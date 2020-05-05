@@ -5,13 +5,10 @@ sys.dont_write_bytecode = True
 sys.path.append('../Anafora')
 
 import os, configparser, shutil, glob, itertools
-from transformers import BertTokenizer
-from keras.preprocessing.sequence import pad_sequences
+from tqdm import tqdm
 from cassis import *
-import anafora
 
 type_system_path = './TypeSystem.xml'
-xml_regex = '.*[.]Temporal.*[.]xml'
 
 splits = {
   'train': set([0,1,2,3]),
@@ -73,37 +70,27 @@ class RelData:
   def __init__(
     self,
     xmi_dir,
-    partition='train',
-    xml_ref_dir=None,
-    xml_out_dir=None):
-    """Xml ref and out dirs would typically be given for a test set"""
+    partition='train'):
+    """"Xml ref and out dirs would typically be given for a test set"""
 
     self.xmi_dir = xmi_dir
     self.partition = partition
-    self.xml_ref_dir = xml_ref_dir
-    self.xml_out_dir = xml_out_dir
-
-    # (note_id, begin, end) tuples
-    self.offsets = []
 
   def event_time_relations(self):
     """Make x, y etc. for a specified partition"""
 
-    inputs = []
+    texts = []
     labels = []
-
-    tokenizer = BertTokenizer.from_pretrained(
-      'bert-base-uncased',
-      do_lower_case=True)
 
     type_system_file = open(type_system_path, 'rb')
     type_system = load_typesystem(type_system_file)
 
-    # read xmi files and make instances to feed into bert
-    for xmi_path in glob.glob(self.xmi_dir + '*.xmi'):
-      xmi_file_name = xmi_path.split('/')[-1]
+    xmi_paths = glob.glob(self.xmi_dir + '*.xmi')[:]
+    caption = 'reading %s data' % self.partition
+    for xmi_path in tqdm(xmi_paths, desc=caption):
 
       # does this xmi belong to the sought partition?
+      xmi_file_name = xmi_path.split('/')[-1]
       id = int(xmi_file_name.split('_')[0][-3:])
       if id % 8 not in splits[self.partition]:
         continue
@@ -117,7 +104,6 @@ class RelData:
 
       # iterate over sentences, extracting relations
       for sent in sys_view.select(sent_type):
-
         for event in gold_view.select_covered(event_type, sent):
           for time in gold_view.select_covered(time_type, sent):
 
@@ -132,93 +118,10 @@ class RelData:
             else:
               context = get_context(sys_view, sent, event, time, 'e', 't')
 
-            inputs.append(tokenizer.encode(context))
+            texts.append(context)
             labels.append(label2int[label])
 
-            # print('%s|%s' % (label, context))
-            # note_name = xmi_file_name.split('.')[0]
-            # self.offsets.append((note_name, event.begin, event.end))
-
-    inputs = pad_sequences(
-      inputs,
-      maxlen=max([len(seq) for seq in inputs]),
-      dtype='long',
-      truncating='post',
-      padding='post')
-
-    masks = [] # attention masks
-    for sequence in inputs:
-      mask = [float(value > 0) for value in sequence]
-      masks.append(mask)
-
-    return inputs, labels, masks
-
-  def event_event_relations(self):
-    """Make x, y etc. for a specified partition"""
-
-    inputs = []
-    labels = []
-
-    tokenizer = BertTokenizer.from_pretrained(
-      'bert-base-uncased',
-      do_lower_case=True)
-
-    type_system_file = open(type_system_path, 'rb')
-    type_system = load_typesystem(type_system_file)
-
-    # read xmi files and make instances to feed into bert
-    for xmi_path in glob.glob(self.xmi_dir + '*.xmi'):
-      xmi_file_name = xmi_path.split('/')[-1]
-
-      # does this xmi belong to the sought partition?
-      id = int(xmi_file_name.split('_')[0][-3:])
-      if id % 8 not in splits[self.partition]:
-        continue
-
-      xmi_file = open(xmi_path, 'rb')
-      cas = load_cas_from_xmi(xmi_file, typesystem=type_system)
-      gold_view = cas.get_view('GoldView')
-      sys_view = cas.get_view('_InitialView')
-
-      rel_lookup = index_relations(gold_view)
-
-      # iterate over sentences, extracting relations
-      for sent in sys_view.select(sent_type):
-        sent_events = gold_view.select_covered(event_type, sent)
-
-        for event1, event2 in itertools.combinations(sent_events, 2):
-
-          label = 'NONE'
-          if (event1, event2) in rel_lookup:
-            label = rel_lookup[(event1, event2)]
-          if (event2, event1) in rel_lookup:
-            label = rel_lookup[(event2, event1)] + '-1'
-
-          if event1.begin < event2.begin:
-            context = get_context(sys_view, sent, event1, event2, 'e1', 'e2')
-          else:
-            context = get_context(sys_view, sent, event2, event1, 'e2', 'e1')
-
-          inputs.append(tokenizer.encode(context))
-          labels.append(label2int[label])
-
-          # print('%s|%s' % (label, context))
-          # note_name = xmi_file_name.split('.')[0]
-          # self.offsets.append((note_name, event.begin, event.end))
-
-    inputs = pad_sequences(
-      inputs,
-      maxlen=max([len(seq) for seq in inputs]),
-      dtype='long',
-      truncating='post',
-      padding='post')
-
-    masks = [] # attention masks
-    for sequence in inputs:
-      mask = [float(value > 0) for value in sequence]
-      masks.append(mask)
-
-    return inputs, labels, masks
+    return texts, labels
 
 if __name__ == "__main__":
 
@@ -228,18 +131,9 @@ if __name__ == "__main__":
 
   dtr_data = RelData(
     os.path.join(base, cfg.get('data', 'xmi_dir')),
-    partition='dev',
-    xml_ref_dir=os.path.join(base, cfg.get('data', 'ref_xml_dir')),
-    xml_out_dir=cfg.get('data', 'out_xml_dir'))
+    partition='dev')
 
-  inputs, labels, masks = dtr_data.event_event_relations()
+  inputs, labels = dtr_data.event_time_relations()
 
-  print('inputs:\n', inputs[:2])
-  print('labels:\n', labels[:5])
-  print('masks:\n', masks[:1])
-
-  print('offsets:\n', dtr_data.offsets[:50])
-
-  print('inputs shape:', inputs.shape)
-  print('number of labels:', len(labels))
-  print('number of masks:', len(masks))
+  print('inputs:\n', inputs[:4])
+  print('labels:\n', labels[:4])
