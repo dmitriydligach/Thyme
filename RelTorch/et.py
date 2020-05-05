@@ -75,12 +75,30 @@ def to_inputs(texts, pad_token=0):
 def make_data_loader(data_provider, sampler):
   """DataLoader objects for train or dev/test sets"""
 
-  # inputs, labels, masks = data_provider.event_time_relations()
-  tokenizer = BertTokenizer.from_pretrained(
-    'bert-base-uncased',
-    do_lower_case=True)
+  texts, labels = data_provider.event_time_relations()
+
+  inputs, masks, _ = to_inputs(texts)
+
+  inputs = torch.tensor(inputs)
+  labels = torch.tensor(labels)
+  masks = torch.tensor(masks)
+
+  tensor_dataset = TensorDataset(inputs, masks, labels)
+  rnd_or_seq_sampler = sampler(tensor_dataset)
+
+  data_loader = DataLoader(
+    tensor_dataset,
+    sampler=rnd_or_seq_sampler,
+    batch_size=cfg.getint('bert', 'batch_size'))
+
+  return data_loader
+
+def make_data_loader_old(data_provider, sampler):
+  """DataLoader objects for train or dev/test sets"""
 
   texts, labels = data_provider.event_time_relations()
+
+  tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
   inputs = [tokenizer.encode(text) for text in texts]
   inputs = pad_sequences(
@@ -143,7 +161,9 @@ def main():
 
   optimizer, scheduler = make_optimizer_and_scheduler(model)
 
-  train_data = reldata.RelData(os.path.join(base, cfg.get('data', 'xmi_dir')))
+  train_data = reldata.RelData(
+    os.path.join(base, cfg.get('data', 'xmi_dir')),
+    partition='train')
   train_loader = make_data_loader(train_data, RandomSampler)
 
   for epoch in trange(cfg.getint('bert', 'num_epochs'), desc='epoch'):
@@ -174,13 +194,9 @@ def main():
 
   dev_data = reldata.RelData(
     os.path.join(base, cfg.get('data', 'xmi_dir')),
-    partition='dev',
-    xml_ref_dir=os.path.join(base, cfg.get('data', 'ref_xml_dir')),
-    xml_out_dir=cfg.get('data', 'out_xml_dir'))
-
+    partition='dev')
   dev_loader = make_data_loader(dev_data, sampler=SequentialSampler)
-  predictions = evaluate(model, dev_loader, device)
-  # dev_data.write(predictions)
+  evaluate(model, dev_loader, device)
 
 if __name__ == "__main__":
 

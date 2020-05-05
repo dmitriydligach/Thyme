@@ -70,11 +70,13 @@ class RelData:
   def __init__(
     self,
     xmi_dir,
-    partition='train'):
+    partition='train',
+    n_samples=None):
     """"Xml ref and out dirs would typically be given for a test set"""
 
     self.xmi_dir = xmi_dir
     self.partition = partition
+    self.n_samples = n_samples
 
   def event_time_relations(self):
     """Make x, y etc. for a specified partition"""
@@ -85,7 +87,7 @@ class RelData:
     type_system_file = open(type_system_path, 'rb')
     type_system = load_typesystem(type_system_file)
 
-    xmi_paths = glob.glob(self.xmi_dir + '*.xmi')[:]
+    xmi_paths = glob.glob(self.xmi_dir + '*.xmi')[:self.n_samples]
     caption = 'reading %s data' % self.partition
     for xmi_path in tqdm(xmi_paths, desc=caption):
 
