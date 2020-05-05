@@ -71,7 +71,7 @@ class RelData:
     self,
     xmi_dir,
     partition='train',
-    n_samples=5):
+    n_samples=None):
     """"Xml ref and out dirs would typically be given for a test set"""
 
     self.xmi_dir = xmi_dir
