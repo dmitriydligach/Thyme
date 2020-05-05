@@ -76,10 +76,9 @@ def to_inputs(texts, pad_token=0):
 
   return token_ids, is_token, segment_ids
 
-def make_data_loader(data_provider, sampler):
+def make_data_loader(texts, labels, sampler):
   """DataLoader objects for train or dev/test sets"""
 
-  texts, labels = data_provider.event_time_relations()
   inputs, masks, _ = to_inputs(texts)
   labels = torch.tensor(labels)
 
@@ -131,22 +130,20 @@ def main():
   train_data = reldata.RelData(
     os.path.join(base, cfg.get('data', 'xmi_dir')),
     partition='train')
-  train_loader = make_data_loader(train_data, RandomSampler)
+  texts, labels = train_data.event_time_relations()
+  train_loader = make_data_loader(texts, labels, RandomSampler)
 
   for epoch in trange(cfg.getint('bert', 'num_epochs'), desc='epoch'):
     model.train()
 
     train_loss, num_train_examples, num_train_steps = 0, 0, 0
 
-    for step, batch in enumerate(train_loader):
+    for batch in train_loader:
       batch = tuple(t.to(device) for t in batch)
       batch_inputs, batch_masks, batch_labels = batch
       optimizer.zero_grad()
 
-      loss, logits = model(
-        batch_inputs,
-        attention_mask=batch_masks,
-        labels=batch_labels)
+      loss, logits = model(batch_inputs, attention_mask=batch_masks, labels=batch_labels)
 
       loss.backward()
       torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -162,7 +159,8 @@ def main():
   dev_data = reldata.RelData(
     os.path.join(base, cfg.get('data', 'xmi_dir')),
     partition='dev')
-  dev_loader = make_data_loader(dev_data, sampler=SequentialSampler)
+  texts, labels = dev_data.event_time_relations()
+  dev_loader = make_data_loader(texts, labels, sampler=SequentialSampler)
   evaluate(model, dev_loader, device)
 
 if __name__ == "__main__":
