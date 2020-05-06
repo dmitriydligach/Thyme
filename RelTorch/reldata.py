@@ -4,7 +4,7 @@ import sys
 sys.dont_write_bytecode = True
 sys.path.append('../Anafora')
 
-import os, configparser, shutil, glob, itertools
+import os, configparser, glob
 from tqdm import tqdm
 from cassis import *
 
@@ -42,7 +42,7 @@ def index_relations(gold_view):
 
   return rel_lookup
 
-def get_context(sys_view, sent, larg, rarg, lmarker, rmarker):
+def get_context(sent, larg, rarg, lmarker, rmarker):
   """Build a context string using left and right arguments and their markers"""
 
   sent_text = sent.get_covered_text()
@@ -116,9 +116,9 @@ class RelData:
               label = rel_lookup[(event, time)] + '-1'
 
             if time.begin < event.begin:
-              context = get_context(sys_view, sent, time, event, 't', 'e')
+              context = get_context(sent, time, event, 't', 'e')
             else:
-              context = get_context(sys_view, sent, event, time, 'e', 't')
+              context = get_context(sent, event, time, 'e', 't')
 
             texts.append(context)
             labels.append(label2int[label])
