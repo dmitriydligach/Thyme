@@ -128,7 +128,7 @@ def train(bert_model, train_loader, device):
       optimizer.step()
       scheduler.step()
 
-      # train_loss += loss.item()
+      train_loss += loss.item()
       num_train_examples += batch_inputs.size(0)
       num_train_steps += 1
 

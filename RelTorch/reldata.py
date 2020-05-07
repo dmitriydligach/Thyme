@@ -71,12 +71,12 @@ class RelData:
     self,
     xmi_dir,
     partition='train',
-    n_samples=None):
+    n_files_to_read=None):
     """"Xml ref and out dirs would typically be given for a test set"""
 
     self.xmi_dir = xmi_dir
     self.partition = partition
-    self.n_samples = n_samples
+    self.n_files = n_files_to_read
 
   def event_time_relations(self):
     """Make x, y etc. for a specified partition"""
@@ -87,7 +87,7 @@ class RelData:
     type_system_file = open(type_system_path, 'rb')
     type_system = load_typesystem(type_system_file)
 
-    xmi_paths = glob.glob(self.xmi_dir + '*.xmi')[:self.n_samples]
+    xmi_paths = glob.glob(self.xmi_dir + '*.xmi')[:self.n_files]
     caption = 'reading %s data' % self.partition
     for xmi_path in tqdm(xmi_paths, desc=caption):
 
