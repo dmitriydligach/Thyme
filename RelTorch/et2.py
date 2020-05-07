@@ -29,11 +29,13 @@ class BertClassifier(BertPreTrainedModel):
     self.dropout = torch.nn.Dropout(0.1)
     self.linear = torch.nn.Linear(config.hidden_size, 3)
 
-  def forward(self, input_ids):
+  def forward(self, input_ids, attention_mask):
     """Forward pass"""
 
-    output = self.bert(input_ids)[0] # (batch_size, seq_len, hidden_size=768)
-    output = output[:, 0, :]         # (batch_size, hidden_size=768)
+    # (batch_size, seq_len, hidden_size=768)
+    output = self.bert(input_ids, attention_mask)[0]
+    # (batch_size, hidden_size=768)
+    output = output[:, 0, :]
     output = self.dropout(output)
     logits = self.linear(output)
 
@@ -66,17 +68,16 @@ def to_inputs(texts, pad_token=0):
 
   token_ids = torch.tensor(token_ids)
   is_token = torch.tensor(is_token)
-  segment_ids = torch.tensor(np.zeros(shape=shape))
 
-  return token_ids, is_token, segment_ids
+  return token_ids, is_token
 
 def make_data_loader(texts, labels, sampler):
   """DataLoader objects for train or dev/test sets"""
 
-  inputs, masks, _ = to_inputs(texts)
+  input_ids, attention_masks = to_inputs(texts)
   labels = torch.tensor(labels)
 
-  tensor_dataset = TensorDataset(inputs, masks, labels)
+  tensor_dataset = TensorDataset(input_ids, attention_masks, labels)
   rnd_or_seq_sampler = sampler(tensor_dataset)
 
   data_loader = DataLoader(
@@ -112,16 +113,16 @@ def train(bert_model, train_loader, device):
 
   for epoch in range(cfg.getint('bert', 'num_epochs')):
     bert_model.train()
-    train_loss, num_train_examples, num_train_steps = 0, 0, 0
+    train_loss, num_train_steps = 0, 0
 
     for batch in train_loader:
       batch = tuple(t.to(device) for t in batch)
       batch_inputs, batch_masks, batch_labels = batch
       optimizer.zero_grad()
 
-      logits = bert_model(batch_inputs)
-      ce_loss = torch.nn.CrossEntropyLoss()
-      loss = ce_loss(logits, batch_labels)
+      logits = bert_model(batch_inputs, batch_masks)
+      cross_entropy_loss = torch.nn.CrossEntropyLoss()
+      loss = cross_entropy_loss(logits, batch_labels)
       loss.backward()
 
       torch.nn.utils.clip_grad_norm_(bert_model.parameters(), 1.0)
@@ -129,7 +130,6 @@ def train(bert_model, train_loader, device):
       scheduler.step()
 
       train_loss += loss.item()
-      num_train_examples += batch_inputs.size(0)
       num_train_steps += 1
 
     print('epoch: %d, loss: %.4f' % (epoch, train_loss / num_train_steps))
@@ -147,7 +147,7 @@ def evaluate(bert_model, data_loader, device):
     batch_inputs, batch_masks, batch_labels = batch
 
     with torch.no_grad():
-      logits = bert_model(batch_inputs)
+      logits = bert_model(batch_inputs, batch_masks)
 
     batch_logits = logits.detach().cpu().numpy()
     batch_labels = batch_labels.to('cpu').numpy()
