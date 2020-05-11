@@ -71,12 +71,12 @@ class RelData:
     self,
     xmi_dir,
     partition='train',
-    n_files_to_read=None):
+    n_files='all'):
     """"Xml ref and out dirs would typically be given for a test set"""
 
     self.xmi_dir = xmi_dir
     self.partition = partition
-    self.n_files = n_files_to_read
+    self.n_files = None if n_files == 'all' else int(n_files)
 
   def event_time_relations(self):
     """Make x, y etc. for a specified partition"""

@@ -176,7 +176,8 @@ def main():
 
   train_data = reldata.RelData(
     os.path.join(base, cfg.get('data', 'xmi_dir')),
-    partition='train')
+    partition='train',
+    n_files=cfg.get('data', 'n_files'))
   texts, labels = train_data.event_time_relations()
   train_loader = make_data_loader(texts, labels, RandomSampler)
 
@@ -184,7 +185,8 @@ def main():
 
   dev_data = reldata.RelData(
     os.path.join(base, cfg.get('data', 'xmi_dir')),
-    partition='dev')
+    partition='dev',
+    n_files=cfg.get('data', 'n_files'))
   texts, labels = dev_data.event_time_relations()
   dev_loader = make_data_loader(texts, labels, sampler=SequentialSampler)
 
