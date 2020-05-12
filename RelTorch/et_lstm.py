@@ -2,11 +2,11 @@
 
 import sys
 sys.dont_write_bytecode = True
+sys.path.append('../Lib/')
 
 import torch
 import torch.nn as nn
 
-from transformers import AdamW, get_linear_schedule_with_warmup
 from transformers import BertTokenizer
 
 from torch.utils.data import TensorDataset, DataLoader
@@ -14,7 +14,8 @@ from torch.utils.data import RandomSampler, SequentialSampler
 
 import numpy as np
 import os, configparser, reldata
-from sklearn.metrics import f1_score
+
+import metrics
 
 class LstmClassifier(nn.Module):
 
@@ -49,17 +50,6 @@ class LstmClassifier(nn.Module):
     logits = self.linear(dropped)
 
     return logits
-
-def performance_metrics(labels, predictions):
-  """Report performance metrics"""
-
-  f1 = f1_score(labels, predictions, average=None)
-  for index, f1 in enumerate(f1):
-    print('f1[%s] = %.3f' % (reldata.int2label[index], f1))
-
-  ids = [reldata.label2int['CONTAINS'], reldata.label2int['CONTAINS-1']]
-  contains_f1 = f1_score(labels, predictions, labels=ids, average='micro')
-  print('f1[contains average] = %.3f' % contains_f1)
 
 def to_inputs(texts, pad_token=0):
   """Converts texts into input matrices"""
@@ -145,7 +135,11 @@ def evaluate(model, data_loader, device):
     all_labels.extend(batch_labels.tolist())
     all_predictions.extend(batch_preds.tolist())
 
-  performance_metrics(all_labels, all_predictions)
+  metrics.f1(
+    all_labels,
+    all_predictions,
+    reldata.int2label,
+    reldata.label2int)
 
   return all_predictions
 
