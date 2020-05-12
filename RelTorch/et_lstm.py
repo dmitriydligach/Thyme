@@ -16,39 +16,36 @@ import numpy as np
 import os, configparser, reldata
 from sklearn.metrics import f1_score
 
-class DeepAveragingNetwork(nn.Module):
+class LstmClassifier(nn.Module):
 
-  def __init__(self, embed_dim=100, num_class=3):
+  def __init__(self, hidden_size=512, embed_dim=128, num_class=3):
     """Constructor"""
 
-    # super().__init__()
-    super(DeepAveragingNetwork, self).__init__()
-
+    super(LstmClassifier, self).__init__()
     tok = BertTokenizer.from_pretrained('bert-base-uncased')
 
-    self.embedding_bag = nn.EmbeddingBag(tok.vocab_size, embed_dim)
-    self.dropout = torch.nn.Dropout(0.1)
-    self.linear = nn.Linear(embed_dim, num_class)
+    self.embedding = nn.Embedding(tok.vocab_size, embed_dim)
+    self.lstm = nn.LSTM(embed_dim, hidden_size)
+    self.dropout = nn.Dropout(0.1)
+    self.linear = nn.Linear(hidden_size, num_class)
 
-    self.init_weights()
-
-  def init_weights(self):
-    """Weight initialization"""
-
-    initrange = 0.5
-    self.embedding_bag.weight.data.uniform_(-initrange, initrange)
-    self.linear.weight.data.uniform_(-initrange, initrange)
-    self.linear.bias.data.zero_()
+    # self.init_weights()
 
   def forward(self, texts):
     """Forward pass"""
 
-    # if input is 2D of shape (B, N), it will be treated
-    # as B bags (sequences) each of fixed length N, and
-    # this will return B values aggregated
+    # input: (batch, max_len)
+    # output: (batch, max_len, embed_dim)
+    embeds = self.embedding(texts)
 
-    embedded = self.embedding_bag(texts)
-    dropped = self.dropout(embedded)
+    batch = embeds.shape[0]
+    max_len = embeds.shape[1]
+    embed_dim = embeds.shape[2]
+
+    # input: (seq_len, batch, input_size)
+    output, (h_n, c_n) = self.lstm(embeds.view(max_len, batch, embed_dim))
+
+    dropped = self.dropout(h_n.squeeze())
     logits = self.linear(dropped)
 
     return logits
@@ -155,14 +152,14 @@ def evaluate(model, data_loader, device):
 def main():
   """Fine-tune bert"""
 
-  dan_model = DeepAveragingNetwork()
+  model = LstmClassifier()
 
   if torch.cuda.is_available():
     device = torch.device('cuda')
-    dan_model.cuda()
+    model.cuda()
   else:
     device = torch.device('cpu')
-    dan_model.cpu()
+    model.cpu()
 
   train_data = reldata.RelData(
     os.path.join(base, cfg.get('data', 'xmi_dir')),
@@ -171,7 +168,7 @@ def main():
   texts, labels = train_data.event_time_relations()
   train_loader = make_data_loader(texts, labels, RandomSampler)
 
-  train(dan_model, train_loader, device)
+  train(model, train_loader, device)
 
   dev_data = reldata.RelData(
     os.path.join(base, cfg.get('data', 'xmi_dir')),
@@ -180,7 +177,7 @@ def main():
   texts, labels = dev_data.event_time_relations()
   dev_loader = make_data_loader(texts, labels, SequentialSampler)
 
-  evaluate(dan_model, dev_loader, device)
+  evaluate(model, dev_loader, device)
 
 if __name__ == "__main__":
 
