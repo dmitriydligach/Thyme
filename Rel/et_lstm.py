@@ -19,19 +19,15 @@ import metrics
 
 class LstmClassifier(nn.Module):
 
-  def __init__(self, hidden_size=512, embed_dim=128, num_class=3):
+  def __init__(self, hidden_size=1024, embed_dim=300, num_class=3):
     """Constructor"""
 
     super(LstmClassifier, self).__init__()
     tok = BertTokenizer.from_pretrained('bert-base-uncased')
 
-    #self.hidden_size = hidden_size
-    #self.embed_dim = embed_dim
-    #self.num_class = num_class
-
     self.embedding = nn.Embedding(tok.vocab_size, embed_dim)
     self.lstm = nn.LSTM(embed_dim, hidden_size)
-    self.dropout = nn.Dropout(0.1)
+    self.dropout = nn.Dropout(0.25)
     self.linear = nn.Linear(hidden_size, num_class)
 
   def forward(self, texts):
