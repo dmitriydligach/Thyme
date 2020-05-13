@@ -25,9 +25,9 @@ class LstmClassifier(nn.Module):
     super(LstmClassifier, self).__init__()
     tok = BertTokenizer.from_pretrained('bert-base-uncased')
 
-    self.hidden_size = hidden_size
-    self.embed_dim = embed_dim
-    self.num_class = num_class
+    #self.hidden_size = hidden_size
+    #self.embed_dim = embed_dim
+    #self.num_class = num_class
 
     self.embedding = nn.Embedding(tok.vocab_size, embed_dim)
     self.lstm = nn.LSTM(embed_dim, hidden_size)
@@ -37,19 +37,18 @@ class LstmClassifier(nn.Module):
   def forward(self, texts):
     """Forward pass"""
 
-    batch_size = texts.shape[0]
-    max_len = texts.shape[1]
-
-    # embedding input: (batch, max_len)
-    # embedding output: (batch, max_len, embed_dim)
+    # embedding input: (batch_size, max_len)
+    # embedding output: (batch_size, max_len, embed_dim)
     embeddings = self.embedding(texts)
 
-    # lstm input: (seq_len, batch, input_size)
-    embeddings = embeddings.view(max_len, batch_size, self.embed_dim)
-    last_hidden, _ = self.lstm(embeddings)[1]
+    # lstm input: (seq_len, batch_size, input_size)
+    # final state: (1, batch_size, hidden_size)
+    embeddings = embeddings.permute(1, 0, 2)
+    final_hidden, _ = self.lstm(embeddings)[1]
 
-    dropped = self.dropout(last_hidden.squeeze())
-
+    # final hidden into (batch_size, hidden_size)
+    final_hidden = final_hidden.squeeze()
+    dropped = self.dropout(final_hidden)
     logits = self.linear(dropped)
 
     return logits
