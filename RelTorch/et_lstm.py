@@ -64,7 +64,7 @@ def to_inputs(texts, pad_token=0):
   token_ids = np.full(shape=shape, fill_value=pad_token)
 
   for i, row in enumerate(rows):
-    token_ids[i, :len(row)] = row
+    token_ids[i, -len(row):] = row
   token_ids = torch.tensor(token_ids)
 
   return token_ids
