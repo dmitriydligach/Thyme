@@ -13,17 +13,49 @@ from torch.utils.data import RandomSampler, SequentialSampler
 from transformers import BertTokenizer
 
 import numpy as np
-import os, configparser, reldata
+import os, configparser, math
 
-import metrics
+import reldata, metrics
+
+class PositionalEncoding(nn.Module):
+  """That's my position"""
+
+  def __init__(self, d_model, dropout=0.1, max_len=5000):
+    """Deconstructing the construct"""
+
+    super(PositionalEncoding, self).__init__()
+    self.dropout = nn.Dropout(p=dropout)
+
+    pe = torch.zeros(max_len, d_model)
+
+    position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+    div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+
+    pe[:, 0::2] = torch.sin(position * div_term)
+    pe[:, 1::2] = torch.cos(position * div_term)
+
+    pe = pe.unsqueeze(0).transpose(0, 1)
+    self.register_buffer('pe', pe)
+
+  def forward(self, x):
+    """We're being very forward here"""
+
+    x = x + self.pe[:x.size(0), :]
+
+    return self.dropout(x)
 
 class Transformer(nn.Module):
+  """A transformative experience"""
 
   def __init__(self, embed_dim=128, num_class=3):
     """We have some of the best constructors in the world"""
 
     super(Transformer, self).__init__()
     tok = BertTokenizer.from_pretrained('bert-base-uncased')
+
+    self.position = PositionalEncoding(
+      d_model=embed_dim,
+      dropout=0.5)
 
     self.embedding = nn.Embedding(
       num_embeddings=tok.vocab_size,
@@ -46,7 +78,9 @@ class Transformer(nn.Module):
   def forward(self, texts):
     """Moving forward"""
 
-    output = self.embedding(texts)
+    output = self.embedding(texts) * math.sqrt(128) # fix this
+
+    output = self.position(output)
 
     output = output.permute(1, 0, 2)
 
