@@ -127,9 +127,14 @@ def train(model, train_loader, device):
   """Training routine"""
 
   cross_entropy_loss = torch.nn.CrossEntropyLoss()
-  optimizer = torch.optim.Adam(
+
+  optimizer = torch.optim.SGD(
     model.parameters(),
     lr=cfg.getfloat('model', 'lr'))
+  scheduler = torch.optim.lr_scheduler.StepLR(
+    optimizer,
+    step_size=1.0,
+    gamma=0.95)
 
   for epoch in range(cfg.getint('model', 'num_epochs')):
     model.train()
@@ -145,11 +150,15 @@ def train(model, train_loader, device):
       loss = cross_entropy_loss(logits, batch_labels)
       loss.backward()
 
+      torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
+      optimizer.step()
+
       optimizer.step()
 
       train_loss += loss.item()
       num_train_steps += 1
 
+    scheduler.step()
     print('epoch: %d, loss: %.4f' % (epoch, train_loss / num_train_steps))
 
 def evaluate(model, data_loader, device):
