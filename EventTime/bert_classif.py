@@ -13,9 +13,16 @@ from torch.utils.data import TensorDataset, DataLoader
 from torch.utils.data import RandomSampler, SequentialSampler
 
 import numpy as np
-import os, configparser, reldata
+import os, configparser, reldata, random
 
 from sklearn.metrics import f1_score
+
+# deterministic determinism
+torch.manual_seed(2020)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+np.random.seed(2020)
+random.seed(2020)
 
 class BertClassifier(BertPreTrainedModel):
   """Linear layer on top of pre-trained BERT"""
