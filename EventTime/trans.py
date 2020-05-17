@@ -13,9 +13,16 @@ from torch.utils.data import RandomSampler, SequentialSampler
 from transformers import BertTokenizer
 
 import numpy as np
-import os, configparser, math
+import os, configparser, math, random
 
 import reldata, metrics
+
+# deterministic determinism
+torch.manual_seed(2020)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+np.random.seed(2020)
+random.seed(2020)
 
 class Transformer(nn.Module):
   """A transformative experience"""
