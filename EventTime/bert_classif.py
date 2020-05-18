@@ -2,18 +2,19 @@
 
 import sys
 sys.dont_write_bytecode = True
+sys.path.append('../Lib/')
 
 import torch
 
 from transformers import AdamW, get_linear_schedule_with_warmup
 from transformers import BertModel, BertPreTrainedModel
-from transformers import BertTokenizer
 
 from torch.utils.data import TensorDataset, DataLoader
 from torch.utils.data import RandomSampler, SequentialSampler
 
 import numpy as np
-import os, configparser, reldata, random
+import os, configparser, random
+import reldata, utils, metrics
 
 from sklearn.metrics import f1_score
 
@@ -48,40 +49,10 @@ class BertClassifier(BertPreTrainedModel):
 
     return logits
 
-def performance_metrics(labels, predictions):
-  """Report performance metrics"""
-
-  f1 = f1_score(labels, predictions, average=None)
-  for index, f1 in enumerate(f1):
-    print('f1[%s] = %.3f' % (reldata.int2label[index], f1))
-
-  ids = [reldata.label2int['CONTAINS'], reldata.label2int['CONTAINS-1']]
-  contains_f1 = f1_score(labels, predictions, labels=ids, average='micro')
-  print('f1[contains average] = %.3f' % contains_f1)
-
-def to_inputs(texts, pad_token=0):
-  """Converts texts into input matrices required by BERT"""
-
-  tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-
-  rows = [tokenizer.encode(text, add_special_tokens=True) for text in texts]
-  shape = (len(rows), max(len(row) for row in rows))
-  token_ids = np.full(shape=shape, fill_value=pad_token)
-  is_token = np.zeros(shape=shape)
-
-  for i, row in enumerate(rows):
-    token_ids[i, :len(row)] = row
-    is_token[i, :len(row)] = 1
-
-  token_ids = torch.tensor(token_ids)
-  is_token = torch.tensor(is_token)
-
-  return token_ids, is_token
-
 def make_data_loader(texts, labels, sampler):
   """DataLoader objects for train or dev/test sets"""
 
-  input_ids, attention_masks = to_inputs(texts)
+  input_ids, attention_masks = utils.to_inputs(texts)
   labels = torch.tensor(labels)
 
   tensor_dataset = TensorDataset(input_ids, attention_masks, labels)
@@ -163,7 +134,7 @@ def evaluate(bert_model, data_loader, device):
     all_labels.extend(batch_labels.tolist())
     all_predictions.extend(batch_preds.tolist())
 
-  performance_metrics(all_labels, all_predictions)
+  metrics.f1(all_labels, all_predictions)
 
   return all_predictions
 
