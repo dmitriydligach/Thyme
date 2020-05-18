@@ -40,7 +40,7 @@ class Transformer(nn.Module):
       embedding_dim=cfg.getint('model', 'emb_dim'))
 
     self.position = PositionalEncoding(
-      d_model=cfg.getint('model', 'emb_dim'))
+      embedding_dim=cfg.getint('model', 'emb_dim'))
 
     encoder_layer = nn.TransformerEncoderLayer(
       d_model=cfg.getint('model', 'emb_dim'),
@@ -78,15 +78,16 @@ class Transformer(nn.Module):
 class PositionalEncoding(nn.Module):
   """That's my position"""
 
-  def __init__(self, d_model, max_len=5000):
+  def __init__(self, embedding_dim, max_len=150):
     """Deconstructing the construct"""
 
     super(PositionalEncoding, self).__init__()
     self.dropout = nn.Dropout(p=0.1)
 
-    pe = torch.zeros(max_len, d_model)
+    pe = torch.zeros(max_len, embedding_dim)
     position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-    div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+    div_term = torch.exp(torch.arange(0, embedding_dim, 2).float() * \
+                         (-math.log(10000.0) / embedding_dim))
     pe[:, 0::2] = torch.sin(position * div_term)
     pe[:, 1::2] = torch.cos(position * div_term)
     pe = pe.unsqueeze(0).transpose(0, 1)
