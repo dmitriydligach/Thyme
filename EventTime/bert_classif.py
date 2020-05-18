@@ -134,7 +134,11 @@ def evaluate(bert_model, data_loader, device):
     all_labels.extend(batch_labels.tolist())
     all_predictions.extend(batch_preds.tolist())
 
-  metrics.f1(all_labels, all_predictions)
+  metrics.f1(
+    all_labels,
+    all_predictions,
+    reldata.int2label,
+    reldata.label2int)
 
   return all_predictions
 
