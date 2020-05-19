@@ -78,13 +78,14 @@ class TransformerClassifier(nn.Module):
 class PositionalEncoding(nn.Module):
   """That's my position"""
 
-  def __init__(self, embedding_dim, max_len=150):
+  def __init__(self, embedding_dim):
     """Deconstructing the construct"""
 
     super(PositionalEncoding, self).__init__()
 
     self.dropout = nn.Dropout(p=0.1)
 
+    max_len = cfg.getint('data', 'max_len')
     pe = torch.zeros(max_len, embedding_dim)
 
     position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
