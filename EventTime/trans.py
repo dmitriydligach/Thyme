@@ -107,7 +107,9 @@ class PositionalEncoding(nn.Module):
 def make_data_loader(texts, labels, sampler):
   """DataLoader objects for train or dev/test sets"""
 
-  input_ids, attention_masks = utils.to_inputs(texts)
+  input_ids, attention_masks = utils.to_inputs(
+    texts,
+    cfg.getint('data', 'max_len'))
   labels = torch.tensor(labels)
 
   tensor_dataset = TensorDataset(input_ids, labels)
