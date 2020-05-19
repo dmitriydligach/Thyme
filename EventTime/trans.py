@@ -153,8 +153,6 @@ def train(model, train_loader, device):
       torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
       optimizer.step()
 
-      optimizer.step()
-
       train_loss += loss.item()
       num_train_steps += 1
 
