@@ -117,7 +117,7 @@ def make_data_loader(texts, labels, sampler):
   rnd_or_seq_sampler = sampler(tensor_dataset)
 
   data_loader = DataLoader(
-    tensor_dataset,
+    dataset=tensor_dataset,
     sampler=rnd_or_seq_sampler,
     batch_size=cfg.getint('model', 'batch_size'))
 
@@ -128,13 +128,9 @@ def train(model, train_loader, device):
 
   cross_entropy_loss = torch.nn.CrossEntropyLoss()
 
-  optimizer = torch.optim.SGD(
+  optimizer = torch.optim.Adam(
     model.parameters(),
     lr=cfg.getfloat('model', 'lr'))
-  scheduler = torch.optim.lr_scheduler.StepLR(
-    optimizer,
-    step_size=1.0,
-    gamma=0.95)
 
   for epoch in range(cfg.getint('model', 'num_epochs')):
     model.train()
@@ -150,13 +146,12 @@ def train(model, train_loader, device):
       loss = cross_entropy_loss(logits, batch_labels)
       loss.backward()
 
-      torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
+      torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
       optimizer.step()
 
       train_loss += loss.item()
       num_train_steps += 1
 
-    scheduler.step()
     print('epoch: %d, loss: %.4f' % (epoch, train_loss / num_train_steps))
 
 def evaluate(model, data_loader, device):
