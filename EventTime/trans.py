@@ -123,7 +123,7 @@ def make_data_loader(texts, labels, sampler):
 
   return data_loader
 
-def train(model, train_loader, device):
+def train(model, train_loader, dev_loader, device):
   """Training routine"""
 
   cross_entropy_loss = torch.nn.CrossEntropyLoss()
@@ -152,7 +152,10 @@ def train(model, train_loader, device):
       train_loss += loss.item()
       num_train_steps += 1
 
-    print('epoch: %d, loss: %.4f' % (epoch, train_loss / num_train_steps))
+    av_train_loss = train_loss / num_train_steps
+    print('epoch: %d, train loss: %.4f' % (epoch, av_train_loss))
+    evaluate(model, dev_loader, device)
+    print()
 
 def evaluate(model, data_loader, device):
   """Evaluation routine"""
@@ -200,18 +203,17 @@ def main():
     os.path.join(base, cfg.get('data', 'xmi_dir')),
     partition='train',
     n_files=cfg.get('data', 'n_files'))
-  texts, labels = train_data.event_time_relations()
-  train_loader = make_data_loader(texts, labels, RandomSampler)
-
-  train(model, train_loader, device)
+  tr_texts, tr_labels = train_data.event_time_relations()
+  train_loader = make_data_loader(tr_texts, tr_labels, RandomSampler)
 
   dev_data = reldata.RelData(
     os.path.join(base, cfg.get('data', 'xmi_dir')),
     partition='dev',
     n_files=cfg.get('data', 'n_files'))
-  texts, labels = dev_data.event_time_relations()
-  dev_loader = make_data_loader(texts, labels, SequentialSampler)
+  dev_texts, dev_labels = dev_data.event_time_relations()
+  dev_loader = make_data_loader(dev_texts, dev_labels, SequentialSampler)
 
+  train(model, train_loader, dev_loader, device)
   evaluate(model, dev_loader, device)
 
 if __name__ == "__main__":
