@@ -157,7 +157,7 @@ def train(model, train_loader, dev_loader, device):
     print('epoch: %d, train loss: %.3f, dev f1: %.3f' % \
           (epoch, av_loss, f1))
 
-def evaluate(model, data_loader, device):
+def evaluate(model, data_loader, device, suppress_output=True):
   """Evaluation routine"""
 
   model.eval()
@@ -182,7 +182,8 @@ def evaluate(model, data_loader, device):
   f1 = metrics.f1(all_labels,
                   all_predictions,
                   reldata.int2label,
-                  reldata.label2int)
+                  reldata.label2int,
+                  suppress_output)
 
   return f1
 
