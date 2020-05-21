@@ -152,10 +152,10 @@ def train(model, train_loader, dev_loader, device):
       train_loss += loss.item()
       num_train_steps += 1
 
-    av_train_loss = train_loss / num_train_steps
-    print('epoch: %d, train loss: %.4f' % (epoch, av_train_loss))
-    evaluate(model, dev_loader, device)
-    print()
+    av_loss = train_loss / num_train_steps
+    f1 = evaluate(model, dev_loader, device)
+    print('epoch: %d, train loss: %.3f, dev f1: %.3f' % \
+          (epoch, av_loss, f1))
 
 def evaluate(model, data_loader, device):
   """Evaluation routine"""
@@ -179,13 +179,12 @@ def evaluate(model, data_loader, device):
     all_labels.extend(batch_labels.tolist())
     all_predictions.extend(batch_preds.tolist())
 
-  metrics.f1(
-    all_labels,
-    all_predictions,
-    reldata.int2label,
-    reldata.label2int)
+  f1 = metrics.f1(all_labels,
+                  all_predictions,
+                  reldata.int2label,
+                  reldata.label2int)
 
-  return all_predictions
+  return f1
 
 def main():
   """Fine-tune bert"""
@@ -214,7 +213,7 @@ def main():
   dev_loader = make_data_loader(dev_texts, dev_labels, SequentialSampler)
 
   train(model, train_loader, dev_loader, device)
-  evaluate(model, dev_loader, device)
+  evaluate(model, dev_loader, device, suppress_output=False)
 
 if __name__ == "__main__":
 
