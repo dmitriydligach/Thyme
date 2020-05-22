@@ -137,10 +137,11 @@ def train(model, train_loader, dev_loader, device):
 
     for batch in train_loader:
       batch = tuple(t.to(device) for t in batch)
-      batch_inputs, batch_attention_mask, batch_labels = batch
+      batch_inputs, batch_mask, batch_labels = batch
+      batch_mask = batch_mask.repeat(cfg.getint('model', 'num_heads'), 1, 1)
       optimizer.zero_grad()
 
-      logits = model(batch_inputs, batch_attention_mask.repeat(4, 1, 1))
+      logits = model(batch_inputs, batch_mask)
       loss = cross_entropy_loss(logits, batch_labels)
       loss.backward()
 
@@ -165,10 +166,11 @@ def evaluate(model, data_loader, device, suppress_output=True):
 
   for batch in data_loader:
     batch = tuple(t.to(device) for t in batch)
-    batch_inputs, batch_attention_mask, batch_labels = batch
+    batch_inputs, batch_mask, batch_labels = batch
+    batch_mask = batch_mask.repeat(cfg.getint('model', 'num_heads'), 1, 1)
 
     with torch.no_grad():
-      logits = model(batch_inputs, batch_attention_mask.repeat(4, 1, 1))
+      logits = model(batch_inputs, batch_mask)
 
     batch_logits = logits.detach().cpu().numpy()
     batch_labels = batch_labels.to('cpu').numpy()
