@@ -152,12 +152,15 @@ def train(model, train_loader, dev_loader, device):
       num_train_steps += 1
 
     av_loss = train_loss / num_train_steps
-    f1 = evaluate(model, dev_loader, device)
-    print('epoch: %d, train loss: %.3f, dev f1: %.3f' % \
-          (epoch, av_loss, f1))
+    dev_loss, f1 = evaluate(model, dev_loader, device)
+    print('epoch: %d, train loss: %.3f, dev loss: %.3f, dev f1: %.3f' % \
+          (epoch, av_loss, dev_loss, f1))
 
 def evaluate(model, data_loader, device, suppress_output=True):
   """Evaluation routine"""
+
+  cross_entropy_loss = torch.nn.CrossEntropyLoss()
+  dev_loss, num_steps = 0, 0
 
   model.eval()
 
@@ -171,6 +174,7 @@ def evaluate(model, data_loader, device, suppress_output=True):
 
     with torch.no_grad():
       logits = model(batch_inputs, batch_mask)
+      loss = cross_entropy_loss(logits, batch_labels)
 
     batch_logits = logits.detach().cpu().numpy()
     batch_labels = batch_labels.to('cpu').numpy()
@@ -179,13 +183,17 @@ def evaluate(model, data_loader, device, suppress_output=True):
     all_labels.extend(batch_labels.tolist())
     all_predictions.extend(batch_preds.tolist())
 
+    dev_loss += loss.item()
+    num_steps += 1
+
+  av_loss = dev_loss / num_steps
   f1 = metrics.f1(all_labels,
                   all_predictions,
                   reldata.int2label,
                   reldata.label2int,
                   suppress_output)
 
-  return f1
+  return av_loss, f1
 
 def main():
   """Fine-tune bert"""
