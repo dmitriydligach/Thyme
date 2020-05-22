@@ -57,7 +57,7 @@ class TransformerClassifier(nn.Module):
       in_features=cfg.getint('model', 'emb_dim'),
       out_features=num_classes)
 
-  def forward(self, texts):
+  def forward(self, texts, attention_mask):
     """Moving forward"""
 
     sqrtn = math.sqrt(cfg.getint('model', 'emb_dim'))
@@ -67,7 +67,7 @@ class TransformerClassifier(nn.Module):
     # encoder input: (seq_len, batch_size, emb_dim)
     # encoder output: (seq_len, batch_size, emb_dim)
     output = output.permute(1, 0, 2)
-    output = self.trans_encoder(output)
+    output = self.trans_encoder(output, attention_mask)
     output = output[0, :, :]
 
     output = self.dropout(output)
@@ -108,12 +108,12 @@ class PositionalEncoding(nn.Module):
 def make_data_loader(texts, labels, sampler):
   """DataLoader objects for train or dev/test sets"""
 
-  input_ids, attention_masks = utils.to_inputs(
+  input_ids, attention_mask = utils.to_transformer_inputs(
     texts,
     cfg.getint('data', 'max_len'))
   labels = torch.tensor(labels)
 
-  tensor_dataset = TensorDataset(input_ids, labels)
+  tensor_dataset = TensorDataset(input_ids, attention_mask, labels)
   rnd_or_seq_sampler = sampler(tensor_dataset)
 
   data_loader = DataLoader(
@@ -127,7 +127,6 @@ def train(model, train_loader, dev_loader, device):
   """Training routine"""
 
   cross_entropy_loss = torch.nn.CrossEntropyLoss()
-
   optimizer = torch.optim.Adam(
     model.parameters(),
     lr=cfg.getfloat('model', 'lr'))
@@ -138,11 +137,10 @@ def train(model, train_loader, dev_loader, device):
 
     for batch in train_loader:
       batch = tuple(t.to(device) for t in batch)
-      batch_inputs, batch_labels = batch
+      batch_inputs, batch_attention_mask, batch_labels = batch
       optimizer.zero_grad()
 
-      logits = model(batch_inputs)
-
+      logits = model(batch_inputs, batch_attention_mask.repeat(4, 1, 1))
       loss = cross_entropy_loss(logits, batch_labels)
       loss.backward()
 
@@ -167,10 +165,10 @@ def evaluate(model, data_loader, device, suppress_output=True):
 
   for batch in data_loader:
     batch = tuple(t.to(device) for t in batch)
-    batch_inputs, batch_labels = batch
+    batch_inputs, batch_attention_mask, batch_labels = batch
 
     with torch.no_grad():
-      logits = model(batch_inputs)
+      logits = model(batch_inputs, batch_attention_mask.repeat(4, 1, 1))
 
     batch_logits = logits.detach().cpu().numpy()
     batch_labels = batch_labels.to('cpu').numpy()

@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from transformers import BertTokenizer
 
-def to_inputs(texts, max_len=None, pad_token=0):
+def to_bert_inputs(texts, max_len=None, pad_token=0):
   """Converts texts into input matrices required by BERT"""
 
   tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
@@ -29,10 +29,32 @@ def to_inputs(texts, max_len=None, pad_token=0):
 
   return token_ids, is_token
 
+def to_transformer_inputs(texts, max_len=None):
+  """Matrix of token ids and a square attention mask for eash sample"""
+
+  # use bert tokenizer for now
+  tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+  seqs = [tokenizer.encode(text, add_special_tokens=True) for text in texts]
+
+  if max_len is None:
+    # set max_len to the length of the longest sequence
+    max_len = max(len(id_seq) for id_seq in seqs)
+
+  ids = torch.zeros(len(seqs), max_len, dtype=torch.long)
+  mask = torch.zeros(len(seqs), max_len, max_len, dtype=torch.long)
+
+  for i, seq in enumerate(seqs):
+    if len(seq) > max_len:
+      seq = seq[:max_len]
+    ids[i, :len(seq)] = torch.tensor(seq)
+    mask[i, :len(seq), :len(seq)] = 1
+
+  return ids, mask
+
 if __name__ == "__main__":
 
   texts = ['it is happening again',
            'the owls are not what they seem']
-  ids, masks = to_inputs(texts, max_len=None)
-  print(ids)
-  print(masks)
+  ids, masks = to_transformer_inputs(texts, max_len=None)
+  print('ids:', ids)
+  print('masks:', masks)
