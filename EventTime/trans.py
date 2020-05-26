@@ -224,6 +224,12 @@ def main():
   # class weights
   label_counts = torch.bincount(torch.IntTensor(tr_labels))
   weights = len(tr_labels) / (2.0 * label_counts)
+  if torch.cuda.is_available():
+    label_counts.cuda()
+    weights.cuda()
+  else:
+    label_counts.cpu()
+    weights.cpu()
 
   train(model, train_loader, dev_loader, device, weights)
   evaluate(model, dev_loader, device, suppress_output=False)
