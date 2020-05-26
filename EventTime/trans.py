@@ -27,7 +27,7 @@ random.seed(2020)
 class TransformerClassifier(nn.Module):
   """A transformative experience"""
 
-  def __init__(self, num_classes=3):
+  def __init__(self, num_classes=2):
     """We have some of the best constructors in the world"""
 
     super(TransformerClassifier, self).__init__()
@@ -123,10 +123,10 @@ def make_data_loader(texts, labels, sampler):
 
   return data_loader
 
-def train(model, train_loader, dev_loader, device):
+def train(model, train_loader, dev_loader, device, weights):
   """Training routine"""
 
-  cross_entropy_loss = torch.nn.CrossEntropyLoss()
+  cross_entropy_loss = torch.nn.CrossEntropyLoss(weights)
   optimizer = torch.optim.Adam(
     model.parameters(),
     lr=cfg.getfloat('model', 'lr'))
@@ -221,7 +221,11 @@ def main():
   dev_texts, dev_labels = dev_data.event_time_relations()
   dev_loader = make_data_loader(dev_texts, dev_labels, SequentialSampler)
 
-  train(model, train_loader, dev_loader, device)
+  # class weights
+  label_counts = torch.bincount(torch.IntTensor(tr_labels))
+  weights = len(tr_labels) / (2.0 * label_counts)
+
+  train(model, train_loader, dev_loader, device, weights)
   evaluate(model, dev_loader, device, suppress_output=False)
 
 if __name__ == "__main__":
