@@ -153,7 +153,7 @@ def train(model, train_loader, dev_loader, device, weights):
 
     av_loss = train_loss / num_train_steps
     dev_loss, f1 = evaluate(model, dev_loader, device)
-    print('epoch: %d, train loss: %.3f, dev loss: %.3f, dev f1: %.3f' % \
+    print('epoch: %d, train loss: %.3f, val loss: %.3f, val f1: %.3f' % \
           (epoch, av_loss, dev_loss, f1))
 
 def evaluate(model, data_loader, device, suppress_output=True):
@@ -198,15 +198,6 @@ def evaluate(model, data_loader, device, suppress_output=True):
 def main():
   """Fine-tune bert"""
 
-  model = TransformerClassifier()
-
-  if torch.cuda.is_available():
-    device = torch.device('cuda')
-    model.cuda()
-  else:
-    device = torch.device('cpu')
-    model.cpu()
-
   train_data = reldata.RelData(
     os.path.join(base, cfg.get('data', 'xmi_dir')),
     partition='train',
@@ -224,12 +215,19 @@ def main():
   # class weights
   label_counts = torch.bincount(torch.IntTensor(tr_labels))
   weights = len(tr_labels) / (2.0 * label_counts)
+
+  model = TransformerClassifier()
+
   if torch.cuda.is_available():
+    device = torch.device('cuda')
     label_counts.cuda()
     weights.cuda()
+    model.cuda()
   else:
+    device = torch.device('cpu')
     label_counts.cpu()
     weights.cpu()
+    model.cpu()
 
   train(model, train_loader, dev_loader, device, weights)
   evaluate(model, dev_loader, device, suppress_output=False)
