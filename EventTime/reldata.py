@@ -112,8 +112,8 @@ class RelData:
             label = 'NONE'
             if (time, event) in rel_lookup:
               label = rel_lookup[(time, event)]
-            if (event, time) in rel_lookup:
-              label = rel_lookup[(event, time)] + '-1'
+            # if (event, time) in rel_lookup:
+            #   label = rel_lookup[(event, time)] + '-1'
 
             if time.begin < event.begin:
               context = get_context(sent, time, event, 't', 'e')
@@ -133,9 +133,13 @@ if __name__ == "__main__":
 
   dtr_data = RelData(
     os.path.join(base, cfg.get('data', 'xmi_dir')),
-    partition='dev')
+    partition='dev',
+    n_files=cfg.getint('data', 'n_files'))
 
   inputs, labels = dtr_data.event_time_relations()
 
   print('inputs:\n', inputs[:4])
   print('labels:\n', labels[:4])
+
+  import collections
+  print('unique labels:', collections.Counter(labels))
