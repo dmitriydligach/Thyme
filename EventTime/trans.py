@@ -123,10 +123,15 @@ def make_data_loader(texts, labels, sampler):
 
   return data_loader
 
-def train(model, train_loader, dev_loader, device, weights):
+def train(model, train_loader, dev_loader, weights):
   """Training routine"""
 
+  device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+  model.to(device)
+
+  weights = weights.to(device)
   cross_entropy_loss = torch.nn.CrossEntropyLoss(weights)
+
   optimizer = torch.optim.Adam(
     model.parameters(),
     lr=cfg.getfloat('model', 'lr'))
@@ -156,8 +161,11 @@ def train(model, train_loader, dev_loader, device, weights):
     print('epoch: %d, train loss: %.3f, val loss: %.3f, val f1: %.3f' % \
           (epoch, av_loss, dev_loss, f1))
 
-def evaluate(model, data_loader, device, suppress_output=True):
+def evaluate(model, data_loader, suppress_output=True):
   """Evaluation routine"""
+
+  device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+  model.to(device)
 
   cross_entropy_loss = torch.nn.CrossEntropyLoss()
   dev_loss, num_steps = 0, 0
@@ -212,25 +220,14 @@ def main():
   dev_texts, dev_labels = dev_data.event_time_relations()
   dev_loader = make_data_loader(dev_texts, dev_labels, SequentialSampler)
 
+  model = TransformerClassifier()
+
   # class weights
   label_counts = torch.bincount(torch.IntTensor(tr_labels))
   weights = len(tr_labels) / (2.0 * label_counts)
 
-  model = TransformerClassifier()
-
-  if torch.cuda.is_available():
-    device = torch.device('cuda')
-    label_counts.cuda()
-    weights.cuda()
-    model.cuda()
-  else:
-    device = torch.device('cpu')
-    label_counts.cpu()
-    weights.cpu()
-    model.cpu()
-
-  train(model, train_loader, dev_loader, device, weights)
-  evaluate(model, dev_loader, device, suppress_output=False)
+  train(model, train_loader, dev_loader, weights)
+  evaluate(model, dev_loader, suppress_output=False)
 
 if __name__ == "__main__":
 
