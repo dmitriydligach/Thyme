@@ -157,18 +157,19 @@ def train(model, train_loader, val_loader, weights):
       num_train_steps += 1
 
     av_loss = train_loss / num_train_steps
-    val_loss, f1 = evaluate(model, val_loader, device)
+    val_loss, f1 = evaluate(model, val_loader, weights)
     print('epoch: %d, train loss: %.3f, val loss: %.3f, val f1: %.3f' % \
           (epoch, av_loss, val_loss, f1))
 
-def evaluate(model, data_loader, suppress_output=True):
+def evaluate(model, data_loader, weights, suppress_output=True):
   """Evaluation routine"""
 
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+  weights = weights.to(device)
   model.to(device)
 
-  cross_entropy_loss = torch.nn.CrossEntropyLoss()
-  dev_loss, num_steps = 0, 0
+  cross_entropy_loss = torch.nn.CrossEntropyLoss(weights)
+  total_loss, num_steps = 0, 0
 
   model.eval()
 
@@ -191,17 +192,16 @@ def evaluate(model, data_loader, suppress_output=True):
     all_labels.extend(batch_labels.tolist())
     all_predictions.extend(batch_preds.tolist())
 
-    dev_loss += loss.item()
+    total_loss += loss.item()
     num_steps += 1
 
-  av_loss = dev_loss / num_steps
   f1 = metrics.f1(all_labels,
                   all_predictions,
                   reldata.int2label,
                   reldata.label2int,
                   suppress_output)
 
-  return av_loss, f1
+  return total_loss / num_steps, f1
 
 def main():
   """Fine-tune bert"""
@@ -222,12 +222,11 @@ def main():
 
   model = TransformerClassifier()
 
-  # class weights
   label_counts = torch.bincount(torch.IntTensor(tr_labels))
   weights = len(tr_labels) / (2.0 * label_counts)
 
   train(model, train_loader, val_loader, weights)
-  evaluate(model, val_loader, suppress_output=False)
+  evaluate(model, val_loader, weights, suppress_output=False)
 
 if __name__ == "__main__":
 
