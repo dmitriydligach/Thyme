@@ -51,6 +51,26 @@ def to_transformer_inputs(texts, max_len=None):
 
   return ids, mask
 
+def to_token_id_sequences(texts, max_len=None):
+  """Matrix of token ids"""
+
+  # use bert tokenizer for now
+  tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+  seqs = [tokenizer.encode(text, add_special_tokens=True) for text in texts]
+
+  if max_len is None:
+    # set max_len to the length of the longest sequence
+    max_len = max(len(id_seq) for id_seq in seqs)
+
+  ids = torch.zeros(len(seqs), max_len, dtype=torch.long)
+
+  for i, seq in enumerate(seqs):
+    if len(seq) > max_len:
+      seq = seq[:max_len]
+    ids[i, :len(seq)] = torch.tensor(seq)
+
+  return ids
+
 if __name__ == "__main__":
 
   texts = ['it is happening again',

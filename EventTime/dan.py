@@ -2,43 +2,39 @@
 
 import sys
 sys.dont_write_bytecode = True
+sys.path.append('../Lib/')
 
 import torch
 import torch.nn as nn
 
-from transformers import AdamW, get_linear_schedule_with_warmup
-from transformers import BertTokenizer
-
 from torch.utils.data import TensorDataset, DataLoader
 from torch.utils.data import RandomSampler, SequentialSampler
 
+from transformers import BertTokenizer
+
 import numpy as np
-import os, configparser, reldata
-from sklearn.metrics import f1_score
+import os, configparser, math, random
 
-class DeepAveragingNetwork(nn.Module):
+import reldata, metrics, utils
 
-  def __init__(self, embed_dim=100, num_class=3):
+# deterministic determinism
+torch.manual_seed(2020)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+np.random.seed(2020)
+random.seed(2020)
+
+class BagOfEmbeddings(nn.Module):
+
+  def __init__(self, embed_dim=100, num_class=2):
     """Constructor"""
 
-    # super().__init__()
-    super(DeepAveragingNetwork, self).__init__()
-
+    super(BagOfEmbeddings, self).__init__()
     tok = BertTokenizer.from_pretrained('bert-base-uncased')
 
-    self.embedding_bag = nn.EmbeddingBag(tok.vocab_size, embed_dim)
-    self.dropout = torch.nn.Dropout(0.1)
+    self.average = nn.EmbeddingBag(tok.vocab_size, embed_dim)
+    self.dropout = torch.nn.Dropout(cfg.getfloat('model', 'dropout'))
     self.linear = nn.Linear(embed_dim, num_class)
-
-    self.init_weights()
-
-  def init_weights(self):
-    """Weight initialization"""
-
-    initrange = 0.5
-    self.embedding_bag.weight.data.uniform_(-initrange, initrange)
-    self.linear.weight.data.uniform_(-initrange, initrange)
-    self.linear.bias.data.zero_()
 
   def forward(self, texts):
     """Forward pass"""
@@ -47,64 +43,44 @@ class DeepAveragingNetwork(nn.Module):
     # as B bags (sequences) each of fixed length N, and
     # this will return B values aggregated
 
-    embedded = self.embedding_bag(texts)
+    embedded = self.average(texts)
     dropped = self.dropout(embedded)
     logits = self.linear(dropped)
 
     return logits
 
-def performance_metrics(labels, predictions):
-  """Report performance metrics"""
-
-  f1 = f1_score(labels, predictions, average=None)
-  for index, f1 in enumerate(f1):
-    print('f1[%s] = %.3f' % (reldata.int2label[index], f1))
-
-  ids = [reldata.label2int['CONTAINS'], reldata.label2int['CONTAINS-1']]
-  contains_f1 = f1_score(labels, predictions, labels=ids, average='micro')
-  print('f1[contains average] = %.3f' % contains_f1)
-
-def to_inputs(texts, pad_token=0):
-  """Converts texts into input matrices"""
-
-  tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-
-  rows = [tokenizer.encode(text, add_special_tokens=True) for text in texts]
-  shape = (len(rows), max(len(row) for row in rows))
-  token_ids = np.full(shape=shape, fill_value=pad_token)
-
-  for i, row in enumerate(rows):
-    token_ids[i, :len(row)] = row
-  token_ids = torch.tensor(token_ids)
-
-  return token_ids
-
 def make_data_loader(texts, labels, sampler):
   """DataLoader objects for train or dev/test sets"""
 
-  input_ids = to_inputs(texts)
+  input_ids = utils.to_token_id_sequences(
+    texts,
+    cfg.getint('data', 'max_len'))
   labels = torch.tensor(labels)
 
   tensor_dataset = TensorDataset(input_ids, labels)
   rnd_or_seq_sampler = sampler(tensor_dataset)
 
   data_loader = DataLoader(
-    tensor_dataset,
+    dataset=tensor_dataset,
     sampler=rnd_or_seq_sampler,
-    batch_size=cfg.getint('bert', 'batch_size'))
+    batch_size=cfg.getint('model', 'batch_size'))
 
   return data_loader
 
-def train(model, train_loader, device):
+def train(model, train_loader, val_loader, weights):
   """Training routine"""
 
-  cross_entropy_loss = torch.nn.CrossEntropyLoss()
+  device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+  model.to(device)
+
+  weights = weights.to(device)
+  cross_entropy_loss = torch.nn.CrossEntropyLoss(weights)
+
   optimizer = torch.optim.Adam(
     model.parameters(),
-    lr=cfg.getfloat('bert', 'lr'))
-  # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1, gamma=0.9)
+    lr=cfg.getfloat('model', 'lr'))
 
-  for epoch in range(cfg.getint('bert', 'num_epochs')):
+  for epoch in range(1, cfg.getint('model', 'num_epochs') + 1):
     model.train()
     train_loss, num_train_steps = 0, 0
 
@@ -114,20 +90,29 @@ def train(model, train_loader, device):
       optimizer.zero_grad()
 
       logits = model(batch_inputs)
-
       loss = cross_entropy_loss(logits, batch_labels)
       loss.backward()
 
+      torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
       optimizer.step()
-      # scheduler.step()
 
       train_loss += loss.item()
       num_train_steps += 1
 
-    print('epoch: %d, loss: %.4f' % (epoch, train_loss / num_train_steps))
+    av_loss = train_loss / num_train_steps
+    val_loss, f1 = evaluate(model, val_loader, weights)
+    print('epoch: %d, train loss: %.3f, val loss: %.3f, val f1: %.3f' % \
+          (epoch, av_loss, val_loss, f1))
 
-def evaluate(model, data_loader, device):
+def evaluate(model, data_loader, weights, suppress_output=True):
   """Evaluation routine"""
+
+  device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+  weights = weights.to(device)
+  model.to(device)
+
+  cross_entropy_loss = torch.nn.CrossEntropyLoss(weights)
+  total_loss, num_steps = 0, 0
 
   model.eval()
 
@@ -140,6 +125,7 @@ def evaluate(model, data_loader, device):
 
     with torch.no_grad():
       logits = model(batch_inputs)
+      loss = cross_entropy_loss(logits, batch_labels)
 
     batch_logits = logits.detach().cpu().numpy()
     batch_labels = batch_labels.to('cpu').numpy()
@@ -148,39 +134,41 @@ def evaluate(model, data_loader, device):
     all_labels.extend(batch_labels.tolist())
     all_predictions.extend(batch_preds.tolist())
 
-  performance_metrics(all_labels, all_predictions)
+    total_loss += loss.item()
+    num_steps += 1
 
-  return all_predictions
+  f1 = metrics.f1(all_labels,
+                  all_predictions,
+                  reldata.int2label,
+                  reldata.label2int,
+                  suppress_output)
+
+  return total_loss / num_steps, f1
 
 def main():
   """Fine-tune bert"""
-
-  dan_model = DeepAveragingNetwork()
-
-  if torch.cuda.is_available():
-    device = torch.device('cuda')
-    dan_model.cuda()
-  else:
-    device = torch.device('cpu')
-    dan_model.cpu()
 
   train_data = reldata.RelData(
     os.path.join(base, cfg.get('data', 'xmi_dir')),
     partition='train',
     n_files=cfg.get('data', 'n_files'))
-  texts, labels = train_data.event_time_relations()
-  train_loader = make_data_loader(texts, labels, RandomSampler)
+  tr_texts, tr_labels = train_data.event_time_relations()
+  train_loader = make_data_loader(tr_texts, tr_labels, RandomSampler)
 
-  train(dan_model, train_loader, device)
-
-  dev_data = reldata.RelData(
+  val_data = reldata.RelData(
     os.path.join(base, cfg.get('data', 'xmi_dir')),
     partition='dev',
     n_files=cfg.get('data', 'n_files'))
-  texts, labels = dev_data.event_time_relations()
-  dev_loader = make_data_loader(texts, labels, SequentialSampler)
+  val_texts, val_labels = val_data.event_time_relations()
+  val_loader = make_data_loader(val_texts, val_labels, SequentialSampler)
 
-  evaluate(dan_model, dev_loader, device)
+  model = BagOfEmbeddings()
+
+  label_counts = torch.bincount(torch.IntTensor(tr_labels))
+  weights = len(tr_labels) / (2.0 * label_counts)
+
+  train(model, train_loader, val_loader, weights)
+  evaluate(model, val_loader, weights, suppress_output=False)
 
 if __name__ == "__main__":
 
