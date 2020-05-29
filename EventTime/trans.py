@@ -123,7 +123,7 @@ def make_data_loader(texts, labels, sampler):
 
   return data_loader
 
-def train(model, train_loader, dev_loader, weights):
+def train(model, train_loader, val_loader, weights):
   """Training routine"""
 
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -136,7 +136,7 @@ def train(model, train_loader, dev_loader, weights):
     model.parameters(),
     lr=cfg.getfloat('model', 'lr'))
 
-  for epoch in range(cfg.getint('model', 'num_epochs')):
+  for epoch in range(1, cfg.getint('model', 'num_epochs') + 1):
     model.train()
     train_loss, num_train_steps = 0, 0
 
@@ -157,9 +157,9 @@ def train(model, train_loader, dev_loader, weights):
       num_train_steps += 1
 
     av_loss = train_loss / num_train_steps
-    dev_loss, f1 = evaluate(model, dev_loader, device)
+    val_loss, f1 = evaluate(model, val_loader, device)
     print('epoch: %d, train loss: %.3f, val loss: %.3f, val f1: %.3f' % \
-          (epoch, av_loss, dev_loss, f1))
+          (epoch, av_loss, val_loss, f1))
 
 def evaluate(model, data_loader, suppress_output=True):
   """Evaluation routine"""
@@ -213,12 +213,12 @@ def main():
   tr_texts, tr_labels = train_data.event_time_relations()
   train_loader = make_data_loader(tr_texts, tr_labels, RandomSampler)
 
-  dev_data = reldata.RelData(
+  val_data = reldata.RelData(
     os.path.join(base, cfg.get('data', 'xmi_dir')),
     partition='dev',
     n_files=cfg.get('data', 'n_files'))
-  dev_texts, dev_labels = dev_data.event_time_relations()
-  dev_loader = make_data_loader(dev_texts, dev_labels, SequentialSampler)
+  val_texts, val_labels = val_data.event_time_relations()
+  val_loader = make_data_loader(val_texts, val_labels, SequentialSampler)
 
   model = TransformerClassifier()
 
@@ -226,8 +226,8 @@ def main():
   label_counts = torch.bincount(torch.IntTensor(tr_labels))
   weights = len(tr_labels) / (2.0 * label_counts)
 
-  train(model, train_loader, dev_loader, weights)
-  evaluate(model, dev_loader, suppress_output=False)
+  train(model, train_loader, val_loader, weights)
+  evaluate(model, val_loader, suppress_output=False)
 
 if __name__ == "__main__":
 
