@@ -33,7 +33,7 @@ class BagOfEmbeddings(nn.Module):
     tok = BertTokenizer.from_pretrained('bert-base-uncased')
 
     self.average = nn.EmbeddingBag(tok.vocab_size, embed_dim)
-    self.linear = nn.Linear(embed_dim, cfg.getint('model', 'hidden_size'))
+    self.hidden = nn.Linear(embed_dim, cfg.getint('model', 'hidden_size'))
     self.dropout = torch.nn.Dropout(cfg.getfloat('model', 'dropout'))
     self.linear = nn.Linear(cfg.getint('model', 'hidden_size'), num_class)
 
@@ -45,7 +45,8 @@ class BagOfEmbeddings(nn.Module):
     # this will return B values aggregated
 
     embedded = self.average(texts)
-    dropped = self.dropout(embedded)
+    hidden = self.hidden(embedded)
+    dropped = self.dropout(hidden)
     logits = self.linear(dropped)
 
     return logits
