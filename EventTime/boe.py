@@ -33,8 +33,9 @@ class BagOfEmbeddings(nn.Module):
     tok = BertTokenizer.from_pretrained('bert-base-uncased')
 
     self.average = nn.EmbeddingBag(tok.vocab_size, embed_dim)
+    self.linear = nn.Linear(embed_dim, cfg.getint('model', 'hidden_size'))
     self.dropout = torch.nn.Dropout(cfg.getfloat('model', 'dropout'))
-    self.linear = nn.Linear(embed_dim, num_class)
+    self.linear = nn.Linear(cfg.getint('model', 'hidden_size'), num_class)
 
   def forward(self, texts):
     """Forward pass"""
