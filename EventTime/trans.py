@@ -11,6 +11,7 @@ from torch.utils.data import TensorDataset, DataLoader
 from torch.utils.data import RandomSampler, SequentialSampler
 
 from transformers import BertTokenizer
+from transformers import AdamW, get_linear_schedule_with_warmup
 
 import numpy as np
 import os, configparser, math, random
@@ -132,9 +133,14 @@ def train(model, train_loader, val_loader, weights):
   weights = weights.to(device)
   cross_entropy_loss = torch.nn.CrossEntropyLoss(weights)
 
-  optimizer = torch.optim.Adam(
+  optimizer = torch.optim.AdamW(
     model.parameters(),
     lr=cfg.getfloat('model', 'lr'))
+
+  scheduler = get_linear_schedule_with_warmup(
+    optimizer,
+    num_warmup_steps=100,
+    num_training_steps=1000)
 
   for epoch in range(1, cfg.getint('model', 'num_epochs') + 1):
     model.train()
@@ -152,6 +158,7 @@ def train(model, train_loader, val_loader, weights):
 
       torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
       optimizer.step()
+      scheduler.step()
 
       train_loss += loss.item()
       num_train_steps += 1
