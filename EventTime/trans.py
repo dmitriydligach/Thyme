@@ -11,7 +11,7 @@ from torch.utils.data import TensorDataset, DataLoader
 from torch.utils.data import RandomSampler, SequentialSampler
 
 from transformers import BertTokenizer
-from transformers import AdamW, get_linear_schedule_with_warmup
+from transformers import get_linear_schedule_with_warmup
 
 import numpy as np
 import os, configparser, math, random
@@ -165,7 +165,7 @@ def train(model, train_loader, val_loader, weights):
 
     av_loss = train_loss / num_train_steps
     val_loss, f1 = evaluate(model, val_loader, weights)
-    print('epoch: %d, steps: %d train loss: %.3f, val loss: %.3f, val f1: %.3f' % \
+    print('ep: %d, steps: %d, tr loss: %.3f, val loss: %.3f, val f1: %.3f' % \
           (epoch, num_train_steps, av_loss, val_loss, f1))
 
 def evaluate(model, data_loader, weights, suppress_output=True):
@@ -226,6 +226,9 @@ def main():
     n_files=cfg.get('data', 'n_files'))
   val_texts, val_labels = val_data.event_time_relations()
   val_loader = make_data_loader(val_texts, val_labels, SequentialSampler)
+
+  print('loaded %d training and %d validation samples' % \
+        (len(tr_texts), len(val_texts)))
 
   model = TransformerClassifier()
 
