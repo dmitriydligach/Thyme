@@ -51,7 +51,9 @@ class BertClassifier(BertPreTrainedModel):
 def make_data_loader(texts, labels, sampler):
   """DataLoader objects for train or dev/test sets"""
 
-  input_ids, attention_masks = utils.to_bert_inputs(texts)
+  input_ids, attention_masks = utils.to_bert_inputs(
+    texts,
+    max_len=cfg.getint('data', 'max_len'))
   labels = torch.tensor(labels)
 
   tensor_dataset = TensorDataset(input_ids, attention_masks, labels)
