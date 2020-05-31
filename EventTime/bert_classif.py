@@ -111,6 +111,7 @@ def train(model, train_loader, val_loader, weights):
 
       nn.utils.clip_grad_norm_(model.parameters(), 1.0)
       optimizer.step()
+      scheduler.step()
 
       train_loss += loss.item()
       num_train_steps += 1
