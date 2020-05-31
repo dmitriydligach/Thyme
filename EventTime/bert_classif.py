@@ -5,6 +5,7 @@ sys.dont_write_bytecode = True
 sys.path.append('../Lib/')
 
 import torch
+import torch.nn as nn
 
 from transformers import AdamW, get_linear_schedule_with_warmup
 from transformers import BertModel, BertPreTrainedModel
@@ -16,8 +17,6 @@ import numpy as np
 import os, configparser, random
 import reldata, utils, metrics
 
-from sklearn.metrics import f1_score
-
 # deterministic determinism
 torch.manual_seed(2020)
 torch.backends.cudnn.deterministic = True
@@ -28,14 +27,14 @@ random.seed(2020)
 class BertClassifier(BertPreTrainedModel):
   """Linear layer on top of pre-trained BERT"""
 
-  def __init__(self, config):
+  def __init__(self, config, num_classes=2):
     """Constructor"""
 
     super(BertClassifier, self).__init__(config)
 
     self.bert = BertModel(config)
-    self.dropout = torch.nn.Dropout(0.1)
-    self.linear = torch.nn.Linear(config.hidden_size, 3)
+    self.dropout = nn.Dropout(0.1)
+    self.linear = nn.Linear(config.hidden_size, num_classes)
 
   def forward(self, input_ids, attention_mask):
     """Forward pass"""
@@ -52,7 +51,7 @@ class BertClassifier(BertPreTrainedModel):
 def make_data_loader(texts, labels, sampler):
   """DataLoader objects for train or dev/test sets"""
 
-  input_ids, attention_masks = utils.to_inputs(texts)
+  input_ids, attention_masks = utils.to_bert_inputs(texts)
   labels = torch.tensor(labels)
 
   tensor_dataset = TensorDataset(input_ids, attention_masks, labels)
@@ -61,7 +60,7 @@ def make_data_loader(texts, labels, sampler):
   data_loader = DataLoader(
     tensor_dataset,
     sampler=rnd_or_seq_sampler,
-    batch_size=cfg.getint('bert', 'batch_size'))
+    batch_size=cfg.getint('model', 'batch_size'))
 
   return data_loader
 
@@ -76,7 +75,7 @@ def make_optimizer_and_scheduler(model):
         if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}]
   optimizer = AdamW(
     params=optimizer_grouped_parameters,
-    lr=cfg.getfloat('bert', 'lr'))
+    lr=cfg.getfloat('model', 'lr'))
   scheduler = get_linear_schedule_with_warmup(
     optimizer,
     num_warmup_steps=100,
@@ -84,48 +83,62 @@ def make_optimizer_and_scheduler(model):
 
   return optimizer, scheduler
 
-def train(bert_model, train_loader, device):
+def train(model, train_loader, val_loader, weights):
   """Training routine"""
 
-  optimizer, scheduler = make_optimizer_and_scheduler(bert_model)
+  device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+  model.to(device)
 
-  for epoch in range(cfg.getint('bert', 'num_epochs')):
-    bert_model.train()
+  weights = weights.to(device)
+  cross_entropy_loss = nn.CrossEntropyLoss(weights)
+
+  optimizer, scheduler = make_optimizer_and_scheduler(model)
+
+  for epoch in range(1, cfg.getint('model', 'num_epochs') + 1):
+    model.train()
     train_loss, num_train_steps = 0, 0
 
     for batch in train_loader:
       batch = tuple(t.to(device) for t in batch)
-      batch_inputs, batch_masks, batch_labels = batch
+      batch_inputs, batch_mask, batch_labels = batch
       optimizer.zero_grad()
 
-      logits = bert_model(batch_inputs, batch_masks)
-      cross_entropy_loss = torch.nn.CrossEntropyLoss()
+      logits = model(batch_inputs, batch_mask)
       loss = cross_entropy_loss(logits, batch_labels)
       loss.backward()
 
-      torch.nn.utils.clip_grad_norm_(bert_model.parameters(), 1.0)
+      nn.utils.clip_grad_norm_(model.parameters(), 1.0)
       optimizer.step()
-      scheduler.step()
 
       train_loss += loss.item()
       num_train_steps += 1
 
-    print('epoch: %d, loss: %.4f' % (epoch, train_loss / num_train_steps))
+    val_loss, f1 = evaluate(model, val_loader, weights)
+    print('epoch: %d, train loss: %.3f, val loss: %.3f, val f1: %.3f' % \
+          (epoch, train_loss / num_train_steps, val_loss, f1))
 
-def evaluate(bert_model, data_loader, device):
+def evaluate(model, data_loader, weights, suppress_output=True):
   """Evaluation routine"""
 
-  bert_model.eval()
+  device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+  weights = weights.to(device)
+  model.to(device)
+
+  cross_entropy_loss = nn.CrossEntropyLoss(weights)
+  total_loss, num_steps = 0, 0
+
+  model.eval()
 
   all_labels = []
   all_predictions = []
 
   for batch in data_loader:
     batch = tuple(t.to(device) for t in batch)
-    batch_inputs, batch_masks, batch_labels = batch
+    batch_inputs, batch_mask, batch_labels = batch
 
     with torch.no_grad():
-      logits = bert_model(batch_inputs, batch_masks)
+      logits = model(batch_inputs, batch_mask)
+      loss = cross_entropy_loss(logits, batch_labels)
 
     batch_logits = logits.detach().cpu().numpy()
     batch_labels = batch_labels.to('cpu').numpy()
@@ -134,45 +147,43 @@ def evaluate(bert_model, data_loader, device):
     all_labels.extend(batch_labels.tolist())
     all_predictions.extend(batch_preds.tolist())
 
-  metrics.f1(
-    all_labels,
-    all_predictions,
-    reldata.int2label,
-    reldata.label2int)
+    total_loss += loss.item()
+    num_steps += 1
 
-  return all_predictions
+  f1 = metrics.f1(all_labels,
+                  all_predictions,
+                  reldata.int2label,
+                  reldata.label2int,
+                  suppress_output)
+
+  return total_loss / num_steps, f1
 
 def main():
   """Fine-tune bert"""
-
-  bert_model = BertClassifier.from_pretrained(
-    'bert-base-uncased',
-    num_labels=3)
-
-  if torch.cuda.is_available():
-    device = torch.device('cuda')
-    bert_model.cuda()
-  else:
-    device = torch.device('cpu')
-    bert_model.cpu()
 
   train_data = reldata.RelData(
     os.path.join(base, cfg.get('data', 'xmi_dir')),
     partition='train',
     n_files=cfg.get('data', 'n_files'))
-  texts, labels = train_data.event_time_relations()
-  train_loader = make_data_loader(texts, labels, RandomSampler)
+  tr_texts, tr_labels = train_data.event_time_relations()
+  train_loader = make_data_loader(tr_texts, tr_labels, RandomSampler)
 
-  train(bert_model, train_loader, device)
-
-  dev_data = reldata.RelData(
+  val_data = reldata.RelData(
     os.path.join(base, cfg.get('data', 'xmi_dir')),
     partition='dev',
     n_files=cfg.get('data', 'n_files'))
-  texts, labels = dev_data.event_time_relations()
-  dev_loader = make_data_loader(texts, labels, sampler=SequentialSampler)
+  val_texts, val_labels = val_data.event_time_relations()
+  val_loader = make_data_loader(val_texts, val_labels, SequentialSampler)
 
-  evaluate(bert_model, dev_loader, device)
+  model = BertClassifier.from_pretrained(
+    'bert-base-uncased',
+    num_labels=2)
+
+  label_counts = torch.bincount(torch.IntTensor(tr_labels))
+  weights = len(tr_labels) / (2.0 * label_counts)
+
+  train(model, train_loader, val_loader, weights)
+  evaluate(model, val_loader, weights, suppress_output=False)
 
 if __name__ == "__main__":
 
