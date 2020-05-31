@@ -165,8 +165,8 @@ def train(model, train_loader, val_loader, weights):
 
     av_loss = train_loss / num_train_steps
     val_loss, f1 = evaluate(model, val_loader, weights)
-    print('epoch: %d, train loss: %.3f, val loss: %.3f, val f1: %.3f' % \
-          (epoch, av_loss, val_loss, f1))
+    print('epoch: %d, steps: %d train loss: %.3f, val loss: %.3f, val f1: %.3f' % \
+          (epoch, num_train_steps, av_loss, val_loss, f1))
 
 def evaluate(model, data_loader, weights, suppress_output=True):
   """Evaluation routine"""
