@@ -37,10 +37,6 @@ class BagOfEmbeddings(nn.Module):
       cfg.getint('model', 'emb_dim'),
       mode='mean')
 
-    # self.embedding = nn.Embedding(
-    #   num_embeddings=tok.vocab_size,
-    #  embedding_dim=cfg.getint('model', 'emb_dim'))
-
     self.hidden = nn.Linear(
       cfg.getint('model', 'emb_dim'),
       cfg.getint('model', 'hidden_size'))

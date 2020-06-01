@@ -69,7 +69,12 @@ class TransformerClassifier(nn.Module):
     # encoder output: (seq_len, batch_size, emb_dim)
     output = output.permute(1, 0, 2)
     output = self.trans_encoder(output, attention_mask)
-    output = output[0, :, :]
+
+    # extract CLS token only
+    # output = output[0, :, :]
+
+    # average pooling
+    output = torch.mean(output, dim=0)
 
     output = self.dropout(output)
     output = self.linear(output)
