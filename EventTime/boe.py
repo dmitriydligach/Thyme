@@ -13,7 +13,7 @@ from torch.utils.data import RandomSampler, SequentialSampler
 from transformers import BertTokenizer
 
 import numpy as np
-import os, configparser, math, random
+import os, configparser, random
 
 import reldata, metrics, utils
 
@@ -26,15 +26,27 @@ random.seed(2020)
 
 class BagOfEmbeddings(nn.Module):
 
-  def __init__(self, embed_dim=100, num_class=2):
+  def __init__(self, num_class=2):
     """Constructor"""
 
     super(BagOfEmbeddings, self).__init__()
     tok = BertTokenizer.from_pretrained('bert-base-uncased')
 
-    self.average = nn.EmbeddingBag(tok.vocab_size, embed_dim)
-    self.hidden = nn.Linear(embed_dim, cfg.getint('model', 'hidden_size'))
+    self.average = nn.EmbeddingBag(
+      tok.vocab_size,
+      cfg.getint('model', 'emb_dim'),
+      mode='mean')
+
+    # self.embedding = nn.Embedding(
+    #   num_embeddings=tok.vocab_size,
+    #  embedding_dim=cfg.getint('model', 'emb_dim'))
+
+    self.hidden = nn.Linear(
+      cfg.getint('model', 'emb_dim'),
+      cfg.getint('model', 'hidden_size'))
+
     self.dropout = torch.nn.Dropout(cfg.getfloat('model', 'dropout'))
+
     self.linear = nn.Linear(cfg.getint('model', 'hidden_size'), num_class)
 
   def forward(self, texts):
