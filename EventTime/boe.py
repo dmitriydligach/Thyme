@@ -44,12 +44,12 @@ class BagOfEmbeddings(nn.Module):
     # as B bags (sequences) each of fixed length N, and
     # this will return B values aggregated
 
-    embedded = self.average(texts)
-    hidden = self.hidden(embedded)
-    dropped = self.dropout(hidden)
-    logits = self.linear(dropped)
+    output = self.average(texts)
+    output = self.hidden(output)
+    output = self.dropout(output)
+    output = self.linear(output)
 
-    return logits
+    return output
 
 def make_data_loader(texts, labels, sampler):
   """DataLoader objects for train or dev/test sets"""
