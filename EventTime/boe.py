@@ -30,32 +30,35 @@ class BagOfEmbeddings(nn.Module):
     """Constructor"""
 
     super(BagOfEmbeddings, self).__init__()
+
     tok = BertTokenizer.from_pretrained('bert-base-uncased')
+    self.embed = nn.Embedding(
+      num_embeddings=tok.vocab_size,
+      embedding_dim=cfg.getint('model', 'emb_dim'))
 
-    self.average = nn.EmbeddingBag(
-      tok.vocab_size,
-      cfg.getint('model', 'emb_dim'),
-      mode='mean')
+    self.hidden1 = nn.Linear(
+      in_features=cfg.getint('model', 'emb_dim'),
+      out_features=cfg.getint('model', 'hidden_size'))
 
-    self.hidden = nn.Linear(
-      cfg.getint('model', 'emb_dim'),
-      cfg.getint('model', 'hidden_size'))
+    self.hidden2 = nn.Linear(
+      in_features=cfg.getint('model', 'hidden_size'),
+      out_features=cfg.getint('model', 'hidden_size'))
 
     self.dropout = torch.nn.Dropout(cfg.getfloat('model', 'dropout'))
 
-    self.linear = nn.Linear(cfg.getint('model', 'hidden_size'), num_class)
+    self.classif = nn.Linear(
+      in_features=cfg.getint('model', 'hidden_size'),
+      out_features=num_class)
 
   def forward(self, texts):
     """Forward pass"""
 
-    # if input is 2D of shape (B, N), it will be treated
-    # as B bags (sequences) each of fixed length N, and
-    # this will return B values aggregated
-
-    output = self.average(texts)
-    output = self.hidden(output)
+    output = self.embed(texts)
+    output = torch.mean(output, dim=1)
+    output = self.hidden1(output)
+    output = self.hidden2(output)
     output = self.dropout(output)
-    output = self.linear(output)
+    output = self.classif(output)
 
     return output
 
