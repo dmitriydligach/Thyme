@@ -43,7 +43,7 @@ class BagOfEmbeddings(nn.Module):
     self.dropout = nn.Dropout(cfg.getfloat('model', 'dropout'))
 
     self.classif = nn.Linear(
-      in_features=cfg.getint('model', 'emb_dim') * 2,
+      in_features=cfg.getint('model', 'emb_dim'),
       out_features=num_class)
 
   def forward(self, texts):
@@ -56,7 +56,9 @@ class BagOfEmbeddings(nn.Module):
     emb_tokens = self.embed(texts)
     emb_posits = self.posit(positions)
 
-    embeddings = torch.cat((emb_tokens, emb_posits), dim=2)
+    # embeddings = torch.cat((emb_tokens, emb_posits), dim=2)
+    embeddings = emb_tokens + emb_posits
+
     output = torch.mean(embeddings, dim=1)
 
     output = self.dropout(output)
