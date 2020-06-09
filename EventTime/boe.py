@@ -40,11 +40,13 @@ class BagOfEmbeddings(nn.Module):
       in_features=cfg.getint('model', 'emb_dim'),
       out_features=cfg.getint('model', 'hidden_size'))
 
+    self.relu = nn.ReLU()
+
     self.hidden2 = nn.Linear(
       in_features=cfg.getint('model', 'hidden_size'),
       out_features=cfg.getint('model', 'hidden_size'))
 
-    self.dropout = torch.nn.Dropout(cfg.getfloat('model', 'dropout'))
+    self.dropout = nn.Dropout(cfg.getfloat('model', 'dropout'))
 
     self.classif = nn.Linear(
       in_features=cfg.getint('model', 'hidden_size'),
@@ -56,7 +58,9 @@ class BagOfEmbeddings(nn.Module):
     output = self.embed(texts)
     output = torch.mean(output, dim=1)
     output = self.hidden1(output)
+    output = self.relu(output)
     output = self.hidden2(output)
+    output = self.relu(output)
     output = self.dropout(output)
     output = self.classif(output)
 
