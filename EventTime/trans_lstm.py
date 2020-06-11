@@ -28,7 +28,7 @@ random.seed(2020)
 class TransformerClassifier(nn.Module):
   """A transformative experience"""
 
-  def __init__(self, num_classes=2):
+  def __init__(self, num_classes=3):
     """We have some of the best constructors in the world"""
 
     super(TransformerClassifier, self).__init__()

@@ -26,7 +26,7 @@ random.seed(2020)
 
 class BagOfEmbeddings(nn.Module):
 
-  def __init__(self, num_class=2):
+  def __init__(self, num_class=3):
     """Constructor"""
 
     super(BagOfEmbeddings, self).__init__()

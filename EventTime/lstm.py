@@ -26,7 +26,7 @@ random.seed(2020)
 
 class LstmClassifier(nn.Module):
 
-  def __init__(self, num_class=2):
+  def __init__(self, num_class=3):
     """Constructor"""
 
     super(LstmClassifier, self).__init__()

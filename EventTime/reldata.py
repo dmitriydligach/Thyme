@@ -23,10 +23,6 @@ rel_type = 'org.apache.ctakes.typesystem.type.relation.TemporalTextRelation'
 event_type = 'org.apache.ctakes.typesystem.type.textsem.EventMention'
 time_type = 'org.apache.ctakes.typesystem.type.textsem.TimeMention'
 sent_type = 'org.apache.ctakes.typesystem.type.textspan.Sentence'
-token_type = 'org.apache.ctakes.typesystem.type.syntax.WordToken'
-
-# TODO: generating about 1/2 of the relations we need to generate?
-# TODO: use base token instead of word token to get punctuation
 
 def index_relations(gold_view):
   """Map arguments to relation types"""
@@ -112,8 +108,8 @@ class RelData:
             label = 'NONE'
             if (time, event) in rel_lookup:
               label = rel_lookup[(time, event)]
-            # if (event, time) in rel_lookup:
-            #   label = rel_lookup[(event, time)] + '-1'
+            if (event, time) in rel_lookup:
+              label = rel_lookup[(event, time)] + '-1'
 
             if time.begin < event.begin:
               context = get_context(sent, time, event, 't', 'e')
@@ -133,8 +129,8 @@ if __name__ == "__main__":
 
   dtr_data = RelData(
     os.path.join(base, cfg.get('data', 'xmi_dir')),
-    partition='dev',
-    n_files=cfg.getint('data', 'n_files'))
+    partition='train',
+    n_files=cfg.get('data', 'n_files'))
 
   inputs, labels = dtr_data.event_time_relations()
 

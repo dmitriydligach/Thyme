@@ -27,7 +27,7 @@ random.seed(2020)
 class BertClassifier(BertPreTrainedModel):
   """Linear layer on top of pre-trained BERT"""
 
-  def __init__(self, config, num_classes=2):
+  def __init__(self, config, num_classes=3):
     """Constructor"""
 
     super(BertClassifier, self).__init__(config)
@@ -184,6 +184,7 @@ def main():
 
   label_counts = torch.bincount(torch.IntTensor(tr_labels))
   weights = len(tr_labels) / (2.0 * label_counts)
+  print('class weights:', weights)
 
   train(model, train_loader, val_loader, weights)
   evaluate(model, val_loader, weights, suppress_output=False)
