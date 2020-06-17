@@ -32,10 +32,16 @@ class LstmClassifier(nn.Module):
     super(LstmClassifier, self).__init__()
     tok = BertTokenizer.from_pretrained('bert-base-uncased')
 
-    self.embed = nn.Embedding(tok.vocab_size, cfg.getint('model', 'emb_dim'))
-    self.lstm = nn.LSTM(cfg.getint('model', 'emb_dim'), cfg.getint('model', 'hidden_size'))
-    self.dropout = nn.Dropout(cfg.getfloat('model', 'dropout'))
-    self.linear = nn.Linear(cfg.getint('model', 'hidden_size'), num_class)
+    self.embed = nn.Embedding(
+      num_embeddings=tok.vocab_size,
+      embedding_dim=cfg.getint('model', 'emb_dim'))
+    self.lstm = nn.LSTM(
+      input_size=cfg.getint('model', 'emb_dim'),
+      hidden_size=cfg.getint('model', 'hidden_size'))
+    self.dropout = nn.Dropout(p=cfg.getfloat('model', 'dropout'))
+    self.linear = nn.Linear(
+      in_features=cfg.getint('model', 'hidden_size'),
+      out_features=num_class)
 
   def forward(self, texts):
     """Forward pass"""
@@ -113,7 +119,9 @@ def train(model, train_loader, val_loader, weights):
       loss = cross_entropy_loss(logits, batch_labels)
       loss.backward()
 
-      torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+      # this makes a big difference
+      nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+
       optimizer.step()
 
       train_loss += loss.item()
