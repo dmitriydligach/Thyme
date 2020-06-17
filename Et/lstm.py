@@ -15,7 +15,7 @@ from torch.utils.data import RandomSampler, SequentialSampler
 import numpy as np
 import os, configparser, random
 
-import metrics, reldata
+import metrics, reldata, utils
 
 # deterministic determinism
 torch.manual_seed(2020)
@@ -67,25 +67,10 @@ class LstmClassifier(nn.Module):
 
     return logits
 
-def to_inputs(texts, pad_token=0):
-  """Converts texts into input matrices"""
-
-  tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-
-  rows = [tokenizer.encode(text, add_special_tokens=True) for text in texts]
-  shape = (len(rows), max(len(row) for row in rows))
-  token_ids = np.full(shape=shape, fill_value=pad_token)
-
-  for i, row in enumerate(rows):
-    token_ids[i, -len(row):] = row
-  token_ids = torch.tensor(token_ids)
-
-  return token_ids
-
 def make_data_loader(texts, labels, sampler):
   """DataLoader objects for train or dev/test sets"""
 
-  input_ids = to_inputs(texts)
+  input_ids = utils.to_lstm_inputs(texts)
   labels = torch.tensor(labels)
 
   tensor_dataset = TensorDataset(input_ids, labels)
