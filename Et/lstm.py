@@ -51,12 +51,16 @@ class LstmClassifier(nn.Module):
     embeddings = self.embed(texts)
 
     # lstm input: (seq_len, batch_size, input_size)
-    # final state: (1, batch_size, hidden_size)
     embeddings = embeddings.permute(1, 0, 2)
-    final_hidden, _ = self.lstm(embeddings)[1]
+
+    # output shape: (batch_size, hidden_size, max_len)
+    # i.e. output contains the hidden state for each time step
+    # h_n (1, batch_size, hidden_size) is the last hidden state
+    # c_n (1, batch_size, hidden_size) is the cell for the last state
+    output, (h_n, c_n) = self.lstm(embeddings)
 
     # final hidden into (batch_size, hidden_size)
-    final_hidden = final_hidden.squeeze()
+    final_hidden = h_n.squeeze()
     dropped = self.dropout(final_hidden)
     logits = self.linear(dropped)
 
