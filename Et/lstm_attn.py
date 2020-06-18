@@ -44,15 +44,38 @@ class LstmClassifier(nn.Module):
       in_features=cfg.getint('model', 'hidden_size'),
       out_features=num_class)
 
-  def attention_net(self, lstm_output, final_state):
+  def attention(self, lstm_output, h_n):
     """From https://github.com/prakashpandey9/Text-Classification-Pytorch/"""
 
-    hidden = final_state.squeeze(0)
-    attn_weights = torch.bmm(lstm_output, hidden.unsqueeze(2)).squeeze(2)
-    soft_attn_weights = F.softmax(attn_weights, 1)
-    new_hidden_state = torch.bmm(lstm_output.transpose(1, 2), soft_attn_weights.unsqueeze(2)).squeeze(2)
+    # input shapes
+    # lstm_output: (batch_size, max_len, hidden_size)
+    # h_n: (batch_size, hidden_size)
 
-    return new_hidden_state
+    # need h_n: (batch_size, hidden_size, 1)
+    h_n = h_n.unsqueeze(2)
+
+    # attn_weights: (batch_size, max_len, 1)
+    attn_weights = torch.bmm(lstm_output, h_n)
+
+    # need attn_weights: (batch_size, max_len)
+    attn_weights = attn_weights.squeeze(2)
+
+    # soft_attn_weights: (batch_size, max_len)
+    soft_attn_weights = F.softmax(attn_weights, 1)
+
+    # need: (batch_size, hidden_size, max_len)
+    lstm_output = lstm_output.transpose(1, 2)
+
+    # need: (batch_size, max_len, 1)
+    soft_attn_weights = soft_attn_weights.unsqueeze(2)
+
+    # weighted_average: (batch_size, hidden_size, 1)
+    weighted_average = torch.bmm(lstm_output, soft_attn_weights)
+
+    # need: (batch_size, hidden_size)
+    weighted_average = weighted_average.squeeze(2)
+
+    return weighted_average
 
   def forward(self, texts):
     """Forward pass"""
@@ -68,12 +91,15 @@ class LstmClassifier(nn.Module):
     # i.e. output contains the hidden state for each time step
     # h_n (1, batch_size, hidden_size) is the last hidden state
     # c_n (1, batch_size, hidden_size) is the cell for the last state
-    output, (h_n, c_n) = self.lstm(embeddings)
+    lstm_output, (h_n, c_n) = self.lstm(embeddings)
 
     # need (batch_size, max_len, hidden_size)
-    output = output.permute(1, 0, 2)
+    lstm_output = lstm_output.permute(1, 0, 2)
 
-    attn_output = self.attention_net(output, h_n)
+    # need (batch_size, hidden_size)
+    h_n = h_n.squeeze(0)
+
+    attn_output = self.attention(lstm_output, h_n)
 
     dropped = self.dropout(attn_output)
     logits = self.linear(dropped)
