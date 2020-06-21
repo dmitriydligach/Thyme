@@ -18,7 +18,7 @@ def train():
   tokenizer = CharBPETokenizer(lowercase=True)
   tokenizer.train(
     files=files,
-    vocab_size=5000,
+    vocab_size=10000,
     min_frequency=3,
     show_progress=True)
   tokenizer.save('.', name='thyme-tokenizer')
