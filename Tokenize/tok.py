@@ -4,14 +4,15 @@ import sys
 sys.dont_write_bytecode = True
 sys.path.append('../Anafora')
 
-import glob
+import glob, os
 
 from tokenizers import CharBPETokenizer
 
 def train():
   """My main man"""
 
-  corpus_path = '/Users/Dima/Work/Data/Thyme/Text/train+dev+test/*'
+  base = os.environ['DATA_ROOT']
+  corpus_path = base + 'Thyme/Text/train+dev+test/*'
   files = glob.glob(corpus_path)
 
   tokenizer = CharBPETokenizer(lowercase=True)
