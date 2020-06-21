@@ -10,7 +10,7 @@ import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 from torch.utils.data import RandomSampler, SequentialSampler
 
-from transformers import BertTokenizer
+from tokenizers import CharBPETokenizer
 from transformers import get_linear_schedule_with_warmup
 
 import numpy as np
@@ -33,8 +33,10 @@ class TransformerClassifier(nn.Module):
 
     super(TransformerClassifier, self).__init__()
 
-    tok = BertTokenizer.from_pretrained('bert-base-uncased')
-    vocab_size = tok.vocab_size # the reason we need bert tokenizer
+    tokenizer = CharBPETokenizer(
+      '../Tokenize/thyme-tokenizer-vocab.json',
+      '../Tokenize/thyme-tokenizer-merges.txt')
+    vocab_size = tokenizer.get_vocab_size()
 
     self.embedding = nn.Embedding(
       num_embeddings=vocab_size,

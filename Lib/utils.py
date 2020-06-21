@@ -33,9 +33,10 @@ def to_bert_inputs(texts, max_len=None, pad_token=0):
 def to_transformer_inputs(texts, max_len=None):
   """Matrix of token ids and a square attention mask for eash sample"""
 
-  # use bert tokenizer for now
-  tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-  seqs = [tokenizer.encode(text, add_special_tokens=True) for text in texts]
+  tokenizer = CharBPETokenizer(
+    '../Tokenize/thyme-tokenizer-vocab.json',
+    '../Tokenize/thyme-tokenizer-merges.txt')
+  seqs = [tokenizer.encode(text).ids for text in texts]
 
   if max_len is None:
     # set max_len to the length of the longest sequence
