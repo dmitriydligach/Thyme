@@ -10,7 +10,7 @@ import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 from torch.utils.data import RandomSampler, SequentialSampler
 
-from transformers import BertTokenizer
+from tokenizers import CharBPETokenizer
 
 import numpy as np
 import os, configparser, random
@@ -31,9 +31,13 @@ class BagOfEmbeddings(nn.Module):
 
     super(BagOfEmbeddings, self).__init__()
 
-    tok = BertTokenizer.from_pretrained('bert-base-uncased')
+    tokenizer = CharBPETokenizer(
+      '../Tokenize/thyme-tokenizer-vocab.json',
+      '../Tokenize/thyme-tokenizer-merges.txt')
+    vocab_size = tokenizer.get_vocab_size()
+
     self.embed = nn.Embedding(
-      num_embeddings=tok.vocab_size,
+      num_embeddings=vocab_size,
       embedding_dim=cfg.getint('model', 'emb_dim'))
 
     self.hidden1 = nn.Linear(
