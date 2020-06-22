@@ -7,8 +7,6 @@ sys.path.append('../Lib/')
 import torch
 import torch.nn as nn
 
-from torch.utils.data import RandomSampler, SequentialSampler
-
 from tokenizers import CharBPETokenizer
 from transformers import get_linear_schedule_with_warmup
 
@@ -211,8 +209,8 @@ def main():
     tr_labels,
     cfg.getint('model', 'batch_size'),
     cfg.getint('data', 'max_len'),
-    utils.to_transformer_inputs,
-    RandomSampler)
+    'train',
+    utils.to_transformer_inputs)
 
   val_data = reldata.RelData(
     os.path.join(base, cfg.get('data', 'xmi_dir')),
@@ -224,8 +222,8 @@ def main():
     val_labels,
     cfg.getint('model', 'batch_size'),
     cfg.getint('data', 'max_len'),
-    utils.to_transformer_inputs,
-    SequentialSampler)
+    'dev',
+    utils.to_transformer_inputs)
 
   print('loaded %d training and %d validation samples' % \
         (len(tr_texts), len(val_texts)))

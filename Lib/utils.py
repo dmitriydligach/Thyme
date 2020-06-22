@@ -5,6 +5,7 @@ import numpy as np
 from transformers import BertTokenizer
 from tokenizers import CharBPETokenizer
 from torch.utils.data import TensorDataset, DataLoader
+from torch.utils.data import RandomSampler, SequentialSampler
 
 def to_bert_inputs(texts, max_len=None, pad_token=0):
   """Converts texts into input matrices required by BERT"""
@@ -96,7 +97,7 @@ def to_lstm_inputs(texts, max_len=None):
 
   return ids
 
-def make_data_loader(texts, labels, batch_size, max_len, input_processor, sampler):
+def make_data_loader(texts, labels, batch_size, max_len, partition, input_processor):
   """DataLoader objects for train or dev/test sets"""
 
   model_inputs = input_processor(texts, max_len)
@@ -108,11 +109,15 @@ def make_data_loader(texts, labels, batch_size, max_len, input_processor, sample
   else:
     tensor_dataset = TensorDataset(model_inputs, labels)
 
-  rnd_or_seq_sampler = sampler(tensor_dataset)
+  # use sequential sampler for dev and test
+  if partition == 'train':
+    sampler = RandomSampler(tensor_dataset)
+  else:
+    sampler = SequentialSampler(tensor_dataset)
 
   data_loader = DataLoader(
     tensor_dataset,
-    sampler=rnd_or_seq_sampler,
+    sampler=sampler,
     batch_size=batch_size)
 
   return data_loader

@@ -8,7 +8,6 @@ import torch
 import torch.nn as nn
 
 from tokenizers import CharBPETokenizer
-from torch.utils.data import RandomSampler, SequentialSampler
 
 import numpy as np
 import os, configparser, random
@@ -161,9 +160,9 @@ def main():
     tr_texts,
     tr_labels,
     cfg.getint('model', 'batch_size'),
-    cfg.getint('data', 'max_len'),
-    utils.to_lstm_inputs,
-    RandomSampler)
+    None,
+    'train',
+    utils.to_lstm_inputs)
 
   val_data = reldata.RelData(
     os.path.join(base, cfg.get('data', 'xmi_dir')),
@@ -174,9 +173,9 @@ def main():
     val_texts,
     val_labels,
     cfg.getint('model', 'batch_size'),
-    cfg.getint('data', 'max_len'),
-    utils.to_lstm_inputs,
-    SequentialSampler)
+    None,
+    'dev',
+    utils.to_lstm_inputs)
 
   model = LstmClassifier()
 
