@@ -8,8 +8,6 @@ import torch
 import torch.nn as nn
 
 from tokenizers import CharBPETokenizer
-
-from torch.utils.data import TensorDataset, DataLoader
 from torch.utils.data import RandomSampler, SequentialSampler
 
 import numpy as np
@@ -70,22 +68,6 @@ class LstmClassifier(nn.Module):
     logits = self.linear(dropped)
 
     return logits
-
-def make_data_loader(texts, labels, sampler):
-  """DataLoader objects for train or dev/test sets"""
-
-  input_ids = utils.to_lstm_inputs(texts)
-  labels = torch.tensor(labels)
-
-  tensor_dataset = TensorDataset(input_ids, labels)
-  rnd_or_seq_sampler = sampler(tensor_dataset)
-
-  data_loader = DataLoader(
-    tensor_dataset,
-    sampler=rnd_or_seq_sampler,
-    batch_size=cfg.getint('model', 'batch_size'))
-
-  return data_loader
 
 def train(model, train_loader, val_loader, weights):
   """Training routine"""
@@ -175,14 +157,26 @@ def main():
     partition='train',
     n_files=cfg.get('data', 'n_files'))
   tr_texts, tr_labels = train_data.event_time_relations()
-  train_loader = make_data_loader(tr_texts, tr_labels, RandomSampler)
+  train_loader = utils.make_data_loader(
+    tr_texts,
+    tr_labels,
+    cfg.getint('model', 'batch_size'),
+    cfg.getint('data', 'max_len'),
+    utils.to_lstm_inputs,
+    RandomSampler)
 
   val_data = reldata.RelData(
     os.path.join(base, cfg.get('data', 'xmi_dir')),
     partition='dev',
     n_files=cfg.get('data', 'n_files'))
   val_texts, val_labels = val_data.event_time_relations()
-  val_loader = make_data_loader(val_texts, val_labels, SequentialSampler)
+  val_loader = utils.make_data_loader(
+    val_texts,
+    val_labels,
+    cfg.getint('model', 'batch_size'),
+    cfg.getint('data', 'max_len'),
+    utils.to_lstm_inputs,
+    SequentialSampler)
 
   model = LstmClassifier()
 

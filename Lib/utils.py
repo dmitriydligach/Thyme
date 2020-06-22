@@ -4,6 +4,7 @@ import torch
 import numpy as np
 from transformers import BertTokenizer
 from tokenizers import CharBPETokenizer
+from torch.utils.data import TensorDataset, DataLoader
 
 def to_bert_inputs(texts, max_len=None, pad_token=0):
   """Converts texts into input matrices required by BERT"""
@@ -94,6 +95,27 @@ def to_lstm_inputs(texts, max_len=None):
     ids[i, -len(seq):] = torch.tensor(seq)
 
   return ids
+
+def make_data_loader(texts, labels, batch_size, max_len, input_processor, sampler):
+  """DataLoader objects for train or dev/test sets"""
+
+  model_inputs = input_processor(texts, max_len)
+  labels = torch.tensor(labels)
+
+  # e.g. transformers take input ids and attn masks
+  if type(model_inputs) is tuple:
+    tensor_dataset = TensorDataset(*model_inputs, labels)
+  else:
+    tensor_dataset = TensorDataset(model_inputs, labels)
+
+  rnd_or_seq_sampler = sampler(tensor_dataset)
+
+  data_loader = DataLoader(
+    tensor_dataset,
+    sampler=rnd_or_seq_sampler,
+    batch_size=batch_size)
+
+  return data_loader
 
 if __name__ == "__main__":
 
