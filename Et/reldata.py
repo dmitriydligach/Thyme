@@ -127,15 +127,17 @@ if __name__ == "__main__":
   cfg.read(sys.argv[1])
   base = os.environ['DATA_ROOT']
 
-  dtr_data = RelData(
+  rel_data = RelData(
     os.path.join(base, cfg.get('data', 'xmi_dir')),
     partition='train',
-    n_files=cfg.get('data', 'n_files'))
+    n_files=10)
 
-  inputs, labels = dtr_data.event_time_relations()
-
-  print('inputs:\n', inputs[:4])
-  print('labels:\n', labels[:4])
+  inputs, labels = rel_data.event_time_relations()
 
   import collections
   print('unique labels:', collections.Counter(labels))
+
+  # print a few 'contains' samples
+  for input, label in zip(inputs, labels):
+    if label == 1:
+      print(input)
