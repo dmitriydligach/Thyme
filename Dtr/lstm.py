@@ -107,7 +107,7 @@ def train(model, train_loader, val_loader, weights):
     print('epoch: %d, train loss: %.3f, val loss: %.3f, val f1: %.3f' % \
           (epoch, av_loss, val_loss, f1))
 
-def evaluate(model, data_loader, weights, suppress_output=True):
+def evaluate(model, data_loader, weights):
   """Evaluation routine"""
 
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -178,7 +178,7 @@ def main():
   weights = len(tr_labels) / (2.0 * label_counts)
 
   train(model, train_loader, val_loader, weights)
-  evaluate(model, val_loader, weights, suppress_output=False)
+  evaluate(model, val_loader, weights)
 
 if __name__ == "__main__":
 
