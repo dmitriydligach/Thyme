@@ -8,10 +8,9 @@ import torch.nn as nn
 
 from tokenizers import CharBPETokenizer
 from sklearn.metrics import f1_score
-from transformers import get_linear_schedule_with_warmup
 
 import numpy as np
-import os, configparser, math, random
+import os, configparser, random
 
 import dtrdata, utils
 
@@ -22,93 +21,51 @@ torch.backends.cudnn.benchmark = False
 np.random.seed(2020)
 random.seed(2020)
 
-class TransformerClassifier(nn.Module):
-  """A transformative experience"""
+class BagOfEmbeddings(nn.Module):
 
-  def __init__(self, num_classes=4):
-    """We have some of the best constructors in the world"""
+  def __init__(self, num_class=4):
+    """Constructor"""
 
-    super(TransformerClassifier, self).__init__()
+    super(BagOfEmbeddings, self).__init__()
 
     tokenizer = CharBPETokenizer(
       '../Tokenize/thyme-tokenizer-vocab.json',
       '../Tokenize/thyme-tokenizer-merges.txt')
     vocab_size = tokenizer.get_vocab_size()
 
-    self.embedding = nn.Embedding(
+    self.embed = nn.Embedding(
       num_embeddings=vocab_size,
       embedding_dim=cfg.getint('model', 'emb_dim'))
 
-    self.position = PositionalEncoding(
-      embedding_dim=cfg.getint('model', 'emb_dim'))
+    self.hidden1 = nn.Linear(
+      in_features=cfg.getint('model', 'emb_dim'),
+      out_features=cfg.getint('model', 'hidden_size'))
 
-    encoder_layer = nn.TransformerEncoderLayer(
-      d_model=cfg.getint('model', 'emb_dim'),
-      nhead=cfg.getint('model', 'num_heads'),
-      dim_feedforward=cfg.getint('model', 'feedforw_dim'))
+    self.relu = nn.ReLU()
 
-    self.trans_encoder = nn.TransformerEncoder(
-      encoder_layer=encoder_layer,
-      num_layers=cfg.getint('model', 'num_layers'))
+    self.hidden2 = nn.Linear(
+      in_features=cfg.getint('model', 'hidden_size'),
+      out_features=cfg.getint('model', 'hidden_size'))
 
     self.dropout = nn.Dropout(cfg.getfloat('model', 'dropout'))
 
-    self.linear = nn.Linear(
-      in_features=cfg.getint('model', 'emb_dim'),
-      out_features=num_classes)
+    self.classif = nn.Linear(
+      in_features=cfg.getint('model', 'hidden_size'),
+      out_features=num_class)
 
-  def forward(self, texts, attention_mask):
-    """Moving forward"""
+  def forward(self, texts):
+    """Forward pass"""
 
-    sqrtn = math.sqrt(cfg.getint('model', 'emb_dim'))
-    output = self.embedding(texts) * sqrtn
-    output = self.position(output)
-
-    # encoder input: (seq_len, batch_size, emb_dim)
-    # encoder output: (seq_len, batch_size, emb_dim)
-    output = output.permute(1, 0, 2)
-    output = self.trans_encoder(output, attention_mask)
-
-    # extract CLS token only
-    # output = output[0, :, :]
-
-    # average pooling
-    output = torch.mean(output, dim=0)
-
+    output = self.embed(texts)
+    output = torch.mean(output, dim=1)
+    output = self.hidden1(output)
+    output = self.relu(output)
+    output = self.hidden2(output)
+    output = self.relu(output)
     output = self.dropout(output)
-    output = self.linear(output)
+    output = self.classif(output)
 
     return output
-
-class PositionalEncoding(nn.Module):
-  """That's my position"""
-
-  def __init__(self, embedding_dim):
-    """Deconstructing the construct"""
-
-    super(PositionalEncoding, self).__init__()
-
-    self.dropout = nn.Dropout(p=0.1)
-
-    max_len = cfg.getint('data', 'max_len')
-    pe = torch.zeros(max_len, embedding_dim)
-
-    position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-    div_term = torch.exp(torch.arange(0, embedding_dim, 2).float() * \
-                         (-math.log(10000.0) / embedding_dim))
-
-    pe[:, 0::2] = torch.sin(position * div_term)
-    pe[:, 1::2] = torch.cos(position * div_term)
-    pe = pe.unsqueeze(0)
-
-    self.register_buffer('pe', pe)
-
-  def forward(self, x):
-    """We're being very forward here"""
-
-    x = x + self.pe[:x.size(0), :]
-
-    return self.dropout(x)
 
 def train(model, train_loader, val_loader, weights):
   """Training routine"""
@@ -119,14 +76,9 @@ def train(model, train_loader, val_loader, weights):
   weights = weights.to(device)
   cross_entropy_loss = torch.nn.CrossEntropyLoss(weights)
 
-  optimizer = torch.optim.AdamW(
+  optimizer = torch.optim.Adam(
     model.parameters(),
     lr=cfg.getfloat('model', 'lr'))
-
-  scheduler = get_linear_schedule_with_warmup(
-    optimizer,
-    num_warmup_steps=100,
-    num_training_steps=5000)
 
   for epoch in range(1, cfg.getint('model', 'num_epochs') + 1):
     model.train()
@@ -134,27 +86,25 @@ def train(model, train_loader, val_loader, weights):
 
     for batch in train_loader:
       batch = tuple(t.to(device) for t in batch)
-      batch_inputs, batch_mask, batch_labels = batch
-      batch_mask = batch_mask.repeat(cfg.getint('model', 'num_heads'), 1, 1)
+      batch_inputs, batch_labels = batch
       optimizer.zero_grad()
 
-      logits = model(batch_inputs, batch_mask)
+      logits = model(batch_inputs)
       loss = cross_entropy_loss(logits, batch_labels)
       loss.backward()
 
       torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
       optimizer.step()
-      scheduler.step()
 
       train_loss += loss.item()
       num_train_steps += 1
 
     av_loss = train_loss / num_train_steps
     val_loss, f1 = evaluate(model, val_loader, weights)
-    print('ep: %d, steps: %d, tr loss: %.3f, val loss: %.3f, val f1: %.3f' % \
-          (epoch, num_train_steps, av_loss, val_loss, f1))
+    print('epoch: %d, train loss: %.3f, val loss: %.3f, val f1: %.3f' % \
+          (epoch, av_loss, val_loss, f1))
 
-def evaluate(model, data_loader, weights, suppress_output=True):
+def evaluate(model, data_loader, weights):
   """Evaluation routine"""
 
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -171,11 +121,10 @@ def evaluate(model, data_loader, weights, suppress_output=True):
 
   for batch in data_loader:
     batch = tuple(t.to(device) for t in batch)
-    batch_inputs, batch_mask, batch_labels = batch
-    batch_mask = batch_mask.repeat(cfg.getint('model', 'num_heads'), 1, 1)
+    batch_inputs, batch_labels = batch
 
     with torch.no_grad():
-      logits = model(batch_inputs, batch_mask)
+      logits = model(batch_inputs)
       loss = cross_entropy_loss(logits, batch_labels)
 
     batch_logits = logits.detach().cpu().numpy()
@@ -205,7 +154,7 @@ def main():
     cfg.getint('model', 'batch_size'),
     cfg.getint('data', 'max_len'),
     'train',
-    utils.to_transformer_inputs)
+    utils.to_token_id_sequences)
 
   val_data = dtrdata.DTRData(
     os.path.join(base, cfg.get('data', 'xmi_dir')),
@@ -218,18 +167,15 @@ def main():
     cfg.getint('model', 'batch_size'),
     cfg.getint('data', 'max_len'),
     'dev',
-    utils.to_transformer_inputs)
+    utils.to_token_id_sequences)
 
-  print('loaded %d training and %d validation samples' % \
-        (len(tr_texts), len(val_texts)))
-
-  model = TransformerClassifier()
+  model = BagOfEmbeddings()
 
   label_counts = torch.bincount(torch.IntTensor(tr_labels))
   weights = len(tr_labels) / (2.0 * label_counts)
 
   train(model, train_loader, val_loader, weights)
-  evaluate(model, val_loader, weights, suppress_output=False)
+  evaluate(model, val_loader, weights)
 
 if __name__ == "__main__":
 
