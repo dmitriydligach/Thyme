@@ -61,7 +61,7 @@ class TransformerClassifier(nn.Module):
   def forward(self, texts, attention_mask):
     """Moving forward"""
 
-    posit_embeddings = self.posit(texts.size(1))
+    posit_embeddings = self.posit(texts)
     token_embeddings = self.embedding(texts)
     token_embeddings = token_embeddings + posit_embeddings
 
