@@ -6,7 +6,6 @@ sys.path.append('../Lib/')
 
 import torch
 from transformers import BertModel, BertPreTrainedModel
-import os, configparser
 
 class BertPositionalEncoding(BertPreTrainedModel):
   """Give us access to BERT's positional encodings"""

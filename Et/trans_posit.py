@@ -61,12 +61,13 @@ class TransformerClassifier(nn.Module):
   def forward(self, texts, attention_mask):
     """Moving forward"""
 
-    posit_encodings = self.posit(texts)
-    output = self.embedding(texts) + posit_encodings
+    posit_embeddings = self.posit(texts.size(1))
+    token_embeddings = self.embedding(texts)
+    token_embeddings = token_embeddings + posit_embeddings
 
     # encoder input: (seq_len, batch_size, emb_dim)
     # encoder output: (seq_len, batch_size, emb_dim)
-    output = output.permute(1, 0, 2)
+    output = token_embeddings.permute(1, 0, 2)
     output = self.trans_encoder(output, attention_mask)
 
     # extract CLS token only
@@ -79,29 +80,6 @@ class TransformerClassifier(nn.Module):
     output = self.linear(output)
 
     return output
-
-class PositionalEncoding(BertPreTrainedModel):
-  """Linear layer on top of pre-trained BERT"""
-
-  def __init__(self, config):
-    """Constructor"""
-
-    super(PositionalEncoding, self).__init__(config)
-    self.bert = BertModel(config)
-
-  def forward(self, token_ids, token_embeddings):
-    """Forward pass"""
-
-    position_ids = torch.arange(
-      token_ids.size(1),
-      dtype=torch.long,
-      device=token_ids.device)
-    position_ids = position_ids.unsqueeze(0).expand_as(token_ids)
-    position_embeddings = self.bert.embeddings.position_embeddings(position_ids)
-    token_embeddings = token_embeddings + position_embeddings
-
-    # return self.dropout(x)
-    return token_embeddings
 
 def train(model, train_loader, val_loader, weights):
   """Training routine"""
