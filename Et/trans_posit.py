@@ -14,7 +14,7 @@ from transformers import BertModel, BertPreTrainedModel
 import numpy as np
 import os, configparser, math, random
 
-import reldata, metrics, utils
+import reldata, metrics, utils, positions
 
 # deterministic determinism
 torch.manual_seed(2020)
@@ -40,7 +40,7 @@ class TransformerClassifier(nn.Module):
       num_embeddings=vocab_size,
       embedding_dim=cfg.getint('model', 'emb_dim'))
 
-    self.position = PositionalEncoding.from_pretrained(
+    self.posit = positions.BertPositionalEncoding.from_pretrained(
       'bert-base-uncased')
 
     encoder_layer = nn.TransformerEncoderLayer(
@@ -61,9 +61,8 @@ class TransformerClassifier(nn.Module):
   def forward(self, texts, attention_mask):
     """Moving forward"""
 
-    sqrtn = math.sqrt(cfg.getint('model', 'emb_dim'))
-    output = self.embedding(texts) * sqrtn
-    output = self.position(texts, output)
+    posit_encodings = self.posit(texts)
+    output = self.embedding(texts) + posit_encodings
 
     # encoder input: (seq_len, batch_size, emb_dim)
     # encoder output: (seq_len, batch_size, emb_dim)
@@ -93,8 +92,10 @@ class PositionalEncoding(BertPreTrainedModel):
   def forward(self, token_ids, token_embeddings):
     """Forward pass"""
 
-    seq_length = token_ids.size(1)
-    position_ids = torch.arange(seq_length, dtype=torch.long, device=token_ids.device)
+    position_ids = torch.arange(
+      token_ids.size(1),
+      dtype=torch.long,
+      device=token_ids.device)
     position_ids = position_ids.unsqueeze(0).expand_as(token_ids)
     position_embeddings = self.bert.embeddings.position_embeddings(position_ids)
     token_embeddings = token_embeddings + position_embeddings
