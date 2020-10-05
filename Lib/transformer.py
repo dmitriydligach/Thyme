@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# Xin's version of the transformer implementation from
+# Xin's selection of only what's needed for a transformer encoder from
 # https://github.com/jadore801120/attention-is-all-you-need-pytorch
 
 class MultiHeadAttention(nn.Module):
@@ -54,7 +54,6 @@ class MultiHeadAttention(nn.Module):
 
         return output, attn
 
-
 class PositionwiseFeedForward(nn.Module):
     ''' A two-feed-forward-layer module '''
 
@@ -75,7 +74,6 @@ class PositionwiseFeedForward(nn.Module):
 
         return output
 
-
 class ScaledDotProductAttention(nn.Module):
     ''' Scaled Dot-Product Attention '''
 
@@ -94,7 +92,6 @@ class ScaledDotProductAttention(nn.Module):
         output = torch.matmul(attn, v)
 
         return output, attn
-
 
 class EncoderLayer(nn.Module):
     ''' Compose with two layers '''

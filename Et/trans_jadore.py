@@ -48,7 +48,7 @@ class TransformerClassifier(nn.Module):
       d_model=768,
       d_inner=2048,
       n_head=4,
-      d_k=8, # what's this?
+      d_k=8,
       d_v=96)
 
     self.dropout = nn.Dropout(cfg.getfloat('model', 'dropout'))
@@ -64,16 +64,15 @@ class TransformerClassifier(nn.Module):
     output = self.embedding(texts) * sqrtn
     output = self.position(output)
 
-    # encoder input: (seq_len, batch_size, emb_dim)
-    # encoder output: (seq_len, batch_size, emb_dim)
-    output = output.permute(1, 0, 2)
+    # encoder input: (batch_size, seq_len, emb_dim)
+    # encoder output: (batch_size, seq_len, emb_dim)
     output, _ = self.trans_encoder(output)
 
     # extract CLS token only
     # output = output[0, :, :]
 
     # average pooling
-    output = torch.mean(output, dim=0)
+    output = torch.mean(output, dim=1)
 
     output = self.dropout(output)
     output = self.linear(output)
@@ -123,10 +122,10 @@ def train(model, train_loader, val_loader, weights):
     model.parameters(),
     lr=cfg.getfloat('model', 'lr'))
 
-  # scheduler = get_linear_schedule_with_warmup(
-  #   optimizer,
-  #   num_warmup_steps=100,
-  #   num_training_steps=1000)
+  scheduler = get_linear_schedule_with_warmup(
+    optimizer,
+    num_warmup_steps=100,
+    num_training_steps=1000)
 
   for epoch in range(1, cfg.getint('model', 'num_epochs') + 1):
     model.train()
@@ -144,7 +143,7 @@ def train(model, train_loader, val_loader, weights):
 
       torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
       optimizer.step()
-      # scheduler.step()
+      scheduler.step()
 
       train_loss += loss.item()
       num_train_steps += 1
