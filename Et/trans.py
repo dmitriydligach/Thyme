@@ -57,6 +57,13 @@ class TransformerClassifier(nn.Module):
       in_features=cfg.getint('model', 'emb_dim'),
       out_features=num_classes)
 
+    self.init_weights()
+
+  def init_weights(self):
+    """Initialize the weights"""
+
+    self.embedding.weight.data.uniform_(-0.1, 0.1)
+
   def forward(self, texts, attention_mask):
     """Moving forward"""
 
