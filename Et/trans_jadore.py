@@ -11,7 +11,7 @@ from tokenizers import CharBPETokenizer
 from transformers import get_linear_schedule_with_warmup
 
 import numpy as np
-import os, configparser, math, random
+import os, configparser, math, random, copy
 
 import reldata, metrics, utils
 
@@ -44,12 +44,15 @@ class TransformerClassifier(nn.Module):
     self.position = PositionalEncoding(
       embedding_dim=cfg.getint('model', 'emb_dim'))
 
-    self.trans_encoder = EncoderLayer(
-      d_model=768,
-      d_inner=2048,
-      n_head=4,
-      d_k=8,
-      d_v=96)
+    trans_encoders = []
+    for n in range(cfg.getint('model', 'num_layers')):
+      trans_encoders.append(EncoderLayer(
+        d_model=cfg.getint('model', 'emb_dim'),
+        d_inner=cfg.getint('model', 'feedforw_dim'),
+        n_head=cfg.getint('model', 'num_heads'),
+        d_k=cfg.getint('model', 'emb_dim'),
+        d_v=cfg.getint('model', 'emb_dim')))
+    self.trans_encoders = nn.ModuleList(trans_encoders)
 
     self.dropout = nn.Dropout(cfg.getfloat('model', 'dropout'))
 
@@ -73,7 +76,11 @@ class TransformerClassifier(nn.Module):
 
     # encoder input: (batch_size, seq_len, emb_dim)
     # encoder output: (batch_size, seq_len, emb_dim)
-    output, _ = self.trans_encoder(output)
+
+    for trans_encoder in self.trans_encoders:
+      output, _ = trans_encoder(output)
+
+    # output, _ = self.trans_encoder(output)
 
     # extract CLS token only
     # output = output[0, :, :]
