@@ -249,6 +249,20 @@ def main():
   train(model, train_loader, val_loader, weights)
   evaluate(model, val_loader, weights, suppress_output=False)
 
+def init_transformer(m: torch.nn.Module):
+  """Jiacheng Zhang's transformer initialization wisdom"""
+
+  for name, params in m.named_parameters():
+    print('initializing:', name)
+
+    if len(params.shape) >= 2:
+      torch.nn.init.xavier_uniform_(params)
+    else:
+      if 'bias' in name:
+        torch.nn.init.zeros_(params)
+      else:
+        torch.nn.init.uniform_(params)
+
 if __name__ == "__main__":
 
   cfg = configparser.ConfigParser()
