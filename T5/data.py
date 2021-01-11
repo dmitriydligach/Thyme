@@ -34,24 +34,26 @@ class Thyme(Dataset):
    self,
    xmi_dir,
    tokenizer,
-   input_length,
-   output_length,
+   max_input_length,
+   max_output_length,
    partition='train',
    n_files='all'):
     """Thyme data"""
 
     self.xmi_dir = xmi_dir
     self.tokenizer = tokenizer
-    self.input_length = input_length
-    self.output_length = output_length
+    self.max_input_length = max_input_length
+    self.max_output_length = max_output_length
     self.partition = partition
     self.n_files = None if n_files == 'all' else int(n_files)
 
-  def events_and_times(self):
+    self.extract_events_and_times()
+
+  def extract_events_and_times(self):
     """Extract events and times"""
 
-    inputs = []  # source text
-    outputs = [] # events and times
+    self.inputs = []  # source text
+    self.outputs = [] # events and times
 
     type_system_file = open(type_system_path, 'rb')
     type_system = load_typesystem(type_system_file)
@@ -75,7 +77,7 @@ class Thyme(Dataset):
       # iterate over sentences extracting events and times
       for sent in sys_view.select(sent_type):
         sent_text = sent.get_covered_text().replace('\n', '')
-        inputs.append('IE: ' + sent_text)
+        self.inputs.append('IE: ' + sent_text)
 
         # events and times for now
         output = []
@@ -90,56 +92,36 @@ class Thyme(Dataset):
           time_text = time.get_covered_text().replace('\n', '')
           output.append(time_text)
 
-        outputs.append(' '.join(output))
-
-    return inputs, outputs
+        self.outputs.append(' '.join(output))
 
   def __len__(self):
     """Requried by pytorch"""
 
-    return self.dataset.shape[0]
-
-  def clean_text(self, text):
-    """Do we even need this?"""
-
-    text = text.replace('\n', '')
-    text = text.replace('``', '')
-    text = text.replace('"', '')
-
-    return text
-
-  def to_int_seqs(self, instance):
-    """Prepare inputs and outputs"""
-
-    text = self.clean_text(instance['text'])
-    summary = self.clean_text(instance['headline'])
-
-    text = self.tokenizer(
-      text,
-      max_length=self.input_length,
-      padding='max_length',
-      truncation=True,
-      return_tensors='pt')
-
-    summary = self.tokenizer(
-      summary,
-      max_length=self.output_length,
-      padding='max_length',
-      truncation=True,
-      return_tensors='pt')
-
-    return text, summary
+    assert(len(self.inputs) == len(self.outputs))
+    return len(self.inputs)
 
   def __getitem__(self, index):
     """Required by pytorch"""
 
-    text, summary = self.to_int_seqs(self.dataset[index])
+    input = self.tokenizer(
+      self.inputs[index],
+      max_length=self.max_input_length,
+      padding='max_length',
+      truncation=True,
+      return_tensors='pt')
 
-    input_ids = text.input_ids.squeeze()
-    input_mask = text.attention_mask.squeeze()
+    output = self.tokenizer(
+      self.outputs[index],
+      max_length=self.max_output_length,
+      padding='max_length',
+      truncation=True,
+      return_tensors='pt')
 
-    output_ids = summary.input_ids.squeeze()
-    output_mask = summary.attention_mask.squeeze()
+    input_ids = input.input_ids.squeeze()
+    input_mask = input.attention_mask.squeeze()
+
+    output_ids = output.input_ids.squeeze()
+    output_mask = output.attention_mask.squeeze()
 
     return input_ids, input_mask, output_ids, output_mask
 
@@ -153,20 +135,25 @@ if __name__ == "__main__":
     max_input_length=50,
     max_output_length=50,
     partition='train',
-    n_files=10)
+    n_files=3)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters:', args)
 
+  tokenizer = T5Tokenizer.from_pretrained('t5-small')
   data = Thyme(
     xmi_dir=args.xmi_dir,
-    tokenizer=T5Tokenizer.from_pretrained('t5-small'),
-    input_length=args.max_input_length,
-    output_length=args.max_output_length,
+    tokenizer=tokenizer,
+    max_input_length=args.max_input_length,
+    max_output_length=args.max_output_length,
     partition=args.partition,
     n_files=args.n_files)
-  inputs, outputs = data.events_and_times()
 
-  for input, output in zip(inputs, outputs):
-    print(input)
-    print(output)
+  for index in range(len(data)):
+    input_ids, input_mask, output_ids, output_mask = data[index]
+    print(input_ids)
+    print(input_mask)
+    print(output_ids)
+    print(output_mask)
+    print('input:', tokenizer.decode(input_ids))
+    print('output:', tokenizer.decode(output_ids))
     print()
