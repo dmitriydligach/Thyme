@@ -77,22 +77,20 @@ class Thyme(Dataset):
       # iterate over sentences extracting events and times
       for sent in sys_view.select(sent_type):
         sent_text = sent.get_covered_text().replace('\n', '')
-        self.inputs.append('IE: ' + sent_text)
+        self.inputs.append('perform IE: ' + sent_text)
 
-        # events and times for now
-        output = []
-
-        output.append('events: ')
+        events = []
         for event in gold_view.select_covered(event_type, sent):
           event_text = event.get_covered_text().replace('\n', '')
-          output.append(event_text)
+          events.append(event_text)
 
-        output.append('times: ')
+        times = []
         for time in gold_view.select_covered(time_type, sent):
           time_text = time.get_covered_text().replace('\n', '')
-          output.append(time_text)
+          times.append(time_text)
 
-        self.outputs.append(' '.join(output))
+        output_string = 'events: ' + ', '.join(events) + '; times: ' + ', '.join(times)
+        self.outputs.append(output_string)
 
   def __len__(self):
     """Requried by pytorch"""
@@ -135,7 +133,7 @@ if __name__ == "__main__":
     max_input_length=50,
     max_output_length=50,
     partition='train',
-    n_files=3)
+    n_files=5)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters:', args)
 
@@ -150,10 +148,6 @@ if __name__ == "__main__":
 
   for index in range(len(data)):
     input_ids, input_mask, output_ids, output_mask = data[index]
-    print(input_ids)
-    print(input_mask)
-    print(output_ids)
-    print(output_mask)
-    print('input:', tokenizer.decode(input_ids))
-    print('output:', tokenizer.decode(output_ids))
+    print(tokenizer.decode(input_ids, skip_special_tokens=True))
+    print(tokenizer.decode(output_ids, skip_special_tokens=True))
     print()

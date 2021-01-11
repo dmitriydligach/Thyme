@@ -136,8 +136,8 @@ def generate(model, data_loader, tokenizer):
     batch = tuple(t.to(device) for t in batch)
     source_ids, source_mask, target_ids, target_mask = batch
 
-    inputs = tokenizer.batch_decode(source_ids)
-    targets = tokenizer.batch_decode(target_ids)
+    inputs = tokenizer.batch_decode(source_ids, skip_special_tokens=True)
+    targets = tokenizer.batch_decode(target_ids, skip_special_tokens=True)
 
     predictions = model.model.generate(
       input_ids=source_ids,
@@ -150,9 +150,9 @@ def generate(model, data_loader, tokenizer):
       skip_special_tokens=True,
       clean_up_tokenization_spaces=True)
 
-    print('input:', inputs[0])
-    print('target:', targets[0])
-    print('prediction:', predictions[0])
+    print('[inputs]', inputs[0])
+    print('[targets]', targets[0])
+    print('[predictions]', predictions[0])
     print()
 
 def main():
@@ -198,8 +198,8 @@ if __name__ == "__main__":
     max_output_length=50,
     partition='train',
     n_files='all',
-    batch_size=32,
-    n_epochs=5)
+    batch_size=64,
+    n_epochs=2)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters:', args)
 
