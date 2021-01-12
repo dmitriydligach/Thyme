@@ -36,7 +36,7 @@ class Thyme(Dataset):
    tokenizer,
    max_input_length,
    max_output_length,
-   partition='train',
+   partition,
    n_files='all'):
     """Thyme data"""
 
@@ -132,8 +132,8 @@ if __name__ == "__main__":
     model_name='t5-small',
     max_input_length=50,
     max_output_length=50,
-    partition='train',
-    n_files=5)
+    partition='dev',
+    n_files='all')
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters:', args)
 
@@ -148,6 +148,6 @@ if __name__ == "__main__":
 
   for index in range(len(data)):
     input_ids, input_mask, output_ids, output_mask = data[index]
-    print(tokenizer.decode(input_ids, skip_special_tokens=True))
-    print(tokenizer.decode(output_ids, skip_special_tokens=True))
+    print(tokenizer.decode(input_ids, skip_special_tokens=False))
+    print(tokenizer.decode(output_ids, skip_special_tokens=False))
     print()

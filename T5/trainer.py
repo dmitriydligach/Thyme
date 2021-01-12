@@ -95,7 +95,7 @@ def fit(model, train_loader, val_loader, tokenizer):
           (epoch, num_train_steps, av_loss, val_loss))
 
 def evaluate(model, data_loader, tokenizer):
-  """Evaluation routine"""
+  """Just compute the loss on the validation set"""
 
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
   model.to(device)
@@ -126,7 +126,7 @@ def evaluate(model, data_loader, tokenizer):
   return average_loss
 
 def generate(model, data_loader, tokenizer):
-  """Need to add 'summarize' if run before training"""
+  """Generate outputs for validation set samples"""
 
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
   model.to(device)
@@ -136,20 +136,21 @@ def generate(model, data_loader, tokenizer):
     batch = tuple(t.to(device) for t in batch)
     source_ids, source_mask, target_ids, target_mask = batch
 
-    inputs = tokenizer.batch_decode(source_ids, skip_special_tokens=True)
-    targets = tokenizer.batch_decode(target_ids, skip_special_tokens=True)
-
     predictions = model.model.generate(
       input_ids=source_ids,
       max_length=args.max_output_length,
       early_stopping=True,
       num_beams=2,
       attention_mask=source_mask)
+
+    inputs = tokenizer.batch_decode(source_ids, skip_special_tokens=True)
+    targets = tokenizer.batch_decode(target_ids, skip_special_tokens=True)
     predictions = tokenizer.batch_decode(
       predictions,
       skip_special_tokens=True,
       clean_up_tokenization_spaces=True)
 
+    # print first example from each batch for now
     print('[inputs]', inputs[0])
     print('[targets]', targets[0])
     print('[predictions]', predictions[0])
@@ -169,6 +170,7 @@ def main():
     n_files=args.n_files)
   train_data_loader = DataLoader(
     train_dataset,
+    shuffle=True,
     batch_size=args.batch_size)
 
   val_dataset = data.Thyme(
@@ -180,6 +182,7 @@ def main():
     n_files=args.n_files)
   val_data_loader = DataLoader(
     val_dataset,
+    shuffle=False,
     batch_size=args.batch_size)
 
   model = T5FineTuner()
