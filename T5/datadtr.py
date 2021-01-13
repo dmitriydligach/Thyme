@@ -19,9 +19,6 @@ splits = {
   'dev': set([4,5]),
   'test': set([6,7])}
 
-label2int = {'NONE':0, 'CONTAINS':1, 'CONTAINS-1':2}
-int2label = {0:'NONE', 1:'CONTAINS', 2:'CONTAINS-1'}
-
 # ctakes type system types
 event_type = 'org.apache.ctakes.typesystem.type.textsem.EventMention'
 time_type = 'org.apache.ctakes.typesystem.type.textsem.TimeMention'
@@ -47,13 +44,13 @@ class Thyme(Dataset):
     self.partition = partition
     self.n_files = None if n_files == 'all' else int(n_files)
 
-    self.extract_events_and_times()
+    self.extract_events_and_dtr()
 
-  def extract_events_and_times(self):
+  def extract_events_and_dtr(self):
     """Extract events and times"""
 
     self.inputs = []  # source text
-    self.outputs = [] # events and times
+    self.outputs = [] # events and DTR
 
     type_system_file = open(type_system_path, 'rb')
     type_system = load_typesystem(type_system_file)
@@ -79,17 +76,13 @@ class Thyme(Dataset):
         sent_text = sent.get_covered_text().replace('\n', '')
         self.inputs.append('perform IE: ' + sent_text)
 
-        events = []
+        events = [] # events and their DTRs
         for event in gold_view.select_covered(event_type, sent):
           event_text = event.get_covered_text().replace('\n', '')
-          events.append(event_text)
+          dtr_label = event.event.properties.docTimeRel
+          events.append('%s/%s' % (event_text, dtr_label))
 
-        times = []
-        for time in gold_view.select_covered(time_type, sent):
-          time_text = time.get_covered_text().replace('\n', '')
-          times.append(time_text)
-
-        output_string = 'events: ' + ', '.join(events) + '; times: ' + ', '.join(times)
+        output_string = 'events: ' + ', '.join(events)
         self.outputs.append(output_string)
 
   def __len__(self):

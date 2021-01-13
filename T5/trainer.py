@@ -10,13 +10,12 @@ from torch.utils.data import DataLoader
 
 import random, argparse, os
 
-import data
+import datadtr as data
 
 from transformers import (
     AdamW,
     T5ForConditionalGeneration,
-    T5Tokenizer,
-    get_linear_schedule_with_warmup)
+    T5Tokenizer)
 
 # deterministic determinism
 torch.manual_seed(2020)
