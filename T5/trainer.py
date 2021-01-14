@@ -4,52 +4,19 @@ import sys
 sys.path.append('../Lib/')
 
 import torch
-import torch.nn as nn
-
 from torch.utils.data import DataLoader
-
 import random, argparse, os
-
-import datadtr as data
-
 from transformers import (
     AdamW,
     T5ForConditionalGeneration,
     T5Tokenizer)
+import datadtr as data
 
 # deterministic determinism
 torch.manual_seed(2020)
 # torch.backends.cudnn.deterministic = True
 # torch.backends.cudnn.benchmark = False
 random.seed(2020)
-
-class T5FineTuner(nn.Module):
-  """A transformative experience"""
-
-  def __init__(self):
-    """Some of the best constructors in the world"""
-
-    super(T5FineTuner, self).__init__()
-    self.model = T5ForConditionalGeneration.from_pretrained(
-      args.model_name)
-
-  def forward(
-   self,
-   input_ids,
-   attention_mask,
-   decoder_input_ids,
-   decoder_attention_mask,
-   labels):
-    """Forwarding"""
-
-    output = self.model(
-      input_ids=input_ids,
-      attention_mask=attention_mask,
-      decoder_input_ids=decoder_input_ids,
-      decoder_attention_mask=decoder_attention_mask,
-      labels=labels)
-
-    return output
 
 def fit(model, train_loader, val_loader, tokenizer):
   """Training routine"""
@@ -135,7 +102,7 @@ def generate(model, data_loader, tokenizer):
     batch = tuple(t.to(device) for t in batch)
     source_ids, source_mask, target_ids, target_mask = batch
 
-    predictions = model.model.generate(
+    predictions = model.generate(
       input_ids=source_ids,
       max_length=args.max_output_length,
       early_stopping=True,
@@ -184,8 +151,7 @@ def main():
     shuffle=False,
     batch_size=args.batch_size)
 
-  model = T5FineTuner()
-
+  model = T5ForConditionalGeneration.from_pretrained(args.model_name)
   fit(model, train_data_loader, val_data_loader, tokenizer)
   generate(model, val_data_loader, tokenizer)
 
@@ -196,13 +162,13 @@ if __name__ == "__main__":
   arg_dict = dict(
     xmi_dir=os.path.join(base, 'Thyme/Xmi/'),
     model_name='t5-large',
-    max_input_length=50,
-    max_output_length=50,
+    max_input_length=100,
+    max_output_length=100,
     partition='train',
     n_files='all',
-    batch_size=64,
+    batch_size=32,
     n_epochs=2)
   args = argparse.Namespace(**arg_dict)
-  print('hyper-parameters:', args)
+  print('hyper-parameters: %s\n' % args)
 
   main()
