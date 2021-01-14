@@ -102,6 +102,7 @@ def generate(model, data_loader, tokenizer):
     batch = tuple(t.to(device) for t in batch)
     source_ids, source_mask, target_ids, target_mask = batch
 
+    # generated tensor: (batch_size, max_output_length)
     predictions = model.generate(
       input_ids=source_ids,
       max_length=args.max_output_length,
@@ -116,11 +117,12 @@ def generate(model, data_loader, tokenizer):
       skip_special_tokens=True,
       clean_up_tokenization_spaces=True)
 
-    # print first example from each batch for now
-    print('[inputs]', inputs[0])
-    print('[targets]', targets[0])
-    print('[predictions]', predictions[0])
-    print()
+    # all predictions in this batch
+    for i in range(len(predictions)):
+      print('[inputs]', inputs[i])
+      print('[targets]', targets[i])
+      print('[predictions]', predictions[i])
+      print()
 
 def main():
   """Fine-tune on summarization data"""
