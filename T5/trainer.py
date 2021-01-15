@@ -24,7 +24,7 @@ def fit(model, train_loader, val_loader, tokenizer):
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
   model.to(device)
 
-  optimizer = AdamW(model.parameters())
+  optimizer = AdamW(model.parameters(), lr=args.learning_rate)
 
   best_loss = float('inf')
   optimal_epochs = 0
@@ -194,13 +194,14 @@ if __name__ == "__main__":
   arg_dict = dict(
     xmi_dir=os.path.join(base, 'Thyme/Xmi/'),
     model_dir='Model/',
-    model_name='t5-base',
+    model_name='t5-large',
     max_input_length=100,
     max_output_length=100,
     partition='train',
     n_files='all',
+    learning_rate=1e-4,
     batch_size=64,
-    n_epochs=5)
+    n_epochs=3)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
