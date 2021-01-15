@@ -12,8 +12,6 @@ import os, glob
 from tqdm import tqdm
 from cassis import *
 
-type_system_path = './TypeSystem.xml'
-
 splits = {
   'train': set([0,1,2,3]),
   'dev': set([4,5]),
@@ -25,19 +23,8 @@ event_type = 'org.apache.ctakes.typesystem.type.textsem.EventMention'
 time_type = 'org.apache.ctakes.typesystem.type.textsem.TimeMention'
 sent_type = 'org.apache.ctakes.typesystem.type.textspan.Sentence'
 
-def index_relations(gold_view):
-  """Map arguments to relation types"""
-
-  rel_lookup = {}
-
-  for rel in gold_view.select(rel_type):
-    arg1 = rel.arg1.argument
-    arg2 = rel.arg2.argument
-
-    if rel.category == 'CONTAINS':
-      rel_lookup[(arg1, arg2)] = rel.category
-
-  return rel_lookup
+# ctakes type system
+type_system_path='./TypeSystem.xml'
 
 class Thyme(Dataset):
   """Thyme data"""
@@ -64,6 +51,19 @@ class Thyme(Dataset):
 
     self.extract_events_time_relations()
 
+  @staticmethod
+  def index_relations(gold_view):
+    """Map arguments to relation types"""
+
+    rel_lookup = {}
+    for rel in gold_view.select(rel_type):
+      arg1 = rel.arg1.argument
+      arg2 = rel.arg2.argument
+      if rel.category == 'CONTAINS':
+        rel_lookup[(arg1, arg2)] = rel.category
+
+    return rel_lookup
+
   def extract_events_time_relations(self):
     """Extract events and times"""
 
@@ -86,7 +86,7 @@ class Thyme(Dataset):
       gold_view = cas.get_view('GoldView')
       sys_view = cas.get_view('_InitialView')
 
-      rel_lookup = index_relations(gold_view)
+      rel_lookup = Thyme.index_relations(gold_view)
 
       # iterate over sentences extracting relations
       for sent in sys_view.select(sent_type):
@@ -152,11 +152,13 @@ if __name__ == "__main__":
   base = os.environ['DATA_ROOT']
   arg_dict = dict(
     xmi_dir=os.path.join(base, 'Thyme/Xmi/'),
+    model_dir='Model/',
     model_name='t5-small',
     max_input_length=100,
     max_output_length=100,
     partition='dev',
     n_files=3)
+
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters:', args)
 

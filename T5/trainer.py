@@ -5,7 +5,7 @@ sys.path.append('../Lib/')
 
 import torch
 from torch.utils.data import DataLoader
-import random, argparse, os
+import random, argparse, os, shutil
 from transformers import (
     AdamW,
     T5ForConditionalGeneration,
@@ -25,6 +25,9 @@ def fit(model, train_loader, val_loader, tokenizer):
   model.to(device)
 
   optimizer = AdamW(model.parameters())
+
+  best_loss = float('inf')
+  optimal_epochs = 0
 
   for epoch in range(1, args.n_epochs + 1):
     train_loss, num_train_steps = 0, 0
@@ -59,6 +62,14 @@ def fit(model, train_loader, val_loader, tokenizer):
     val_loss = evaluate(model, val_loader, tokenizer)
     print('ep: %d, steps: %d, tr loss: %.3f, val loss: %.3f' % \
           (epoch, num_train_steps, av_loss, val_loss))
+
+    if val_loss < best_loss:
+      print('loss improved, saving model...')
+      model.save_pretrained(args.model_dir)
+      best_loss = val_loss
+      optimal_epochs = epoch
+
+  return best_loss, optimal_epochs
 
 def evaluate(model, data_loader, tokenizer):
   """Just compute the loss on the validation set"""
@@ -127,7 +138,16 @@ def generate(model, data_loader, tokenizer):
 def main():
   """Fine-tune on summarization data"""
 
+  # need this to save a fine-tuned model
+  if os.path.isdir(args.model_dir):
+    shutil.rmtree(args.model_dir)
+  os.mkdir(args.model_dir)
+
+  # load pretrained T5 tokenizer
   tokenizer = T5Tokenizer.from_pretrained(args.model_name)
+
+  # load a pretrained T5 model
+  model = T5ForConditionalGeneration.from_pretrained(args.model_name)
 
   train_dataset = data.Thyme(
     xmi_dir=args.xmi_dir,
@@ -153,8 +173,18 @@ def main():
     shuffle=False,
     batch_size=args.batch_size)
 
-  model = T5ForConditionalGeneration.from_pretrained(args.model_name)
-  fit(model, train_data_loader, val_data_loader, tokenizer)
+  # fine-tune model on thyme data and save it
+  best_loss, optimal_epochs = fit(
+    model,
+    train_data_loader,
+    val_data_loader,
+    tokenizer)
+  print('best loss %.3f after %d epochs\n' % (best_loss, optimal_epochs))
+
+  # load the saved model
+  model = T5ForConditionalGeneration.from_pretrained(args.model_dir)
+
+  # generate output from the saved model
   generate(model, val_data_loader, tokenizer)
 
 if __name__ == "__main__":
@@ -163,13 +193,14 @@ if __name__ == "__main__":
   base = os.environ['DATA_ROOT']
   arg_dict = dict(
     xmi_dir=os.path.join(base, 'Thyme/Xmi/'),
-    model_name='t5-large',
+    model_dir='Model/',
+    model_name='t5-base',
     max_input_length=100,
     max_output_length=100,
     partition='train',
     n_files='all',
-    batch_size=32,
-    n_epochs=2)
+    batch_size=64,
+    n_epochs=5)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
