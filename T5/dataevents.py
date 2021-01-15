@@ -12,8 +12,6 @@ import os, glob
 from tqdm import tqdm
 from cassis import *
 
-type_system_path = './TypeSystem.xml'
-
 splits = {
   'train': set([0,1,2,3]),
   'dev': set([4,5]),
@@ -23,6 +21,9 @@ splits = {
 event_type = 'org.apache.ctakes.typesystem.type.textsem.EventMention'
 time_type = 'org.apache.ctakes.typesystem.type.textsem.TimeMention'
 sent_type = 'org.apache.ctakes.typesystem.type.textspan.Sentence'
+
+# ctakes type system
+type_system_path='./TypeSystem.xml'
 
 class Thyme(Dataset):
   """Thyme data"""
@@ -126,6 +127,7 @@ if __name__ == "__main__":
   base = os.environ['DATA_ROOT']
   arg_dict = dict(
     xmi_dir=os.path.join(base, 'Thyme/Xmi/'),
+    model_dir='Model/',
     model_name='t5-small',
     max_input_length=50,
     max_output_length=50,
