@@ -118,7 +118,8 @@ def generate(model, data_loader, tokenizer):
       max_length=args.max_output_length,
       early_stopping=True,
       num_beams=2,
-      attention_mask=source_mask)
+      attention_mask=source_mask,
+      decoder_attention_mask=target_mask) # todo: is this necessary?
 
     inputs = tokenizer.batch_decode(source_ids, skip_special_tokens=True)
     targets = tokenizer.batch_decode(target_ids, skip_special_tokens=True)
