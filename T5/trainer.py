@@ -10,7 +10,7 @@ from transformers import (
     AdamW,
     T5ForConditionalGeneration,
     T5Tokenizer)
-import datarel as data
+import datadtr as data
 
 # deterministic determinism
 torch.manual_seed(2020)
@@ -48,7 +48,7 @@ def fit(model, train_loader, val_loader, tokenizer):
         decoder_input_ids=None,
         decoder_attention_mask=target_mask,
         labels=labels)
-      loss = outputs[0]
+      loss = outputs.loss
 
       loss.backward()
 
@@ -199,7 +199,7 @@ if __name__ == "__main__":
     max_output_length=100,
     partition='train',
     n_files='all',
-    learning_rate=1e-4,
+    learning_rate=1e-3,
     batch_size=64,
     n_epochs=3)
   args = argparse.Namespace(**arg_dict)
