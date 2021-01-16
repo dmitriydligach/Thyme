@@ -5,12 +5,11 @@ sys.path.append('../Lib/')
 
 import torch
 from torch.utils.data import DataLoader
-import random, argparse, os, shutil
 from transformers import (
     AdamW,
     T5ForConditionalGeneration,
     T5Tokenizer)
-import datadtr as data
+import random, argparse, os, shutil, importlib
 
 # deterministic determinism
 torch.manual_seed(2020)
@@ -138,6 +137,9 @@ def generate(model, data_loader, tokenizer):
 def main():
   """Fine-tune on summarization data"""
 
+  # import data provider (e.g. dtr, rel, or events)
+  data = importlib.import_module(args.data_reader)
+
   # need this to save a fine-tuned model
   if os.path.isdir(args.model_dir):
     shutil.rmtree(args.model_dir)
@@ -193,6 +195,7 @@ if __name__ == "__main__":
   base = os.environ['DATA_ROOT']
   arg_dict = dict(
     xmi_dir=os.path.join(base, 'Thyme/Xmi/'),
+    data_reader='datadtr',
     model_dir='Model/',
     model_name='t5-large',
     max_input_length=100,
@@ -200,7 +203,7 @@ if __name__ == "__main__":
     partition='train',
     n_files='all',
     learning_rate=1e-3,
-    batch_size=64,
+    batch_size=32,
     n_epochs=3)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
