@@ -196,12 +196,11 @@ if __name__ == "__main__":
   base = os.environ['DATA_ROOT']
   arg_dict = dict(
     xmi_dir=os.path.join(base, 'Thyme/Xmi/'),
-    data_reader='datadtr',
+    data_reader='datarel',
     model_dir='Model/',
     model_name='t5-large',
     max_input_length=100,
     max_output_length=100,
-    partition='train',
     n_files='all',
     learning_rate=1e-3,
     batch_size=32,
