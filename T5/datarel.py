@@ -50,7 +50,7 @@ class Thyme(Dataset):
     self.outputs = []
 
     self.extract_events_time_relations()
-    # self.extract_events_event_relations()
+    self.extract_events_event_relations()
 
   @staticmethod
   def index_relations(gold_view):
@@ -92,7 +92,7 @@ class Thyme(Dataset):
       # iterate over sentences extracting relations
       for sent in sys_view.select(sent_type):
         sent_text = sent.get_covered_text().replace('\n', '')
-        self.inputs.append('perform IE: ' + sent_text)
+        self.inputs.append('Extract event-time rels: ' + sent_text)
 
         relations = [] # relations in this sentence
 
@@ -145,7 +145,7 @@ class Thyme(Dataset):
       # iterate over sentences extracting relations
       for sent in sys_view.select(sent_type):
         sent_text = sent.get_covered_text().replace('\n', '')
-        self.inputs.append('perform IE: ' + sent_text)
+        self.inputs.append('Extract event-event rels: ' + sent_text)
 
         relations = [] # relations in this sentence
         events_in_sent = list(gold_view.select_covered(event_type, sent))
