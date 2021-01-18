@@ -95,6 +95,7 @@ class Thyme(Dataset):
         self.inputs.append('perform IE: ' + sent_text)
 
         relations = [] # relations in this sentence
+
         for event in gold_view.select_covered(event_type, sent):
           for time in gold_view.select_covered(time_type, sent):
 
@@ -104,6 +105,7 @@ class Thyme(Dataset):
               event_text = event.get_covered_text()
               rel_string = '%s(%s, %s)' % (label, time_text, event_text)
               relations.append(rel_string)
+
             if (event, time) in rel_lookup:
               label = rel_lookup[(event, time)] + '-1'
               time_text = time.get_covered_text()
@@ -153,14 +155,16 @@ class Thyme(Dataset):
 
             event1 = events_in_sent[i]
             event2 = events_in_sent[j]
+
             if (event1, event2) in rel_lookup:
               label = rel_lookup[(event1, event2)]
               event1_text = event1.get_covered_text()
               event2_text = event2.get_covered_text()
               rel_string = '%s(%s, %s)' % (label, event1_text, event2_text)
               relations.append(rel_string)
+
             if (event2, event1) in rel_lookup:
-              label = rel_lookup[(event2, event1)] + '-1'
+              label = rel_lookup[(event2, event1)]
               event1_text = event1.get_covered_text()
               event2_text = event2.get_covered_text()
               rel_string = '%s(%s, %s)' % (label, event2_text, event1_text)
@@ -213,7 +217,7 @@ if __name__ == "__main__":
     max_input_length=100,
     max_output_length=100,
     partition='dev',
-    n_files='all')
+    n_files=5)
 
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters:', args)
