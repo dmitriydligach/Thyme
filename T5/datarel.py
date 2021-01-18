@@ -49,7 +49,8 @@ class Thyme(Dataset):
     self.inputs = []
     self.outputs = []
 
-    self.extract_events_time_relations()
+    # self.extract_events_time_relations()
+    self.extract_events_event_relations()
 
   @staticmethod
   def index_relations(gold_view):
@@ -115,6 +116,61 @@ class Thyme(Dataset):
         else:
           self.outputs.append(' '.join(relations))
 
+  def extract_events_event_relations(self):
+    """Very eventful"""
+
+    type_system_file = open(type_system_path, 'rb')
+    type_system = load_typesystem(type_system_file)
+
+    xmi_paths = glob.glob(self.xmi_dir + '*.xmi')[:self.n_files]
+    caption = 'reading %s data' % self.partition
+
+    for xmi_path in tqdm(xmi_paths, desc=caption):
+
+      # does this xmi belong to the sought partition?
+      xmi_file_name = xmi_path.split('/')[-1]
+      id = int(xmi_file_name.split('_')[0][-3:])
+      if id % 8 not in splits[self.partition]:
+        continue
+
+      xmi_file = open(xmi_path, 'rb')
+      cas = load_cas_from_xmi(xmi_file, typesystem=type_system)
+      gold_view = cas.get_view('GoldView')
+      sys_view = cas.get_view('_InitialView')
+
+      rel_lookup = Thyme.index_relations(gold_view)
+
+      # iterate over sentences extracting relations
+      for sent in sys_view.select(sent_type):
+        sent_text = sent.get_covered_text().replace('\n', '')
+        self.inputs.append('perform IE: ' + sent_text)
+
+        relations = [] # relations in this sentence
+        events_in_sent = list(gold_view.select_covered(event_type, sent))
+
+        for i in range(0, len(events_in_sent)):
+          for j in range(i + 1,  len(events_in_sent)):
+
+            event1 = events_in_sent[i]
+            event2 = events_in_sent[j]
+            if (event1, event2) in rel_lookup:
+              label = rel_lookup[(event1, event2)]
+              event1_text = event1.get_covered_text()
+              event2_text = event2.get_covered_text()
+              rel_string = '%s(%s, %s)' % (label, event1_text, event2_text)
+              relations.append(rel_string)
+            if (event2, event1) in rel_lookup:
+              label = rel_lookup[(event2, event1)] + '-1'
+              event1_text = event1.get_covered_text()
+              event2_text = event2.get_covered_text()
+              rel_string = '%s(%s, %s)' % (label, event2_text, event1_text)
+              relations.append(rel_string)
+
+        if len(relations) == 0:
+          self.outputs.append('no event-event relations')
+        else:
+          self.outputs.append(' '.join(relations))
+
   def __len__(self):
     """Requried by pytorch"""
 
@@ -157,7 +213,7 @@ if __name__ == "__main__":
     max_input_length=100,
     max_output_length=100,
     partition='dev',
-    n_files=3)
+    n_files='all')
 
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters:', args)

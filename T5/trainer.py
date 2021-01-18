@@ -130,9 +130,9 @@ def generate(model, data_loader, tokenizer):
 
     # all predictions in this batch
     for i in range(len(predictions)):
-      print('[inputs]', inputs[i])
+      print('[input]', inputs[i])
       print('[targets]', targets[i])
-      print('[predictions]', predictions[i])
+      print('[predict]', predictions[i])
       print()
 
 def main():
