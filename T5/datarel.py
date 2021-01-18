@@ -49,8 +49,8 @@ class Thyme(Dataset):
     self.inputs = []
     self.outputs = []
 
-    # self.extract_events_time_relations()
-    self.extract_events_event_relations()
+    self.extract_events_time_relations()
+    # self.extract_events_event_relations()
 
   @staticmethod
   def index_relations(gold_view):
@@ -107,7 +107,7 @@ class Thyme(Dataset):
               relations.append(rel_string)
 
             if (event, time) in rel_lookup:
-              label = rel_lookup[(event, time)] + '-1'
+              label = rel_lookup[(event, time)]
               time_text = time.get_covered_text()
               event_text = event.get_covered_text()
               rel_string = '%s(%s, %s)' % (label, event_text, time_text)
