@@ -143,6 +143,6 @@ if __name__ == "__main__":
 
   for index in range(len(data)):
     input_ids, input_mask, output_ids, output_mask = data[index]
-    print(tokenizer.decode(input_ids, skip_special_tokens=False))
-    print(tokenizer.decode(output_ids, skip_special_tokens=False))
+    print(tokenizer.decode(input_ids, skip_special_tokens=True))
+    print(tokenizer.decode(output_ids, skip_special_tokens=True))
     print()

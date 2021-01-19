@@ -93,7 +93,7 @@ def evaluate(model, data_loader, tokenizer):
         decoder_input_ids=None,
         decoder_attention_mask=target_mask,
         labels=labels)
-      loss = outputs[0]
+      loss = outputs.loss
 
     total_loss += loss.item()
     num_steps += 1
@@ -196,7 +196,7 @@ if __name__ == "__main__":
   base = os.environ['DATA_ROOT']
   arg_dict = dict(
     xmi_dir=os.path.join(base, 'Thyme/Xmi/'),
-    data_reader='datarel',
+    data_reader='datadtr',
     model_dir='Model/',
     model_name='t5-large',
     max_input_length=100,
@@ -204,7 +204,7 @@ if __name__ == "__main__":
     n_files='all',
     learning_rate=1e-3,
     batch_size=32,
-    n_epochs=3)
+    n_epochs=4)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
