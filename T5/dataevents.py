@@ -45,13 +45,12 @@ class Thyme(Dataset):
     self.partition = partition
     self.n_files = None if n_files == 'all' else int(n_files)
 
+    self.inputs = []
+    self.outputs = []
     self.extract_events_and_times()
 
   def extract_events_and_times(self):
     """Extract events and times"""
-
-    self.inputs = []  # source text
-    self.outputs = [] # events and times
 
     type_system_file = open(type_system_path, 'rb')
     type_system = load_typesystem(type_system_file)
