@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import argparse
 
 from torch.utils.data import Dataset
 from transformers import T5Tokenizer
@@ -8,7 +7,7 @@ import sys
 sys.dont_write_bytecode = True
 sys.path.append('../Anafora')
 
-import os, glob
+import os, glob, argparse
 from tqdm import tqdm
 from cassis import *
 
@@ -36,7 +35,7 @@ class Thyme(Dataset):
    max_input_length,
    max_output_length,
    partition,
-   n_files='all'):
+   n_files):
     """Thyme data"""
 
     self.xmi_dir = xmi_dir
@@ -45,6 +44,10 @@ class Thyme(Dataset):
     self.max_output_length = max_output_length
     self.partition = partition
     self.n_files = None if n_files == 'all' else int(n_files)
+
+    type_system_file = open(type_system_path, 'rb')
+    self.type_system = load_typesystem(type_system_file)
+    self.xmi_paths = glob.glob(self.xmi_dir + '*.xmi')[:self.n_files]
 
     self.inputs = []
     self.outputs = []
@@ -68,13 +71,8 @@ class Thyme(Dataset):
   def extract_events_time_relations(self):
     """Extract events and times"""
 
-    type_system_file = open(type_system_path, 'rb')
-    type_system = load_typesystem(type_system_file)
-
-    xmi_paths = glob.glob(self.xmi_dir + '*.xmi')[:self.n_files]
-    caption = 'reading %s data' % self.partition
-
-    for xmi_path in tqdm(xmi_paths, desc=caption):
+    caption = 'event-time relations in %s' % self.partition
+    for xmi_path in tqdm(self.xmi_paths, desc=caption):
 
       # does this xmi belong to the sought partition?
       xmi_file_name = xmi_path.split('/')[-1]
@@ -83,7 +81,7 @@ class Thyme(Dataset):
         continue
 
       xmi_file = open(xmi_path, 'rb')
-      cas = load_cas_from_xmi(xmi_file, typesystem=type_system)
+      cas = load_cas_from_xmi(xmi_file, typesystem=self.type_system)
       gold_view = cas.get_view('GoldView')
       sys_view = cas.get_view('_InitialView')
 
@@ -92,10 +90,9 @@ class Thyme(Dataset):
       # iterate over sentences extracting relations
       for sent in sys_view.select(sent_type):
         sent_text = sent.get_covered_text().replace('\n', '')
-        self.inputs.append('Extract event-time rels: ' + sent_text)
+        self.inputs.append('Perform IE: ' + sent_text)
 
-        relations = [] # relations in this sentence
-
+        rels_in_sent = []
         for event in gold_view.select_covered(event_type, sent):
           for time in gold_view.select_covered(time_type, sent):
 
@@ -104,30 +101,25 @@ class Thyme(Dataset):
               time_text = time.get_covered_text()
               event_text = event.get_covered_text()
               rel_string = '%s(%s, %s)' % (label, time_text, event_text)
-              relations.append(rel_string)
+              rels_in_sent.append(rel_string)
 
             if (event, time) in rel_lookup:
               label = rel_lookup[(event, time)]
               time_text = time.get_covered_text()
               event_text = event.get_covered_text()
               rel_string = '%s(%s, %s)' % (label, event_text, time_text)
-              relations.append(rel_string)
+              rels_in_sent.append(rel_string)
 
-        if len(relations) == 0:
+        if len(rels_in_sent) == 0:
           self.outputs.append('no event-time relations')
         else:
-          self.outputs.append(' '.join(relations))
+          self.outputs.append(' '.join(rels_in_sent))
 
   def extract_events_event_relations(self):
     """Very eventful"""
 
-    type_system_file = open(type_system_path, 'rb')
-    type_system = load_typesystem(type_system_file)
-
-    xmi_paths = glob.glob(self.xmi_dir + '*.xmi')[:self.n_files]
-    caption = 'reading %s data' % self.partition
-
-    for xmi_path in tqdm(xmi_paths, desc=caption):
+    caption = 'event-event relations in %s' % self.partition
+    for xmi_path in tqdm(self.xmi_paths, desc=caption):
 
       # does this xmi belong to the sought partition?
       xmi_file_name = xmi_path.split('/')[-1]
@@ -136,7 +128,7 @@ class Thyme(Dataset):
         continue
 
       xmi_file = open(xmi_path, 'rb')
-      cas = load_cas_from_xmi(xmi_file, typesystem=type_system)
+      cas = load_cas_from_xmi(xmi_file, typesystem=self.type_system)
       gold_view = cas.get_view('GoldView')
       sys_view = cas.get_view('_InitialView')
 
@@ -145,9 +137,9 @@ class Thyme(Dataset):
       # iterate over sentences extracting relations
       for sent in sys_view.select(sent_type):
         sent_text = sent.get_covered_text().replace('\n', '')
-        self.inputs.append('Extract event-event rels: ' + sent_text)
+        self.inputs.append('Perform IE: ' + sent_text)
 
-        relations = [] # relations in this sentence
+        rels_in_sent = []
         events_in_sent = list(gold_view.select_covered(event_type, sent))
 
         for i in range(0, len(events_in_sent)):
@@ -161,19 +153,19 @@ class Thyme(Dataset):
               event1_text = event1.get_covered_text()
               event2_text = event2.get_covered_text()
               rel_string = '%s(%s, %s)' % (label, event1_text, event2_text)
-              relations.append(rel_string)
+              rels_in_sent.append(rel_string)
 
             if (event2, event1) in rel_lookup:
               label = rel_lookup[(event2, event1)]
               event1_text = event1.get_covered_text()
               event2_text = event2.get_covered_text()
               rel_string = '%s(%s, %s)' % (label, event2_text, event1_text)
-              relations.append(rel_string)
+              rels_in_sent.append(rel_string)
 
-        if len(relations) == 0:
+        if len(rels_in_sent) == 0:
           self.outputs.append('no event-event relations')
         else:
-          self.outputs.append(' '.join(relations))
+          self.outputs.append(' '.join(rels_in_sent))
 
   def __len__(self):
     """Requried by pytorch"""
@@ -206,6 +198,24 @@ class Thyme(Dataset):
 
     return input_ids, input_mask, output_ids, output_mask
 
+def main():
+  """This is where it happens"""
+
+  tok = T5Tokenizer.from_pretrained('t5-small')
+  data = Thyme(
+    xmi_dir=args.xmi_dir,
+    tokenizer=tok,
+    max_input_length=args.max_input_length,
+    max_output_length=args.max_output_length,
+    partition=args.partition,
+    n_files=args.n_files)
+
+  for index in range(len(data)):
+    input_ids, input_mask, output_ids, output_mask = data[index]
+    print(tok.decode(input_ids, skip_special_tokens=True))
+    print(tok.decode(output_ids, skip_special_tokens=True))
+    print()
+
 if __name__ == "__main__":
   """My main man"""
 
@@ -217,22 +227,9 @@ if __name__ == "__main__":
     max_input_length=100,
     max_output_length=100,
     partition='dev',
-    n_files=5)
+    n_files=2)
 
   args = argparse.Namespace(**arg_dict)
-  print('hyper-parameters:', args)
+  print('hyper-parameters: %s\n' % args)
 
-  tokenizer = T5Tokenizer.from_pretrained('t5-small')
-  data = Thyme(
-    xmi_dir=args.xmi_dir,
-    tokenizer=tokenizer,
-    max_input_length=args.max_input_length,
-    max_output_length=args.max_output_length,
-    partition=args.partition,
-    n_files=args.n_files)
-
-  for index in range(len(data)):
-    input_ids, input_mask, output_ids, output_mask = data[index]
-    print(tokenizer.decode(input_ids, skip_special_tokens=True))
-    print(tokenizer.decode(output_ids, skip_special_tokens=True))
-    print()
+  main()
