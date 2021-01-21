@@ -194,6 +194,7 @@ class Thyme(Dataset):
         rels_in_sent = []
 
         # get event-time relations first
+        rels_in_sent.append('event-time relations:')
         for event in gold_view.select_covered(event_type, sent):
           for time in gold_view.select_covered(time_type, sent):
 
@@ -212,6 +213,7 @@ class Thyme(Dataset):
               rels_in_sent.append(rel_string)
 
         # now get event-event relations
+        rels_in_sent.append('event-event relations:')
         events_in_sent = list(gold_view.select_covered(event_type, sent))
         for i in range(0, len(events_in_sent)):
           for j in range(i + 1,  len(events_in_sent)):
@@ -236,7 +238,7 @@ class Thyme(Dataset):
         if len(rels_in_sent) == 0:
           self.outputs.append('no relations in this sentence')
         else:
-          self.outputs.append('found rels: ' + ' '.join(rels_in_sent))
+          self.outputs.append(' '.join(rels_in_sent))
 
   def __len__(self):
     """Requried by pytorch"""
