@@ -196,7 +196,7 @@ if __name__ == "__main__":
   base = os.environ['DATA_ROOT']
   arg_dict = dict(
     xmi_dir=os.path.join(base, 'Thyme/Xmi/'),
-    data_reader='datadtr',
+    data_reader='datarel',
     model_dir='Model/',
     model_name='t5-large',
     max_input_length=100,
@@ -204,7 +204,7 @@ if __name__ == "__main__":
     n_files='all',
     learning_rate=1e-3,
     batch_size=32,
-    n_epochs=4)
+    n_epochs=5)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
