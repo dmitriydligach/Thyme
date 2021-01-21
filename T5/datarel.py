@@ -113,7 +113,7 @@ class Thyme(Dataset):
         if len(rels_in_sent) == 0:
           self.outputs.append('no event-time relations')
         else:
-          self.outputs.append(' '.join(rels_in_sent))
+          self.outputs.append('event-time rels: ' + ' '.join(rels_in_sent))
 
   def extract_events_event_relations(self):
     """Very eventful"""
@@ -165,7 +165,7 @@ class Thyme(Dataset):
         if len(rels_in_sent) == 0:
           self.outputs.append('no event-event relations')
         else:
-          self.outputs.append(' '.join(rels_in_sent))
+          self.outputs.append('event-event rels: ' + ' '.join(rels_in_sent))
 
   def __len__(self):
     """Requried by pytorch"""
@@ -227,7 +227,7 @@ if __name__ == "__main__":
     max_input_length=100,
     max_output_length=100,
     partition='dev',
-    n_files=2)
+    n_files=5)
 
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
