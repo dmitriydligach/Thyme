@@ -202,7 +202,7 @@ if __name__ == "__main__":
     max_input_length=100,
     max_output_length=100,
     n_files='all',
-    learning_rate=1e-4,
+    learning_rate=1e-3,
     batch_size=32,
     n_epochs=10)
   args = argparse.Namespace(**arg_dict)
