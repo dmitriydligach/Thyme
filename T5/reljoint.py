@@ -52,8 +52,6 @@ class Thyme(Dataset):
     self.inputs = []
     self.outputs = []
 
-    # self.extract_events_time_relations()
-    # self.extract_events_event_relations()
     self.extract_all_relations()
 
   @staticmethod
@@ -68,104 +66,6 @@ class Thyme(Dataset):
         rel_lookup[(arg1, arg2)] = rel.category
 
     return rel_lookup
-
-  def extract_events_time_relations(self):
-    """Extract events and times"""
-
-    caption = 'event-time relations in %s' % self.partition
-    for xmi_path in tqdm(self.xmi_paths, desc=caption):
-
-      # does this xmi belong to the sought partition?
-      xmi_file_name = xmi_path.split('/')[-1]
-      id = int(xmi_file_name.split('_')[0][-3:])
-      if id % 8 not in splits[self.partition]:
-        continue
-
-      xmi_file = open(xmi_path, 'rb')
-      cas = load_cas_from_xmi(xmi_file, typesystem=self.type_system)
-      gold_view = cas.get_view('GoldView')
-      sys_view = cas.get_view('_InitialView')
-
-      rel_lookup = Thyme.index_relations(gold_view)
-
-      # iterate over sentences extracting relations
-      for sent in sys_view.select(sent_type):
-        sent_text = sent.get_covered_text().replace('\n', '')
-        self.inputs.append('Perform IE: ' + sent_text)
-
-        rels_in_sent = []
-        for event in gold_view.select_covered(event_type, sent):
-          for time in gold_view.select_covered(time_type, sent):
-
-            if (time, event) in rel_lookup:
-              label = rel_lookup[(time, event)]
-              time_text = time.get_covered_text()
-              event_text = event.get_covered_text()
-              rel_string = '%s(%s, %s)' % (label, time_text, event_text)
-              rels_in_sent.append(rel_string)
-
-            if (event, time) in rel_lookup:
-              label = rel_lookup[(event, time)]
-              time_text = time.get_covered_text()
-              event_text = event.get_covered_text()
-              rel_string = '%s(%s, %s)' % (label, event_text, time_text)
-              rels_in_sent.append(rel_string)
-
-        if len(rels_in_sent) == 0:
-          self.outputs.append('no event-time relations')
-        else:
-          self.outputs.append('event-time rels: ' + ' '.join(rels_in_sent))
-
-  def extract_events_event_relations(self):
-    """Very eventful"""
-
-    caption = 'event-event relations in %s' % self.partition
-    for xmi_path in tqdm(self.xmi_paths, desc=caption):
-
-      # does this xmi belong to the sought partition?
-      xmi_file_name = xmi_path.split('/')[-1]
-      id = int(xmi_file_name.split('_')[0][-3:])
-      if id % 8 not in splits[self.partition]:
-        continue
-
-      xmi_file = open(xmi_path, 'rb')
-      cas = load_cas_from_xmi(xmi_file, typesystem=self.type_system)
-      gold_view = cas.get_view('GoldView')
-      sys_view = cas.get_view('_InitialView')
-
-      rel_lookup = Thyme.index_relations(gold_view)
-
-      # iterate over sentences extracting relations
-      for sent in sys_view.select(sent_type):
-        sent_text = sent.get_covered_text().replace('\n', '')
-        self.inputs.append('Perform IE: ' + sent_text)
-
-        rels_in_sent = []
-        events_in_sent = list(gold_view.select_covered(event_type, sent))
-        for i in range(0, len(events_in_sent)):
-          for j in range(i + 1,  len(events_in_sent)):
-
-            event1 = events_in_sent[i]
-            event2 = events_in_sent[j]
-
-            if (event1, event2) in rel_lookup:
-              label = rel_lookup[(event1, event2)]
-              event1_text = event1.get_covered_text()
-              event2_text = event2.get_covered_text()
-              rel_string = '%s(%s, %s)' % (label, event1_text, event2_text)
-              rels_in_sent.append(rel_string)
-
-            if (event2, event1) in rel_lookup:
-              label = rel_lookup[(event2, event1)]
-              event1_text = event1.get_covered_text()
-              event2_text = event2.get_covered_text()
-              rel_string = '%s(%s, %s)' % (label, event2_text, event1_text)
-              rels_in_sent.append(rel_string)
-
-        if len(rels_in_sent) == 0:
-          self.outputs.append('no event-event relations')
-        else:
-          self.outputs.append('event-event rels: ' + ' '.join(rels_in_sent))
 
   def extract_all_relations(self):
     """Extract ee and et relations"""
