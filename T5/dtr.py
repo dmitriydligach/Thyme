@@ -74,16 +74,21 @@ class Thyme(Dataset):
       # iterate over sentences extracting events and times
       for sent in sys_view.select(sent_type):
         sent_text = sent.get_covered_text().replace('\n', '')
-        self.inputs.append('perform IE: ' + sent_text)
 
-        events = [] # events and their DTRs
+        events = []          # gold events
+        events_with_dtr = [] # events and their DTRs
+
         for event in gold_view.select_covered(event_type, sent):
           event_text = event.get_covered_text().replace('\n', '')
+          events.append(event_text)
           dtr_label = event.event.properties.docTimeRel
-          events.append('%s/%s' % (event_text, dtr_label))
+          events_with_dtr.append('%s/%s' % (event_text, dtr_label))
 
-        output_string = 'events: ' + ', '.join(events)
-        self.outputs.append(output_string)
+        input_str = 'task: DTR; sent: %s; events: %s' % (sent_text, ', '.join(events))
+        self.inputs.append(input_str)
+
+        output_str = 'events with DTR: ' + ', '.join(events_with_dtr)
+        self.outputs.append(output_str)
 
   def __len__(self):
     """Requried by pytorch"""
@@ -124,8 +129,8 @@ if __name__ == "__main__":
     xmi_dir=os.path.join(base, 'Thyme/Xmi/'),
     model_dir='Model/',
     model_name='t5-small',
-    max_input_length=50,
-    max_output_length=50,
+    max_input_length=100,
+    max_output_length=100,
     partition='dev',
     n_files=3)
   args = argparse.Namespace(**arg_dict)
