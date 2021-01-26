@@ -152,7 +152,7 @@ def main():
   # load a pretrained T5 model
   model = T5ForConditionalGeneration.from_pretrained(args.model_name)
 
-  train_dataset = data.Thyme(
+  train_dataset = data.Data(
     xmi_dir=args.xmi_dir,
     tokenizer=tokenizer,
     max_input_length=args.max_input_length,
@@ -164,7 +164,7 @@ def main():
     shuffle=True,
     batch_size=args.batch_size)
 
-  val_dataset = data.Thyme(
+  val_dataset = data.Data(
     xmi_dir=args.xmi_dir,
     tokenizer=tokenizer,
     max_input_length=args.max_input_length,
@@ -196,7 +196,7 @@ if __name__ == "__main__":
   base = os.environ['DATA_ROOT']
   arg_dict = dict(
     xmi_dir=os.path.join(base, 'Thyme/Xmi/'),
-    data_reader='dtr',
+    data_reader='dataset_rel',
     model_dir='Model/',
     model_name='t5-large',
     max_input_length=100,
@@ -204,7 +204,7 @@ if __name__ == "__main__":
     n_files='all',
     learning_rate=1e-4,
     batch_size=32,
-    n_epochs=5)
+    n_epochs=3)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 

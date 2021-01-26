@@ -7,9 +7,10 @@ import sys
 sys.dont_write_bytecode = True
 sys.path.append('../Anafora')
 
-import os, glob, argparse
+import os, argparse
 from tqdm import tqdm
 from cassis import *
+from dataset_base import ThymeDataset
 
 splits = {
   'train': set([0,1,2,3]),
@@ -22,10 +23,7 @@ event_type = 'org.apache.ctakes.typesystem.type.textsem.EventMention'
 time_type = 'org.apache.ctakes.typesystem.type.textsem.TimeMention'
 sent_type = 'org.apache.ctakes.typesystem.type.textspan.Sentence'
 
-# ctakes type system
-type_system_path='./TypeSystem.xml'
-
-class Thyme(Dataset):
+class Data(ThymeDataset):
   """Thyme data"""
 
   def __init__(
@@ -38,19 +36,13 @@ class Thyme(Dataset):
    n_files):
     """Thyme data"""
 
-    self.xmi_dir = xmi_dir
-    self.tokenizer = tokenizer
-    self.max_input_length = max_input_length
-    self.max_output_length = max_output_length
-    self.partition = partition
-    self.n_files = None if n_files == 'all' else int(n_files)
-
-    type_system_file = open(type_system_path, 'rb')
-    self.type_system = load_typesystem(type_system_file)
-    self.xmi_paths = glob.glob(self.xmi_dir + '*.xmi')[:self.n_files]
-
-    self.inputs = []
-    self.outputs = []
+    super(Data, self).__init__(
+      xmi_dir,
+      tokenizer,
+      max_input_length,
+      max_output_length,
+      partition,
+      n_files)
 
     self.events_time_relations()
     # self.events_event_relations()
@@ -85,7 +77,7 @@ class Thyme(Dataset):
       gold_view = cas.get_view('GoldView')
       sys_view = cas.get_view('_InitialView')
 
-      rel_lookup = Thyme.index_relations(gold_view)
+      rel_lookup = Data.index_relations(gold_view)
 
       # iterate over sentences extracting relations
       for sent in sys_view.select(sent_type):
@@ -132,7 +124,7 @@ class Thyme(Dataset):
       gold_view = cas.get_view('GoldView')
       sys_view = cas.get_view('_InitialView')
 
-      rel_lookup = Thyme.index_relations(gold_view)
+      rel_lookup = Data.index_relations(gold_view)
 
       # iterate over sentences extracting relations
       for sent in sys_view.select(sent_type):
@@ -183,7 +175,7 @@ class Thyme(Dataset):
       gold_view = cas.get_view('GoldView')
       sys_view = cas.get_view('_InitialView')
 
-      rel_lookup = Thyme.index_relations(gold_view)
+      rel_lookup = Data.index_relations(gold_view)
 
       # iterate over sentences extracting relations
       for sent in sys_view.select(sent_type):
@@ -248,42 +240,11 @@ class Thyme(Dataset):
 
         self.outputs.append(et_output + '; ' + ee_output)
 
-  def __len__(self):
-    """Requried by pytorch"""
-
-    assert(len(self.inputs) == len(self.outputs))
-    return len(self.inputs)
-
-  def __getitem__(self, index):
-    """Required by pytorch"""
-
-    input = self.tokenizer(
-      self.inputs[index],
-      max_length=self.max_input_length,
-      padding='max_length',
-      truncation=True,
-      return_tensors='pt')
-
-    output = self.tokenizer(
-      self.outputs[index],
-      max_length=self.max_output_length,
-      padding='max_length',
-      truncation=True,
-      return_tensors='pt')
-
-    input_ids = input.input_ids.squeeze()
-    input_mask = input.attention_mask.squeeze()
-
-    output_ids = output.input_ids.squeeze()
-    output_mask = output.attention_mask.squeeze()
-
-    return input_ids, input_mask, output_ids, output_mask
-
 def main():
   """This is where it happens"""
 
   tok = T5Tokenizer.from_pretrained('t5-small')
-  data = Thyme(
+  data = Data(
     xmi_dir=args.xmi_dir,
     tokenizer=tok,
     max_input_length=args.max_input_length,
