@@ -4,7 +4,7 @@ import sys
 sys.path.append('../Lib/')
 
 import torch
-from torch.utils.data import DataLoader
+
 from transformers import (
     T5ForConditionalGeneration,
     T5Tokenizer,
@@ -36,7 +36,7 @@ def main():
   # load a pretrained T5 model
   model = T5ForConditionalGeneration.from_pretrained(args.model_name)
 
-  train_dataset = data.Thyme(
+  train_dataset = data.Data(
     xmi_dir=args.xmi_dir,
     tokenizer=tokenizer,
     max_input_length=args.max_input_length,
@@ -44,7 +44,7 @@ def main():
     partition='train',
     n_files=args.n_files)
 
-  val_dataset = data.Thyme(
+  val_dataset = data.Data(
     xmi_dir=args.xmi_dir,
     tokenizer=tokenizer,
     max_input_length=args.max_input_length,
@@ -80,7 +80,7 @@ if __name__ == "__main__":
   base = os.environ['DATA_ROOT']
   arg_dict = dict(
     xmi_dir=os.path.join(base, 'Thyme/Xmi/'),
-    data_reader='dtr',
+    data_reader='dataset_dtr',
     model_dir='Model/',
     model_name='t5-large',
     max_input_length=100,
