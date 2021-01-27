@@ -21,7 +21,7 @@ class ThymeDataset(Dataset):
    tokenizer,
    max_input_length,
    max_output_length,
-   partition,
+   partition, # todo: this is not needed here
    n_files):
     """Thyme data"""
 
@@ -65,12 +65,15 @@ class ThymeDataset(Dataset):
       return_tensors='pt')
 
     input_ids = input.input_ids.squeeze()
-    input_mask = input.attention_mask.squeeze()
+    attention_mask = input.attention_mask.squeeze()
+    decoder_input_ids = output.input_ids.squeeze()
+    decoder_attention_mask = output.attention_mask.squeeze()
 
-    output_ids = output.input_ids.squeeze()
-    output_mask = output.attention_mask.squeeze()
-
-    return input_ids, input_mask, output_ids, output_mask
+    return dict(
+      input_ids=input_ids,
+      attention_mask=attention_mask,
+      decoder_input_ids=decoder_input_ids,
+      decoder_attention_mask=decoder_attention_mask)
 
 if __name__ == "__main__":
   """My main man"""
