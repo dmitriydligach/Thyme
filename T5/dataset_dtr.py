@@ -21,9 +21,6 @@ event_type = 'org.apache.ctakes.typesystem.type.textsem.EventMention'
 time_type = 'org.apache.ctakes.typesystem.type.textsem.TimeMention'
 sent_type = 'org.apache.ctakes.typesystem.type.textspan.Sentence'
 
-# ctakes type system
-type_system_path='./TypeSystem.xml'
-
 class Data(ThymeDataset):
   """DTR data"""
 
@@ -42,9 +39,9 @@ class Data(ThymeDataset):
       tokenizer,
       max_input_length,
       max_output_length,
-      partition,
       n_files)
 
+    self.partition = partition
     self.extract_events_and_dtr()
 
   def extract_events_and_dtr(self):
@@ -108,7 +105,8 @@ if __name__ == "__main__":
     n_files=args.n_files)
 
   for index in range(len(data)):
-    input_ids, input_mask, output_ids, output_mask = data[index]
+    input_ids = data[index]['input_ids']
+    output_ids = data[index]['decoder_input_ids']
     print(tokenizer.decode(input_ids, skip_special_tokens=True))
     print(tokenizer.decode(output_ids, skip_special_tokens=True))
     print()

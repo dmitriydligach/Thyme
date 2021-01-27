@@ -21,7 +21,6 @@ class ThymeDataset(Dataset):
    tokenizer,
    max_input_length,
    max_output_length,
-   partition, # todo: this is not needed here
    n_files):
     """Thyme data"""
 
@@ -29,7 +28,6 @@ class ThymeDataset(Dataset):
     self.tokenizer = tokenizer
     self.max_input_length = max_input_length
     self.max_output_length = max_output_length
-    self.partition = partition
     self.n_files = None if n_files == 'all' else int(n_files)
 
     # get type system to read xmi files

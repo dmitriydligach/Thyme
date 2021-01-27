@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from torch.utils.data import Dataset
 from transformers import T5Tokenizer
 
 import sys
@@ -41,9 +40,9 @@ class Data(ThymeDataset):
       tokenizer,
       max_input_length,
       max_output_length,
-      partition,
       n_files)
 
+    self.partition = partition
     self.events_time_relations()
     # self.events_event_relations()
 
@@ -253,7 +252,8 @@ def main():
     n_files=args.n_files)
 
   for index in range(len(data)):
-    input_ids, input_mask, output_ids, output_mask = data[index]
+    input_ids = data[index]['input_ids']
+    output_ids = data[index]['decoder_input_ids']
     print(tok.decode(input_ids, skip_special_tokens=True))
     print(tok.decode(output_ids, skip_special_tokens=True))
     print()
