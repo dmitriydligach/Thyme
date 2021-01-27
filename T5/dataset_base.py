@@ -9,9 +9,6 @@ sys.path.append('../Anafora')
 import glob
 from cassis import *
 
-# ctakes type system
-type_system_path='./TypeSystem.xml'
-
 class ThymeDataset(Dataset):
   """Thyme data"""
 
@@ -30,8 +27,14 @@ class ThymeDataset(Dataset):
     self.max_output_length = max_output_length
     self.n_files = None if n_files == 'all' else int(n_files)
 
+    # thyme official splits
+    self.splits = dict(
+      train = {0, 1, 2, 3},
+      dev = {4, 5},
+      test = {6, 7})
+
     # get type system to read xmi files
-    type_system_file = open(type_system_path, 'rb')
+    type_system_file = open('./TypeSystem.xml', 'rb')
     self.type_system = load_typesystem(type_system_file)
     self.xmi_paths = glob.glob(self.xmi_dir + '*.xmi')[:self.n_files]
 

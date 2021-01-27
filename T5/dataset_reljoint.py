@@ -11,11 +11,6 @@ from tqdm import tqdm
 from cassis import *
 from dataset_base import ThymeDataset
 
-splits = {
-  'train': set([0,1,2,3]),
-  'dev': set([4,5]),
-  'test': set([6,7])}
-
 # ctakes type system types
 rel_type = 'org.apache.ctakes.typesystem.type.relation.TemporalTextRelation'
 event_type = 'org.apache.ctakes.typesystem.type.textsem.EventMention'
@@ -67,7 +62,7 @@ class Data(ThymeDataset):
       # does this xmi belong to the sought partition?
       xmi_file_name = xmi_path.split('/')[-1]
       id = int(xmi_file_name.split('_')[0][-3:])
-      if id % 8 not in splits[self.partition]:
+      if id % 8 not in self.splits[self.partition]:
         continue
 
       xmi_file = open(xmi_path, 'rb')
