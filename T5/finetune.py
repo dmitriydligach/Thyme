@@ -193,7 +193,7 @@ def generate(model, data_loader, tokenizer):
       all_labels.extend(targ_labels)
       all_predictions.extend(pred_labels)
 
-    return f1_score(all_labels, all_predictions, average='micro')
+  return f1_score(all_labels, all_predictions, average='micro')
 
 def main():
   """Fine-tune on summarization data"""
