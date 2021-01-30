@@ -67,12 +67,12 @@ class Data(ThymeDataset):
           event_text = event.get_covered_text().replace('\n', '')
           events.append(event_text)
           dtr_label = event.event.properties.docTimeRel
-          events_with_dtr.append('%s/%s' % (event_text, dtr_label))
+          events_with_dtr.append('%s|%s' % (event_text, dtr_label))
 
         input_str = 'task: DTR; sent: %s; events: %s' % (sent_text, ', '.join(events))
         self.inputs.append(input_str)
 
-        output_str = 'events with DTR: ' + ', '.join(events_with_dtr)
+        output_str = ', '.join(events_with_dtr)
         self.outputs.append(output_str)
 
 if __name__ == "__main__":

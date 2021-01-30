@@ -3,19 +3,22 @@
 import sys
 sys.path.append('../Lib/')
 
-import torch
-from torch.utils.data import DataLoader
+import random, argparse, os, shutil, importlib, torch
+
 from transformers import (
     AdamW,
     T5ForConditionalGeneration,
     T5Tokenizer)
-import random, argparse, os, shutil, importlib
+
+from sklearn.metrics import f1_score
+from torch.utils.data import DataLoader
 
 # deterministic determinism
 torch.manual_seed(2020)
+random.seed(2020)
+
 # torch.backends.cudnn.deterministic = True
 # torch.backends.cudnn.benchmark = False
-random.seed(2020)
 
 def fit(model, train_loader, val_loader, tokenizer):
   """Training routine"""
@@ -115,12 +118,43 @@ def evaluate(model, data_loader, tokenizer):
   average_loss = total_loss / num_steps
   return average_loss
 
+def extract_labels(target_str, predicted_str):
+  """Extract DTR labels from T5's output"""
+
+  # well-formed T5 output: denies|OVERLAP, pain|OVERLAP
+  if len(target_str) < 1 or len(predicted_str) < 1:
+    return [], []
+
+  # weird case; T5 didn't predict anything
+  # not clear how to handle this situation
+  if '|' not in predicted_str:
+    return [], []
+
+  target_labels = []
+  predicted_labels = []
+
+  for event_dtr_pair in sorted(target_str.split(', ')):
+    if '|' in event_dtr_pair:
+      target_labels.append(event_dtr_pair.split('|')[1])
+
+  for event_dtr_pair in sorted(predicted_str.split(', ')):
+    if '|' in event_dtr_pair:
+      predicted_labels.append(event_dtr_pair.split('|')[1])
+
+  # very forgiving scenario
+  min_length = min(len(target_labels), len(predicted_labels))
+  return target_labels[:min_length], predicted_labels[:min_length]
+
 def generate(model, data_loader, tokenizer):
   """Generate outputs for validation set samples"""
 
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
   model.to(device)
   model.eval()
+
+  # gold and predicted labels
+  all_labels = []
+  all_predictions = []
 
   for batch in data_loader:
     input_ids = batch['input_ids']
@@ -149,12 +183,17 @@ def generate(model, data_loader, tokenizer):
       skip_special_tokens=True,
       clean_up_tokenization_spaces=True)
 
-    # all predictions in this batch
+    # iterate over samples in this batch
     for i in range(len(predictions)):
       print('[input]', inputs[i])
       print('[targets]', targets[i])
-      print('[predict]', predictions[i])
-      print()
+      print('[predict]', predictions[i], '\n')
+
+      targ_labels, pred_labels = extract_labels(targets[i], predictions[i])
+      all_labels.extend(targ_labels)
+      all_predictions.extend(pred_labels)
+
+    return f1_score(all_labels, all_predictions, average='micro')
 
 def main():
   """Fine-tune on summarization data"""
@@ -209,7 +248,8 @@ def main():
   model = T5ForConditionalGeneration.from_pretrained(args.model_dir)
 
   # generate output from the saved model
-  generate(model, val_data_loader, tokenizer)
+  f1 = generate(model, val_data_loader, tokenizer)
+  print('macro f1:', f1)
 
 if __name__ == "__main__":
   "My kind of street"
@@ -217,15 +257,15 @@ if __name__ == "__main__":
   base = os.environ['DATA_ROOT']
   arg_dict = dict(
     xmi_dir=os.path.join(base, 'Thyme/Xmi/'),
-    data_reader='dataset_rel',
+    data_reader='dataset_dtr',
     model_dir='Model/',
     model_name='t5-large',
-    max_input_length=100,
-    max_output_length=100,
+    max_input_length=150,
+    max_output_length=150,
     n_files='all',
-    learning_rate=1e-4,
-    batch_size=32,
-    n_epochs=1)
+    learning_rate=5e-5,
+    batch_size=16,
+    n_epochs=5)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
