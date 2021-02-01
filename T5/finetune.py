@@ -8,7 +8,8 @@ import random, argparse, os, shutil, importlib, torch
 from transformers import (
     AdamW,
     T5ForConditionalGeneration,
-    T5Tokenizer)
+    T5Tokenizer,
+    get_linear_schedule_with_warmup)
 
 from sklearn.metrics import f1_score
 from torch.utils.data import DataLoader
@@ -26,7 +27,18 @@ def fit(model, train_loader, val_loader, tokenizer):
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
   model.to(device)
 
-  optimizer = AdamW(model.parameters(), lr=args.learning_rate)
+  # define parameter groups
+  no_decay = ['bias', 'LayerNorm.weight']
+  optimizer_grouped_parameters = [
+    {'params': [p for n, p in model.named_parameters()
+      if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
+    {'params': [p for n, p in model.named_parameters()
+      if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}]
+
+  # implements gradient bias correction as well as weight decay
+  # optimizer = AdamW(model.parameters(), lr=args.learning_rate)
+  optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate)
+  scheduler = get_linear_schedule_with_warmup(optimizer, 100, 1500)
 
   best_loss = float('inf')
   optimal_epochs = 0
@@ -60,6 +72,7 @@ def fit(model, train_loader, val_loader, tokenizer):
 
       loss = outputs.loss
       loss.backward()
+      scheduler.step()
 
       torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
       optimizer.step()
@@ -260,8 +273,8 @@ if __name__ == "__main__":
     data_reader='dataset_dtr',
     model_dir='Model/',
     model_name='t5-large',
-    max_input_length=150,
-    max_output_length=150,
+    max_input_length=200,
+    max_output_length=200,
     n_files='all',
     learning_rate=5e-5,
     batch_size=16,
