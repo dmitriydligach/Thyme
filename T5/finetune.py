@@ -122,7 +122,7 @@ def extract_labels(target_str, predicted_str):
   """Extract DTR labels from T5's output"""
 
   # well-formed T5 output: denies|OVERLAP, pain|OVERLAP
-  if len(target_str) < 1 or len(predicted_str) < 1:
+  if len(target_str) < 1 and len(predicted_str) < 1:
     return [], []
 
   # weird case; T5 didn't predict anything
