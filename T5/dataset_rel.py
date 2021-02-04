@@ -82,24 +82,23 @@ class Data(ThymeDataset):
         for event in gold_view.select_covered(event_type, sent):
           for time in gold_view.select_covered(time_type, sent):
 
+            time_text = time.get_covered_text()
+            event_text = event.get_covered_text()
+
             if (time, event) in rel_lookup:
               label = rel_lookup[(time, event)]
-              time_text = time.get_covered_text()
-              event_text = event.get_covered_text()
               rel_string = '%s(%s, %s)' % (label, time_text, event_text)
               rels_in_sent.append(rel_string)
 
-            if (event, time) in rel_lookup:
+            elif (event, time) in rel_lookup:
               label = rel_lookup[(event, time)]
-              time_text = time.get_covered_text()
-              event_text = event.get_covered_text()
               rel_string = '%s(%s, %s)' % (label, event_text, time_text)
               rels_in_sent.append(rel_string)
 
         if len(rels_in_sent) == 0:
           self.outputs.append('no event-time relations')
         else:
-          self.outputs.append('event-time rels: ' + ' '.join(rels_in_sent))
+          self.outputs.append(' '.join(rels_in_sent))
 
   def events_event_relations(self):
     """Very eventful"""
