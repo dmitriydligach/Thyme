@@ -76,7 +76,7 @@ class Data(ThymeDataset):
       # iterate over sentences extracting relations
       for sent in sys_view.select(sent_type):
         sent_text = sent.get_covered_text().replace('\n', '')
-        self.inputs.append('Perform IE: ' + sent_text)
+        self.inputs.append('Relation extraction: ' + sent_text)
 
         rels_in_sent = []
         for event in gold_view.select_covered(event_type, sent):
@@ -110,7 +110,7 @@ class Data(ThymeDataset):
       # does this xmi belong to the sought partition?
       xmi_file_name = xmi_path.split('/')[-1]
       id = int(xmi_file_name.split('_')[0][-3:])
-      if id % 8 not in splits[self.partition]:
+      if id % 8 not in self.splits[self.partition]:
         continue
 
       xmi_file = open(xmi_path, 'rb')
@@ -123,7 +123,7 @@ class Data(ThymeDataset):
       # iterate over sentences extracting relations
       for sent in sys_view.select(sent_type):
         sent_text = sent.get_covered_text().replace('\n', '')
-        self.inputs.append('Perform IE: ' + sent_text)
+        self.inputs.append('Relation extraction: ' + sent_text)
 
         rels_in_sent = []
         events_in_sent = list(gold_view.select_covered(event_type, sent))
@@ -161,7 +161,7 @@ class Data(ThymeDataset):
       # does this xmi belong to the sought partition?
       xmi_file_name = xmi_path.split('/')[-1]
       id = int(xmi_file_name.split('_')[0][-3:])
-      if id % 8 not in splits[self.partition]:
+      if id % 8 not in self.splits[self.partition]:
         continue
 
       xmi_file = open(xmi_path, 'rb')
@@ -174,7 +174,7 @@ class Data(ThymeDataset):
       # iterate over sentences extracting relations
       for sent in sys_view.select(sent_type):
         sent_text = sent.get_covered_text().replace('\n', '')
-        self.inputs.append('Perform IE: ' + sent_text)
+        self.inputs.append('Relation extraction: ' + sent_text)
 
         # event-time relations in this sentence
         et_rels_in_sent = []
