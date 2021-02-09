@@ -74,8 +74,9 @@ class ThymeDataset(Dataset):
       input_ids=input_ids,
       attention_mask=attention_mask,
       decoder_input_ids=decoder_input_ids,
-      decoder_attention_mask=decoder_attention_mask)
-
+      decoder_attention_mask=decoder_attention_mask,
+      labels=decoder_input_ids)
+2
 if __name__ == "__main__":
   """My main man"""
 

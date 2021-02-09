@@ -301,10 +301,10 @@ if __name__ == "__main__":
     n_files='all',
     learning_rate=5e-5,
     train_batch_size=16,
-    gener_batch_size=256,
+    gener_batch_size=32,
     n_epochs=5)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
-  perform_fine_tuning()
+  # perform_fine_tuning()
   perform_generation()

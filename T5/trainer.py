@@ -71,9 +71,6 @@ def main():
   trainer.save_model(args.model_dir)
   trainer.evaluate()
 
-  # load the saved model
-  model = T5ForConditionalGeneration.from_pretrained(args.model_dir)
-
 if __name__ == "__main__":
   "My kind of street"
 
@@ -83,12 +80,12 @@ if __name__ == "__main__":
     data_reader='dataset_dtr',
     model_dir='Model/',
     model_name='t5-large',
-    max_input_length=100,
-    max_output_length=100,
-    n_files=10,
-    learning_rate=1e-4,
-    batch_size=32,
-    n_epochs=2)
+    max_input_length=200,
+    max_output_length=200,
+    n_files='all',
+    learning_rate=5e-5,
+    batch_size=16,
+    n_epochs=1)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
