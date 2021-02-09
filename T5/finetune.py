@@ -249,7 +249,7 @@ def perform_fine_tuning():
   val_data_loader = DataLoader(
     val_dataset,
     shuffle=False,
-    batch_size=args.batch_size)
+    batch_size=args.train_batch_size)
 
   # fine-tune model on thyme data and save it
   best_loss, optimal_epochs = fit(
@@ -281,7 +281,7 @@ def perform_generation():
   val_data_loader = DataLoader(
     val_dataset,
     shuffle=False,
-    batch_size=args.batch_size)
+    batch_size=args.gener_batch_size)
 
   # generate output from the saved model
   f1 = generate(model, val_data_loader, tokenizer)
@@ -300,7 +300,8 @@ if __name__ == "__main__":
     max_output_length=200,
     n_files='all',
     learning_rate=5e-5,
-    batch_size=16,
+    train_batch_size=16,
+    gener_batch_size=256,
     n_epochs=5)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
