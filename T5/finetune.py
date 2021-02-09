@@ -31,9 +31,11 @@ def fit(model, train_loader, val_loader, tokenizer):
   no_decay = ['bias', 'LayerNorm.weight']
   optimizer_grouped_parameters = [
     {'params': [p for n, p in model.named_parameters()
-      if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
+                if not any(nd in n for nd in no_decay)],
+     'weight_decay': 0.01},
     {'params': [p for n, p in model.named_parameters()
-      if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}]
+                if any(nd in n for nd in no_decay)],
+     'weight_decay': 0.0}]
 
   # implements gradient bias correction as well as weight decay
   # optimizer = AdamW(model.parameters(), lr=args.learning_rate)
@@ -208,8 +210,8 @@ def generate(model, data_loader, tokenizer):
 
   return f1_score(all_labels, all_predictions, average='micro')
 
-def main():
-  """Fine-tune on summarization data"""
+def perform_fine_tuning():
+  """Fine-tune and save model"""
 
   # import data provider (e.g. dtr, rel, or events)
   data = importlib.import_module(args.data_reader)
@@ -257,8 +259,29 @@ def main():
     tokenizer)
   print('best loss %.3f after %d epochs\n' % (best_loss, optimal_epochs))
 
+def perform_generation():
+  """Load fine-tuned model and generate"""
+
+  # import data provider (e.g. dtr, rel, or events)
+  data = importlib.import_module(args.data_reader)
+
+  # load pretrained T5 tokenizer
+  tokenizer = T5Tokenizer.from_pretrained(args.model_name)
+
   # load the saved model
   model = T5ForConditionalGeneration.from_pretrained(args.model_dir)
+
+  val_dataset = data.Data(
+    xmi_dir=args.xmi_dir,
+    tokenizer=tokenizer,
+    max_input_length=args.max_input_length,
+    max_output_length=args.max_output_length,
+    partition='dev',
+    n_files=args.n_files)
+  val_data_loader = DataLoader(
+    val_dataset,
+    shuffle=False,
+    batch_size=args.batch_size)
 
   # generate output from the saved model
   f1 = generate(model, val_data_loader, tokenizer)
@@ -282,4 +305,5 @@ if __name__ == "__main__":
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
-  main()
+  perform_fine_tuning()
+  perform_generation()
