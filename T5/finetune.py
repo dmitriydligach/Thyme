@@ -237,7 +237,7 @@ def perform_fine_tuning():
   train_data_loader = DataLoader(
     train_dataset,
     shuffle=True,
-    batch_size=args.batch_size)
+    batch_size=args.train_batch_size)
 
   val_dataset = data.Data(
     xmi_dir=args.xmi_dir,
@@ -306,5 +306,5 @@ if __name__ == "__main__":
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
-  # perform_fine_tuning()
+  perform_fine_tuning()
   perform_generation()
