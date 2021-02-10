@@ -54,13 +54,12 @@ def fit(model, train_loader, val_loader, tokenizer):
         batch[key] = batch[key].to(device)
 
       # ignore padding
-      labels = batch['decoder_input_ids']
+      labels = batch['labels']
       labels[labels[:, :] == tokenizer.pad_token_id] = -100
 
       outputs = model(
         input_ids=batch['input_ids'],
         attention_mask=batch['attention_mask'],
-        decoder_input_ids=None,
         decoder_attention_mask=batch['decoder_attention_mask'],
         labels=labels)
 
@@ -102,14 +101,13 @@ def evaluate(model, data_loader, tokenizer):
       batch[key] = batch[key].to(device)
 
     # ignore padding
-    labels = batch['decoder_input_ids']
+    labels = batch['labels']
     labels[labels[:, :] == tokenizer.pad_token_id] = -100
 
     with torch.no_grad():
       outputs = model(
         input_ids=batch['input_ids'],
         attention_mask=batch['attention_mask'],
-        decoder_input_ids=None,
         decoder_attention_mask=batch['decoder_attention_mask'],
         labels=labels)
       loss = outputs.loss
@@ -176,7 +174,7 @@ def generate(model, data_loader, tokenizer):
       batch['input_ids'],
       skip_special_tokens=True)
     targets = tokenizer.batch_decode(
-      batch['decoder_input_ids'],
+      batch['labels'],
       skip_special_tokens=True)
     predictions = tokenizer.batch_decode(
       predictions,
