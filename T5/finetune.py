@@ -15,11 +15,9 @@ from sklearn.metrics import f1_score
 from torch.utils.data import DataLoader
 
 # deterministic determinism
+# todo: anything else needed here?
 torch.manual_seed(2020)
 random.seed(2020)
-
-# torch.backends.cudnn.deterministic = True
-# torch.backends.cudnn.benchmark = False
 
 def fit(model, train_loader, val_loader, tokenizer):
   """Training routine"""
@@ -42,9 +40,9 @@ def fit(model, train_loader, val_loader, tokenizer):
   optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate)
   scheduler = get_linear_schedule_with_warmup(optimizer, 100, 1500)
 
-  best_loss = float('inf')
   optimal_epochs = 0
-
+  best_loss = float('inf')
+  
   for epoch in range(1, args.n_epochs + 1):
     train_loss, num_train_steps = 0, 0
     model.train()
@@ -52,15 +50,13 @@ def fit(model, train_loader, val_loader, tokenizer):
     for batch in train_loader:
       optimizer.zero_grad()
 
+      for key in batch.keys():
+        batch[key] = batch[key].to(device)
+
       input_ids = batch['input_ids']
       attention_mask = batch['attention_mask']
       decoder_attention_mask = batch['decoder_attention_mask']
       labels = batch['decoder_input_ids']
-
-      input_ids = input_ids.to(device)
-      attention_mask = attention_mask.to(device)
-      decoder_attention_mask = decoder_attention_mask.to(device)
-      labels = labels.to(device)
 
       # all labels set to -100 are ignored (masked)
       labels[labels[:, :] == tokenizer.pad_token_id] = -100
@@ -105,15 +101,14 @@ def evaluate(model, data_loader, tokenizer):
   model.eval()
 
   for batch in data_loader:
+
+    for key in batch.keys():
+      batch[key] = batch[key].to(device)
+
     input_ids = batch['input_ids']
     attention_mask = batch['attention_mask']
     decoder_attention_mask = batch['decoder_attention_mask']
     labels = batch['decoder_input_ids']
-
-    input_ids = input_ids.to(device)
-    attention_mask = attention_mask.to(device)
-    decoder_attention_mask = decoder_attention_mask.to(device)
-    labels = labels.to(device)
 
     # all labels set to -100 are ignored (masked)
     labels[labels[:, :] == tokenizer.pad_token_id] = -100
@@ -172,15 +167,14 @@ def generate(model, data_loader, tokenizer):
   all_predictions = []
 
   for batch in data_loader:
+
+    for key in batch.keys():
+      batch[key] = batch[key].to(device)
+
     input_ids = batch['input_ids']
     attention_mask = batch['attention_mask']
     decoder_attention_mask = batch['decoder_attention_mask']
     labels = batch['decoder_input_ids']
-
-    input_ids = input_ids.to(device)
-    attention_mask = attention_mask.to(device)
-    decoder_attention_mask = decoder_attention_mask.to(device)
-    labels = labels.to(device)
 
     # generated tensor: (batch_size, max_output_length)
     predictions = model.generate(
@@ -295,14 +289,14 @@ if __name__ == "__main__":
     xmi_dir=os.path.join(base, 'Thyme/Xmi/'),
     data_reader='dataset_dtr',
     model_dir='Model/',
-    model_name='t5-large',
+    model_name='t5-small',
     max_input_length=200,
     max_output_length=200,
     n_files='all',
     learning_rate=5e-5,
-    train_batch_size=16,
-    gener_batch_size=32,
-    n_epochs=5)
+    train_batch_size=32,
+    gener_batch_size=128,
+    n_epochs=2)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
