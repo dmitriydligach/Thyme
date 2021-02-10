@@ -42,7 +42,7 @@ def fit(model, train_loader, val_loader, tokenizer):
 
   optimal_epochs = 0
   best_loss = float('inf')
-  
+
   for epoch in range(1, args.n_epochs + 1):
     train_loss, num_train_steps = 0, 0
     model.train()
@@ -53,19 +53,15 @@ def fit(model, train_loader, val_loader, tokenizer):
       for key in batch.keys():
         batch[key] = batch[key].to(device)
 
-      input_ids = batch['input_ids']
-      attention_mask = batch['attention_mask']
-      decoder_attention_mask = batch['decoder_attention_mask']
+      # ignore padding
       labels = batch['decoder_input_ids']
-
-      # all labels set to -100 are ignored (masked)
       labels[labels[:, :] == tokenizer.pad_token_id] = -100
 
       outputs = model(
-        input_ids=input_ids,
-        attention_mask=attention_mask,
+        input_ids=batch['input_ids'],
+        attention_mask=batch['attention_mask'],
         decoder_input_ids=None,
-        decoder_attention_mask=decoder_attention_mask,
+        decoder_attention_mask=batch['decoder_attention_mask'],
         labels=labels)
 
       loss = outputs.loss
@@ -105,20 +101,16 @@ def evaluate(model, data_loader, tokenizer):
     for key in batch.keys():
       batch[key] = batch[key].to(device)
 
-    input_ids = batch['input_ids']
-    attention_mask = batch['attention_mask']
-    decoder_attention_mask = batch['decoder_attention_mask']
+    # ignore padding
     labels = batch['decoder_input_ids']
-
-    # all labels set to -100 are ignored (masked)
     labels[labels[:, :] == tokenizer.pad_token_id] = -100
 
     with torch.no_grad():
       outputs = model(
-        input_ids=input_ids,
-        attention_mask=attention_mask,
+        input_ids=batch['input_ids'],
+        attention_mask=batch['attention_mask'],
         decoder_input_ids=None,
-        decoder_attention_mask=decoder_attention_mask,
+        decoder_attention_mask=batch['decoder_attention_mask'],
         labels=labels)
       loss = outputs.loss
 
@@ -171,22 +163,21 @@ def generate(model, data_loader, tokenizer):
     for key in batch.keys():
       batch[key] = batch[key].to(device)
 
-    input_ids = batch['input_ids']
-    attention_mask = batch['attention_mask']
-    decoder_attention_mask = batch['decoder_attention_mask']
-    labels = batch['decoder_input_ids']
-
     # generated tensor: (batch_size, max_output_length)
     predictions = model.generate(
-      input_ids=input_ids,
+      input_ids=batch['input_ids'],
       max_length=args.max_output_length,
       early_stopping=True,
       num_beams=2,
-      attention_mask=attention_mask,
-      decoder_attention_mask=decoder_attention_mask) # todo: is this necessary?
+      attention_mask=batch['attention_mask'],
+      decoder_attention_mask=batch['decoder_attention_mask']) # todo: is this necessary?
 
-    inputs = tokenizer.batch_decode(input_ids, skip_special_tokens=True)
-    targets = tokenizer.batch_decode(labels, skip_special_tokens=True)
+    inputs = tokenizer.batch_decode(
+      batch['input_ids'],
+      skip_special_tokens=True)
+    targets = tokenizer.batch_decode(
+      batch['decoder_input_ids'],
+      skip_special_tokens=True)
     predictions = tokenizer.batch_decode(
       predictions,
       skip_special_tokens=True,
@@ -194,9 +185,10 @@ def generate(model, data_loader, tokenizer):
 
     # iterate over samples in this batch
     for i in range(len(predictions)):
-      print('[input]', inputs[i])
-      print('[targets]', targets[i])
-      print('[predict]', predictions[i], '\n')
+      if args.print_predictions:
+        print('[input]', inputs[i])
+        print('[targets]', targets[i])
+        print('[predict]', predictions[i], '\n')
 
       targ_labels, pred_labels = extract_labels(targets[i], predictions[i])
       all_labels.extend(targ_labels)
@@ -289,16 +281,18 @@ if __name__ == "__main__":
     xmi_dir=os.path.join(base, 'Thyme/Xmi/'),
     data_reader='dataset_dtr',
     model_dir='Model/',
-    model_name='t5-small',
+    model_name='t5-large',
     max_input_length=200,
     max_output_length=200,
     n_files='all',
     learning_rate=5e-5,
-    train_batch_size=32,
-    gener_batch_size=128,
+    train_batch_size=16,
+    gener_batch_size=32,
+    print_predictions=True,
     n_epochs=2)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
   perform_fine_tuning()
+  print('done training...')
   perform_generation()
