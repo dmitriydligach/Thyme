@@ -56,12 +56,15 @@ def fit(model, train_loader, val_loader, tokenizer):
       # ignore padding
       labels = batch['labels']
       labels[labels[:, :] == tokenizer.pad_token_id] = -100
+      batch['labels'] = labels
 
-      outputs = model(
-        input_ids=batch['input_ids'],
-        attention_mask=batch['attention_mask'],
-        decoder_attention_mask=batch['decoder_attention_mask'],
-        labels=labels)
+      outputs = model(**batch)
+
+      # outputs = model(
+      #   input_ids=batch['input_ids'],
+      #   attention_mask=batch['attention_mask'],
+      #   decoder_attention_mask=batch['decoder_attention_mask'],
+      #   labels=labels)
 
       loss = outputs.loss
       loss.backward()
