@@ -277,7 +277,7 @@ if __name__ == "__main__":
   base = os.environ['DATA_ROOT']
   arg_dict = dict(
     xmi_dir=os.path.join(base, 'Thyme/Xmi/'),
-    data_reader='dataset_dtr',
+    data_reader='dataset_rel',
     model_dir='Model/',
     model_name='t5-large',
     max_input_length=200,

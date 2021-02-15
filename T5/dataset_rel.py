@@ -38,8 +38,7 @@ class Data(ThymeDataset):
       n_files)
 
     self.partition = partition
-    self.events_time_relations()
-    # self.events_event_relations()
+    self.event_time_relations()
 
   @staticmethod
   def index_relations(gold_view):
@@ -54,8 +53,8 @@ class Data(ThymeDataset):
 
     return rel_lookup
 
-  def events_time_relations(self):
-    """Extract events and times"""
+  def event_time_relations(self):
+    """Extract event and time relations"""
 
     caption = 'event-time relations in %s' % self.partition
     for xmi_path in tqdm(self.xmi_paths, desc=caption):
@@ -76,9 +75,25 @@ class Data(ThymeDataset):
       # iterate over sentences extracting relations
       for sent in sys_view.select(sent_type):
         sent_text = sent.get_covered_text().replace('\n', '')
-        self.inputs.append('Relation extraction: ' + sent_text)
+
+        # extract gold events snad times
+        events = []
+        for event in gold_view.select_covered(event_type, sent):
+          event_text = event.get_covered_text().replace('\n', '')
+          events.append(event_text)
+
+        times = []
+        for time in gold_view.select_covered(time_type, sent):
+          time_text = time.get_covered_text().replace('\n', '')
+          times.append(time_text)
+
+        # input string
+        input_str = 'task: REL; sent: %s; events: %s; times: %s' % \
+                    (sent_text, ', '.join(events), ', '.join(times))
+        self.inputs.append(input_str)
 
         rels_in_sent = []
+        # now extract event-time relations
         for event in gold_view.select_covered(event_type, sent):
           for time in gold_view.select_covered(time_type, sent):
 
@@ -247,7 +262,7 @@ def main():
 
   for index in range(len(data)):
     input_ids = data[index]['input_ids']
-    output_ids = data[index]['decoder_input_ids']
+    output_ids = data[index]['labels']
     print(tok.decode(input_ids, skip_special_tokens=True))
     print(tok.decode(output_ids, skip_special_tokens=True))
     print()
@@ -260,8 +275,8 @@ if __name__ == "__main__":
     xmi_dir=os.path.join(base, 'Thyme/Xmi/'),
     model_dir='Model/',
     model_name='t5-small',
-    max_input_length=100,
-    max_output_length=100,
+    max_input_length=200,
+    max_output_length=200,
     partition='dev',
     n_files=5)
 
