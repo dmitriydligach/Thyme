@@ -57,7 +57,7 @@ def main():
     num_train_epochs=args.n_epochs,
     per_device_train_batch_size=args.batch_size,
     per_device_eval_batch_size=args.batch_size,
-    warmup_steps=50,
+    warmup_steps=100,
     weight_decay=0.01,
     logging_dir='./Logs')
 
@@ -85,7 +85,7 @@ if __name__ == "__main__":
     n_files='all',
     learning_rate=5e-5,
     batch_size=16,
-    n_epochs=1)
+    n_epochs=2)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 

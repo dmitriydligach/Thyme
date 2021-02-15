@@ -70,6 +70,11 @@ class ThymeDataset(Dataset):
     decoder_input_ids = output.input_ids.squeeze()
     decoder_attention_mask = output.attention_mask.squeeze()
 
+    # https://huggingface.co/transformers/glossary.html
+    # Most encoder-decoder models (BART, T5) create their
+    # decoder_input_ids on their own from the labels.
+    # In such models, passing the labels is the preferred
+    # way to handle training.
     return dict(
       input_ids=input_ids,
       attention_mask=attention_mask,
