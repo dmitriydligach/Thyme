@@ -101,7 +101,7 @@ if __name__ == "__main__":
 
   for index in range(len(data)):
     input_ids = data[index]['input_ids']
-    output_ids = data[index]['decoder_input_ids']
+    output_ids = data[index]['labels']
     print(tokenizer.decode(input_ids, skip_special_tokens=True))
     print(tokenizer.decode(output_ids, skip_special_tokens=True))
     print()

@@ -50,22 +50,14 @@ def fit(model, train_loader, val_loader, tokenizer):
     for batch in train_loader:
       optimizer.zero_grad()
 
+      # tensors in batch to gpu
       for key in batch.keys():
         batch[key] = batch[key].to(device)
 
       # ignore padding
-      labels = batch['labels']
-      labels[labels[:, :] == tokenizer.pad_token_id] = -100
-      batch['labels'] = labels
+      batch['labels'][batch['labels'][:, :] == tokenizer.pad_token_id] = -100
 
       outputs = model(**batch)
-
-      # outputs = model(
-      #   input_ids=batch['input_ids'],
-      #   attention_mask=batch['attention_mask'],
-      #   decoder_attention_mask=batch['decoder_attention_mask'],
-      #   labels=labels)
-
       loss = outputs.loss
       loss.backward()
 
@@ -100,19 +92,15 @@ def evaluate(model, data_loader, tokenizer):
 
   for batch in data_loader:
 
+    # tensors in batch to gpu
     for key in batch.keys():
       batch[key] = batch[key].to(device)
 
     # ignore padding
-    labels = batch['labels']
-    labels[labels[:, :] == tokenizer.pad_token_id] = -100
+    batch['labels'][batch['labels'][:, :] == tokenizer.pad_token_id] = -100
 
     with torch.no_grad():
-      outputs = model(
-        input_ids=batch['input_ids'],
-        attention_mask=batch['attention_mask'],
-        decoder_attention_mask=batch['decoder_attention_mask'],
-        labels=labels)
+      outputs = model(**batch)
       loss = outputs.loss
 
     total_loss += loss.item()
@@ -280,7 +268,7 @@ if __name__ == "__main__":
   base = os.environ['DATA_ROOT']
   arg_dict = dict(
     xmi_dir=os.path.join(base, 'Thyme/Xmi/'),
-    data_reader='dataset_rel',
+    data_reader='dataset_dtr',
     model_dir='Model/',
     model_name='t5-large',
     max_input_length=200,
