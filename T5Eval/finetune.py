@@ -155,7 +155,7 @@ def generate(model, data_loader, tokenizer):
 
   for batch in data_loader:
 
-    # save metadata for evaluation
+    # metadata for this batch
     metadata = batch.pop('metadata')
 
     for key in batch.keys():
@@ -185,9 +185,9 @@ def generate(model, data_loader, tokenizer):
     for i in range(len(predictions)):
       if args.print_predictions:
         print('[input]', inputs[i])
-        print('[metadata]', metadata[i])
         print('[targets]', targets[i])
-        print('[predict]', predictions[i], '\n')
+        print('[predict]', predictions[i])
+        print('[metdata]', metadata[i], '\n')
 
       targ_labels, pred_labels = extract_labels(targets[i], predictions[i])
       all_labels.extend(targ_labels)
@@ -283,12 +283,12 @@ if __name__ == "__main__":
     model_name='t5-small',
     max_input_length=200,
     max_output_length=200,
-    n_files=25,
+    n_files='all',
     learning_rate=5e-5,
     train_batch_size=16,
-    gener_batch_size=16,
+    gener_batch_size=32,
     print_predictions=True,
-    n_epochs=1)
+    n_epochs=2)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 

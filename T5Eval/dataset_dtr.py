@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import argparse
 from transformers import T5Tokenizer
 
@@ -10,6 +11,7 @@ import os
 from tqdm import tqdm
 from cassis import *
 from dataset_base import ThymeDataset
+from torch.utils.data import DataLoader
 
 # ctakes type system types
 event_type = 'org.apache.ctakes.typesystem.type.textsem.EventMention'
@@ -74,7 +76,8 @@ class Data(ThymeDataset):
           events_with_dtr.append('%s|%s' % (event_text, dtr_label))
 
           note_name = xmi_file_name.split('.')[0]
-          metadata.append((note_name, event_text, event.begin, event.end))
+          metadata_tuple = (note_name, event_text, str(event.begin), str(event.end))
+          metadata.append('|'.join(metadata_tuple))
 
         input_str = 'task: DTR; sent: %s; events: %s' % (sent_text, ', '.join(events))
         self.inputs.append(input_str)
@@ -82,7 +85,8 @@ class Data(ThymeDataset):
         output_str = ', '.join(events_with_dtr)
         self.outputs.append(output_str)
 
-        self.metadata.append(metadata)
+        metadata_str = '||'.join(metadata)
+        self.metadata.append(metadata_str)
 
 if __name__ == "__main__":
   """My main man"""
@@ -92,23 +96,32 @@ if __name__ == "__main__":
     xmi_dir=os.path.join(base, 'Thyme/Xmi/'),
     model_dir='Model/',
     model_name='t5-small',
-    max_input_length=100,
-    max_output_length=100,
+    max_input_length=200,
+    max_output_length=200,
     partition='dev',
-    n_files=3)
+    n_files=25)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters:', args)
 
-  tokenizer = T5Tokenizer.from_pretrained('t5-small')
-  data = Data(
+  tokenizer = T5Tokenizer.from_pretrained(args.model_name)
+  dataset = Data(
     xmi_dir=args.xmi_dir,
     tokenizer=tokenizer,
     max_input_length=args.max_input_length,
     max_output_length=args.max_output_length,
     partition=args.partition,
     n_files=args.n_files)
+  data_loader = DataLoader(
+    dataset,
+    shuffle=False,
+    batch_size=16)
 
-  for instance in data:
-    print(tokenizer.decode(instance['input_ids'], skip_special_tokens=True))
-    print(tokenizer.decode(instance['labels'], skip_special_tokens=True))
-    print(instance['metadata'], '\n')
+  for instance in dataset:
+    print('[input]', tokenizer.decode(instance['input_ids'], skip_special_tokens=True))
+    print('[output]', tokenizer.decode(instance['labels'], skip_special_tokens=True))
+    print('[metadata]', instance['metadata'], '\n')
+
+  # for batch in data_loader:
+  #   if(len(batch['metadata'])) > 0:
+  #     print(len(batch['metadata'][0]))
+  #   print(batch['metadata'])
