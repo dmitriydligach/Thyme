@@ -108,11 +108,7 @@ if __name__ == "__main__":
     partition=args.partition,
     n_files=args.n_files)
 
-  for index in range(len(data)):
-    input_ids = data[index]['input_ids']
-    output_ids = data[index]['labels']
-    metadata = data[index]['metadata']
-    print(tokenizer.decode(input_ids, skip_special_tokens=True))
-    print(tokenizer.decode(output_ids, skip_special_tokens=True))
-    print(metadata)
-    print()
+  for instance in data:
+    print(tokenizer.decode(instance['input_ids'], skip_special_tokens=True))
+    print(tokenizer.decode(instance['labels'], skip_special_tokens=True))
+    print(instance['metadata'], '\n')
