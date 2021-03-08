@@ -7,9 +7,10 @@ import sys
 sys.dont_write_bytecode = True
 sys.path.append('../Anafora')
 
-import os
+import os, shutil
 from tqdm import tqdm
 from cassis import *
+import anafora
 from dataset_base import ThymeDataset
 from torch.utils.data import DataLoader
 
@@ -18,12 +19,17 @@ event_type = 'org.apache.ctakes.typesystem.type.textsem.EventMention'
 time_type = 'org.apache.ctakes.typesystem.type.textsem.TimeMention'
 sent_type = 'org.apache.ctakes.typesystem.type.textspan.Sentence'
 
+# files containing event annotations
+xml_regex = '.*[.]Temporal.*[.]xml'
+
 class Data(ThymeDataset):
   """DTR data"""
 
   def __init__(
    self,
    xmi_dir,
+   xml_ref_dir,
+   xml_out_dir,
    tokenizer,
    max_input_length,
    max_output_length,
@@ -39,6 +45,9 @@ class Data(ThymeDataset):
       n_files)
 
     self.partition = partition
+    self.xml_ref_dir = xml_ref_dir
+    self.xml_out_dir = xml_out_dir
+
     self.extract_events_and_dtr()
 
   def extract_events_and_dtr(self):
@@ -76,7 +85,7 @@ class Data(ThymeDataset):
           events_with_dtr.append('%s|%s' % (event_text, dtr_label))
 
           note_name = xmi_file_name.split('.')[0]
-          metadata_tuple = (note_name, event_text, str(event.begin), str(event.end))
+          metadata_tuple = (note_name, str(event.begin), str(event.end))
           metadata.append('|'.join(metadata_tuple))
 
         input_str = 'task: DTR; sent: %s; events: %s' % (sent_text, ', '.join(events))
@@ -87,6 +96,49 @@ class Data(ThymeDataset):
 
         metadata_str = '||'.join(metadata)
         self.metadata.append(metadata_str)
+
+  def write_xml(self, prediction_lookup):
+    """Write predictions in anafora XML format"""
+
+    # make a directory to write anafora xml
+    if os.path.isdir(self.xml_out_dir):
+      shutil.rmtree(self.xml_out_dir)
+    os.mkdir(self.xml_out_dir)
+
+    # iterate over reference xml files
+    # look up the DTR prediction for each event
+    # and write it in anafora format to specificed dir
+    for sub_dir, text_name, file_names in \
+            anafora.walk(self.xml_ref_dir, xml_regex):
+
+      path = os.path.join(self.xml_ref_dir, sub_dir, file_names[0])
+      ref_data = anafora.AnaforaData.from_file(path)
+      data = anafora.AnaforaData()
+
+      for event in ref_data.annotations.select_type('EVENT'):
+
+        # make a new entity and copy some ref info
+        entity = anafora.AnaforaEntity()
+        entity.id = event.id
+        start, end = event.spans[0]
+        entity.spans = event.spans
+        entity.type = event.type
+
+        # lookup the prediction
+        key = '|'.join((sub_dir, str(start), str(end)))
+        if key not in prediction_lookup:
+          # print('missing key:', key)
+          continue
+        else:
+          print('found key:', key)
+
+        entity.properties['DocTimeRel'] = prediction_lookup[key]
+        data.annotations.append(entity)
+
+      data.indent()
+      os.mkdir(os.path.join(self.xml_out_dir, sub_dir))
+      out_path = os.path.join(self.xml_out_dir, sub_dir, file_names[0])
+      data.to_file(out_path)
 
 if __name__ == "__main__":
   """My main man"""

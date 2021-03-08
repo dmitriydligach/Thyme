@@ -115,33 +115,6 @@ def evaluate(model, data_loader, tokenizer):
   average_loss = total_loss / num_steps
   return average_loss
 
-def extract_labels(target_str, predicted_str):
-  """Extract DTR labels from T5's output"""
-
-  # well-formed T5 output: denies|OVERLAP, pain|OVERLAP
-  if len(target_str) < 1 and len(predicted_str) < 1:
-    return [], []
-
-  # weird case; T5 didn't predict anything
-  # not clear how to handle this situation
-  if '|' not in predicted_str:
-    return [], []
-
-  target_labels = []
-  predicted_labels = []
-
-  for event_dtr_pair in sorted(target_str.split(', ')):
-    if '|' in event_dtr_pair:
-      target_labels.append(event_dtr_pair.split('|')[1])
-
-  for event_dtr_pair in sorted(predicted_str.split(', ')):
-    if '|' in event_dtr_pair:
-      predicted_labels.append(event_dtr_pair.split('|')[1])
-
-  # very forgiving scenario
-  min_length = min(len(target_labels), len(predicted_labels))
-  return target_labels[:min_length], predicted_labels[:min_length]
-
 def generate(model, data_loader, tokenizer):
   """Generate outputs for validation set samples"""
 
@@ -149,9 +122,8 @@ def generate(model, data_loader, tokenizer):
   model.to(device)
   model.eval()
 
-  # gold and predicted labels
-  all_labels = []
-  all_predictions = []
+  # key: (file, start, end), value: prediction
+  prediction_lookup = {}
 
   for batch in data_loader:
 
@@ -181,6 +153,9 @@ def generate(model, data_loader, tokenizer):
       skip_special_tokens=True,
       clean_up_tokenization_spaces=True)
 
+    # metadata example for a sentence (i.e. multiple events):
+    # ID085_clinic_251|14784|14791||ID085_clinic_251|14809|14819
+
     # iterate over samples in this batch
     for i in range(len(predictions)):
       if args.print_predictions:
@@ -189,11 +164,20 @@ def generate(model, data_loader, tokenizer):
         print('[predict]', predictions[i])
         print('[metdata]', metadata[i], '\n')
 
-      targ_labels, pred_labels = extract_labels(targets[i], predictions[i])
-      all_labels.extend(targ_labels)
-      all_predictions.extend(pred_labels)
+      # event_dtr_list = predictions[i].split(', ')
+      event_dtr_list = targets[i].split(', ')
+      event_metadata_list = metadata[i].split('||')
 
-  return f1_score(all_labels, all_predictions, average='micro')
+      if len(event_dtr_list) != len(event_metadata_list):
+        print('event_dtr_list:', event_dtr_list)
+        print('event_metadat_list:', event_metadata_list, '\n')
+
+      for event_dtr, event_metadata in zip(event_dtr_list, event_metadata_list):
+        elements = event_dtr.split('|')
+        if len(elements) == 2:
+          prediction_lookup[event_metadata] = elements[1]
+
+  return prediction_lookup
 
 def perform_fine_tuning():
   """Fine-tune and save model"""
@@ -218,7 +202,9 @@ def perform_fine_tuning():
     max_input_length=args.max_input_length,
     max_output_length=args.max_output_length,
     partition='train',
-    n_files=args.n_files)
+    n_files=args.n_files,
+    xml_ref_dir=None,
+    xml_out_dir=None)
   train_data_loader = DataLoader(
     train_dataset,
     shuffle=True,
@@ -230,7 +216,9 @@ def perform_fine_tuning():
     max_input_length=args.max_input_length,
     max_output_length=args.max_output_length,
     partition='dev',
-    n_files=args.n_files)
+    n_files=args.n_files,
+    xml_ref_dir=None,
+    xml_out_dir=None)
   val_data_loader = DataLoader(
     val_dataset,
     shuffle=False,
@@ -262,33 +250,40 @@ def perform_generation():
     max_input_length=args.max_input_length,
     max_output_length=args.max_output_length,
     partition='dev',
-    n_files=args.n_files)
+    n_files=args.n_files,
+    xml_ref_dir=args.xml_ref_dir,
+    xml_out_dir=args.xml_out_dir)
   val_data_loader = DataLoader(
     val_dataset,
     shuffle=False,
     batch_size=args.gener_batch_size)
 
   # generate output from the saved model
-  f1 = generate(model, val_data_loader, tokenizer)
-  print('macro f1:', f1)
+  prediction_lookup = generate(model, val_data_loader, tokenizer)
+
+  # write anafora xml for evaluation
+  print(prediction_lookup)
+  val_dataset.write_xml(prediction_lookup)
 
 if __name__ == "__main__":
   "My kind of street"
 
   base = os.environ['DATA_ROOT']
   arg_dict = dict(
+    xml_ref_dir=os.path.join(base, 'Thyme/Official/thymedata/coloncancer/Dev/'),
     xmi_dir=os.path.join(base, 'Thyme/Xmi/'),
+    xml_out_dir='./Xml/',
     data_reader='dataset_dtr',
     model_dir='Model/',
     model_name='t5-small',
     max_input_length=200,
     max_output_length=200,
-    n_files='all',
+    n_files=10,
     learning_rate=5e-5,
     train_batch_size=16,
     gener_batch_size=32,
-    print_predictions=True,
-    n_epochs=2)
+    print_predictions=False,
+    n_epochs=1)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
