@@ -127,10 +127,8 @@ class Data(ThymeDataset):
         # lookup the prediction
         key = '|'.join((sub_dir, str(start), str(end)))
         if key not in prediction_lookup:
-          # print('missing key:', key)
+          print('missing key:', key)
           continue
-        else:
-          print('found key:', key)
 
         entity.properties['DocTimeRel'] = prediction_lookup[key]
         data.annotations.append(entity)

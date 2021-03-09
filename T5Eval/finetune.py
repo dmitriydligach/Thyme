@@ -11,7 +11,6 @@ from transformers import (
     T5Tokenizer,
     get_linear_schedule_with_warmup)
 
-from sklearn.metrics import f1_score
 from torch.utils.data import DataLoader
 
 # deterministic determinism
@@ -138,7 +137,7 @@ def generate(model, data_loader, tokenizer):
       input_ids=batch['input_ids'],
       max_length=args.max_output_length,
       early_stopping=True,
-      num_beams=2,
+      num_beams=1,
       attention_mask=batch['attention_mask'],
       decoder_attention_mask=batch['decoder_attention_mask']) # todo: is this necessary?
 
@@ -164,18 +163,22 @@ def generate(model, data_loader, tokenizer):
         print('[predict]', predictions[i])
         print('[metdata]', metadata[i], '\n')
 
-      # event_dtr_list = predictions[i].split(', ')
-      event_dtr_list = targets[i].split(', ')
+      event_dtr_list = predictions[i].split(', ')
       event_metadata_list = metadata[i].split('||')
 
       if len(event_dtr_list) != len(event_metadata_list):
-        print('event_dtr_list:', event_dtr_list)
-        print('event_metadat_list:', event_metadata_list, '\n')
+        print('%d vs %d' % (len(event_dtr_list), len(event_metadata_list)))
+        min_length = min(len(event_dtr_list), len(event_metadata_list))
+        event_dtr_list = event_dtr_list[:min_length]
+        event_metadata_list = event_metadata_list[:min_length]
 
       for event_dtr, event_metadata in zip(event_dtr_list, event_metadata_list):
         elements = event_dtr.split('|')
         if len(elements) == 2:
           prediction_lookup[event_metadata] = elements[1]
+        else:
+          # todo: does this happen?
+          pass
 
   return prediction_lookup
 
@@ -262,7 +265,6 @@ def perform_generation():
   prediction_lookup = generate(model, val_data_loader, tokenizer)
 
   # write anafora xml for evaluation
-  print(prediction_lookup)
   val_dataset.write_xml(prediction_lookup)
 
 if __name__ == "__main__":
@@ -275,10 +277,10 @@ if __name__ == "__main__":
     xml_out_dir='./Xml/',
     data_reader='dataset_dtr',
     model_dir='Model/',
-    model_name='t5-small',
+    model_name='t5-large',
     max_input_length=200,
     max_output_length=200,
-    n_files=10,
+    n_files='all',
     learning_rate=5e-5,
     train_batch_size=16,
     gener_batch_size=32,
