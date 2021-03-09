@@ -137,7 +137,7 @@ def generate(model, data_loader, tokenizer):
       input_ids=batch['input_ids'],
       max_length=args.max_output_length,
       early_stopping=True,
-      num_beams=1,
+      num_beams=args.num_beams,
       attention_mask=batch['attention_mask'],
       decoder_attention_mask=batch['decoder_attention_mask']) # todo: is this necessary?
 
@@ -167,7 +167,6 @@ def generate(model, data_loader, tokenizer):
       event_metadata_list = metadata[i].split('||')
 
       if len(event_dtr_list) != len(event_metadata_list):
-        print('%d vs %d' % (len(event_dtr_list), len(event_metadata_list)))
         min_length = min(len(event_dtr_list), len(event_metadata_list))
         event_dtr_list = event_dtr_list[:min_length]
         event_metadata_list = event_metadata_list[:min_length]
@@ -177,7 +176,8 @@ def generate(model, data_loader, tokenizer):
         if len(elements) == 2:
           prediction_lookup[event_metadata] = elements[1]
         else:
-          # todo: does this happen?
+          # maybe use the majority class?
+          # if there should've been a prediction
           pass
 
   return prediction_lookup
@@ -284,11 +284,12 @@ if __name__ == "__main__":
     learning_rate=5e-5,
     train_batch_size=16,
     gener_batch_size=32,
+    num_beams=1,
     print_predictions=False,
     n_epochs=1)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
-  perform_fine_tuning()
-  print('done training...')
+  # perform_fine_tuning()
+  print('done fine-tuning...')
   perform_generation()
