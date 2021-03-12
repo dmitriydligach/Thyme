@@ -105,6 +105,9 @@ class Data(ThymeDataset):
       shutil.rmtree(self.xml_out_dir)
     os.mkdir(self.xml_out_dir)
 
+    # t5 occasionally fails to predict
+    missing_predictions = []
+
     # iterate over reference xml files
     # look up the DTR prediction for each event
     # and write it in anafora format to specificed dir
@@ -127,16 +130,20 @@ class Data(ThymeDataset):
         # lookup the prediction
         key = '|'.join((sub_dir, str(start), str(end)))
         if key not in prediction_lookup:
-          print('missing key:', key)
-          continue
+          # use majority class for now
+          entity.properties['DocTimeRel'] = 'OVERLAP'
+          missing_predictions.append(key)
+        else:
+          entity.properties['DocTimeRel'] = prediction_lookup[key]
 
-        entity.properties['DocTimeRel'] = prediction_lookup[key]
         data.annotations.append(entity)
 
       data.indent()
       os.mkdir(os.path.join(self.xml_out_dir, sub_dir))
       out_path = os.path.join(self.xml_out_dir, sub_dir, file_names[0])
       data.to_file(out_path)
+
+    print('number of missing predictions:', len(missing_predictions))
 
 if __name__ == "__main__":
   """My main man"""

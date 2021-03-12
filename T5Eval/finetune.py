@@ -286,10 +286,10 @@ if __name__ == "__main__":
     gener_batch_size=32,
     num_beams=1,
     print_predictions=False,
-    n_epochs=1)
+    n_epochs=2)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
-  # perform_fine_tuning()
+  perform_fine_tuning()
   print('done fine-tuning...')
   perform_generation()
