@@ -57,6 +57,7 @@ def main():
     num_train_epochs=args.n_epochs,
     per_device_train_batch_size=args.batch_size,
     per_device_eval_batch_size=args.batch_size,
+    learning_rate=args.learning_rate,
     warmup_steps=100,
     weight_decay=0.01,
     logging_dir='./Logs')
