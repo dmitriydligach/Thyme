@@ -175,10 +175,6 @@ def generate(model, data_loader, tokenizer):
         elements = event_dtr.split('|')
         if len(elements) == 2:
           prediction_lookup[event_metadata] = elements[1]
-        else:
-          # maybe use the majority class?
-          # if there should've been a prediction
-          pass
 
   return prediction_lookup
 
@@ -286,10 +282,14 @@ if __name__ == "__main__":
     gener_batch_size=32,
     num_beams=1,
     print_predictions=False,
+    fine_tune_first=True,
     n_epochs=2)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
-  perform_fine_tuning()
-  print('done fine-tuning...')
+  if args.fine_tune_first:
+    print('starting fine-tuning...')
+    perform_fine_tuning()
+
+  print('starting generation')
   perform_generation()
