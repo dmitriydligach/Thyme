@@ -150,7 +150,9 @@ if __name__ == "__main__":
 
   base = os.environ['DATA_ROOT']
   arg_dict = dict(
+    xml_ref_dir=os.path.join(base, 'Thyme/Official/thymedata/coloncancer/Dev/'),
     xmi_dir=os.path.join(base, 'Thyme/Xmi/'),
+    xml_out_dir='./Xml/',
     model_dir='Model/',
     model_name='t5-small',
     max_input_length=200,
@@ -167,18 +169,11 @@ if __name__ == "__main__":
     max_input_length=args.max_input_length,
     max_output_length=args.max_output_length,
     partition=args.partition,
-    n_files=args.n_files)
-  data_loader = DataLoader(
-    dataset,
-    shuffle=False,
-    batch_size=16)
+    n_files=args.n_files,
+    xml_ref_dir=args.xml_ref_dir,
+    xml_out_dir=args.xml_out_dir)
 
   for instance in dataset:
     print('[input]', tokenizer.decode(instance['input_ids'], skip_special_tokens=True))
     print('[output]', tokenizer.decode(instance['labels'], skip_special_tokens=True))
     print('[metadata]', instance['metadata'], '\n')
-
-  # for batch in data_loader:
-  #   if(len(batch['metadata'])) > 0:
-  #     print(len(batch['metadata'][0]))
-  #   print(batch['metadata'])
