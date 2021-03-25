@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 
+import sys
+sys.path.append('../Lib/')
+
 import torch
 
 from transformers import (
     T5ForConditionalGeneration,
     T5Tokenizer,
-    Seq2SeqTrainer,
-    Seq2SeqTrainingArguments)
+    Trainer,
+    TrainingArguments)
 
 import random, argparse, os, shutil, importlib
 
@@ -39,9 +42,7 @@ def main():
     max_input_length=args.max_input_length,
     max_output_length=args.max_output_length,
     partition='train',
-    n_files=args.n_files,
-    xml_ref_dir=None,
-    xml_out_dir=None)
+    n_files=args.n_files)
 
   val_dataset = data.Data(
     xmi_dir=args.xmi_dir,
@@ -49,11 +50,9 @@ def main():
     max_input_length=args.max_input_length,
     max_output_length=args.max_output_length,
     partition='dev',
-    n_files=args.n_files,
-    xml_ref_dir=None,
-    xml_out_dir=None)
+    n_files=args.n_files)
 
-  training_args = Seq2SeqTrainingArguments(
+  training_args = TrainingArguments(
     output_dir='./Results',
     num_train_epochs=args.n_epochs,
     per_device_train_batch_size=args.batch_size,
@@ -63,7 +62,7 @@ def main():
     weight_decay=0.01,
     logging_dir='./Logs')
 
-  trainer = Seq2SeqTrainer(
+  trainer = Trainer(
     model=model,
     args=training_args,
     train_dataset=train_dataset,
@@ -78,9 +77,7 @@ if __name__ == "__main__":
 
   base = os.environ['DATA_ROOT']
   arg_dict = dict(
-    xml_ref_dir=os.path.join(base, 'Thyme/Official/thymedata/coloncancer/Dev/'),
     xmi_dir=os.path.join(base, 'Thyme/Xmi/'),
-    xml_out_dir='./Xml/',
     data_reader='dataset_dtr',
     model_dir='Model/',
     model_name='t5-large',

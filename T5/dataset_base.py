@@ -42,6 +42,9 @@ class ThymeDataset(Dataset):
     self.inputs = []
     self.outputs = []
 
+    # items we need for eval
+    self.metadata = []
+
   def __len__(self):
     """Requried by pytorch"""
 
@@ -79,7 +82,8 @@ class ThymeDataset(Dataset):
       input_ids=input_ids,
       attention_mask=attention_mask,
       decoder_attention_mask=decoder_attention_mask,
-      labels=decoder_input_ids)
+      labels=decoder_input_ids,
+      metadata=self.metadata[index])
 
 if __name__ == "__main__":
   """My main man"""
