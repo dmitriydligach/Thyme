@@ -195,6 +195,10 @@ def perform_fine_tuning():
   # load a pretrained T5 model
   model = T5ForConditionalGeneration.from_pretrained(args.model_name)
 
+  # add event markers to tokenizer
+  tokenizer.add_tokens(['<e>', '</e>'])
+  model.resize_token_embeddings(len(tokenizer))
+
   train_dataset = data.Data(
     xmi_dir=args.xmi_dir,
     tokenizer=tokenizer,
@@ -243,6 +247,10 @@ def perform_generation():
   # load the saved model
   model = T5ForConditionalGeneration.from_pretrained(args.model_dir)
 
+  # add event markers to tokenizer
+  tokenizer.add_tokens(['<e>', '</e>'])
+  model.resize_token_embeddings(len(tokenizer))
+
   val_dataset = data.Data(
     xmi_dir=args.xmi_dir,
     tokenizer=tokenizer,
@@ -277,7 +285,7 @@ if __name__ == "__main__":
     max_input_length=200,
     max_output_length=200,
     n_files='all',
-    learning_rate=5e-5,
+    learning_rate=1e-4,
     train_batch_size=16,
     gener_batch_size=32,
     num_beams=1,

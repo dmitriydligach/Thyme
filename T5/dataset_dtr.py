@@ -12,7 +12,6 @@ from tqdm import tqdm
 from cassis import *
 import anafora
 from dataset_base import ThymeDataset
-from torch.utils.data import DataLoader
 
 # ctakes type system types
 event_type = 'org.apache.ctakes.typesystem.type.textsem.EventMention'
@@ -88,7 +87,11 @@ class Data(ThymeDataset):
           metadata_tuple = (note_name, str(event.begin), str(event.end))
           metadata.append('|'.join(metadata_tuple))
 
-        input_str = 'task: DTR; sent: %s; events: %s' % (sent_text, ', '.join(events))
+        # mark events with xml tags
+        for event in set(events):
+          sent_text = sent_text.replace(event, '<e> %s </e>' % event)
+
+        input_str = 'task: DTR; sent: %s' % sent_text
         self.inputs.append(input_str)
 
         output_str = ', '.join(events_with_dtr)
@@ -163,6 +166,8 @@ if __name__ == "__main__":
   print('hyper-parameters:', args)
 
   tokenizer = T5Tokenizer.from_pretrained(args.model_name)
+  tokenizer.add_tokens(['<e>', '</e>'])
+
   dataset = Data(
     xmi_dir=args.xmi_dir,
     tokenizer=tokenizer,
