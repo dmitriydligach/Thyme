@@ -26,6 +26,8 @@ def split_on_spaces():
       if len(tokens) > 5:
         section_lengths.append(len(tokens))
 
+  print('total notes:', len(glob.glob(note_dir + 'ID*')))
+  print('total sections:', len(section_lengths))
   print('mean:', numpy.mean(section_lengths))
   print('median:', numpy.median(section_lengths))
   print('std:', numpy.std(section_lengths))
@@ -59,21 +61,28 @@ def split_using_tokenizer():
       if len(tokens) > 5:
         section_lengths.append(len(tokens))
 
+  print('total notes:', len(glob.glob(note_dir + 'ID*')))
+  print('total sections:', len(section_lengths))
   print('mean:', numpy.mean(section_lengths))
   print('median:', numpy.median(section_lengths))
   print('std:', numpy.std(section_lengths))
   print('max:', numpy.max(section_lengths))
   print('min:', numpy.min(section_lengths))
 
+  over = numpy.where(numpy.array(section_lengths) > 512)
+  print('above 512:', len(over[0]))
+
   plt.hist(x=section_lengths, bins=25)
   plt.xlabel('Section length')
   plt.ylabel('Token count')
   plt.title('Section length histogram')
-  plt.show()
+  # plt.show()
+  plt.savefig('books_read.png')
 
 if __name__ == "__main__":
 
   base = os.environ['DATA_ROOT']
   note_dir = os.path.join(base, 'Thyme/Text/train/')
 
+  # split_on_spaces()
   split_using_tokenizer()
