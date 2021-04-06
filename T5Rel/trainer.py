@@ -41,7 +41,7 @@ def main():
     max_input_length=args.max_input_length,
     max_output_length=args.max_output_length)
 
-  val_dataset = data.Data(
+  test_dataset = data.Data(
     xml_dir=args.xml_test_dir,
     text_dir=args.text_test_dir,
     xml_regex=args.xml_regex,
@@ -57,17 +57,32 @@ def main():
     learning_rate=args.learning_rate,
     warmup_steps=100,
     weight_decay=0.01,
-    logging_dir='./Logs')
+    logging_dir='./Logs',
+    disable_tqdm=True)
+    # load_best_model_at_end=True)
 
   trainer = Seq2SeqTrainer(
     model=model,
     args=training_args,
     train_dataset=train_dataset,
-    eval_dataset=val_dataset)
+    eval_dataset=test_dataset)
 
   trainer.train()
   trainer.save_model(args.model_dir)
-  trainer.evaluate()
+  print('done training...')
+
+  results = trainer.predict(
+    test_dataset=test_dataset,
+    max_length=args.max_output_length,
+    num_beams=1)
+
+  predictions = tokenizer.batch_decode(
+    results.predictions,
+    skip_special_tokens=True,
+    clean_up_tokenization_spaces=True)
+
+  for prediction in predictions:
+    print(prediction)
 
 if __name__ == "__main__":
   "My kind of street"
@@ -85,8 +100,8 @@ if __name__ == "__main__":
     max_input_length=512,
     max_output_length=512,
     learning_rate=5e-5,
-    batch_size=4,
-    n_epochs=1)
+    batch_size=1,
+    n_epochs=2)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
