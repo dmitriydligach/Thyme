@@ -20,9 +20,7 @@ class Data(ThymeDataset):
     xml_regex,
     tokenizer,
     max_input_length,
-    max_output_length,
-    xml_ref_dir,
-    xml_out_dir):
+    max_output_length):
     """Constructor"""
 
     super(Data, self).__init__(
@@ -33,8 +31,6 @@ class Data(ThymeDataset):
     self.xml_dir = xml_dir
     self.text_dir = text_dir
     self.xml_regex = xml_regex
-    self.xml_ref_dir = xml_ref_dir
-    self.xml_out_dir = xml_out_dir
 
     self.map_notes_to_relations()
     self.map_sections_to_relations()
@@ -98,7 +94,9 @@ if __name__ == "__main__":
 
   base = os.environ['DATA_ROOT']
   arg_dict = dict(
-    xml_ref_dir=os.path.join(base, 'Thyme/Official/thymedata/coloncancer/Train/'),
+    xml_dir=os.path.join(base, 'Thyme/Official/thymedata/coloncancer/Train/'),
+    text_dir = os.path.join(base, 'Thyme/Text/train/'),
+    xml_regex='.*[.]Temporal.*[.]xml',
     xml_out_dir='./Xml/',
     model_dir='Model/',
     model_name='t5-small',
@@ -111,15 +109,12 @@ if __name__ == "__main__":
   tokenizer.add_tokens(['<e>', '</e>'])
 
   rel_data = Data(
-    xml_dir=os.path.join(base, 'Thyme/Official/thymedata/coloncancer/Train/'),
-    text_dir=os.path.join(base, 'Thyme/Text/train/'),
-    xml_regex='.*[.]Temporal.*[.]xml',
+    xml_dir=args.xml_dir,
+    text_dir=args.text_dir,
+    xml_regex=args.xml_regex,
     tokenizer=tokenizer,
     max_input_length=args.max_input_length,
-    max_output_length=args.max_output_length,
-    xml_ref_dir=args.xml_ref_dir,
-    xml_out_dir=args.xml_out_dir)
+    max_output_length=args.max_output_length)
 
   print(rel_data.inputs[4])
   print(rel_data.outputs[4])
-  
