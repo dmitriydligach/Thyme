@@ -58,8 +58,9 @@ def main():
     warmup_steps=100,
     weight_decay=0.01,
     logging_dir='./Logs',
-    disable_tqdm=True)
-    # load_best_model_at_end=True)
+    disable_tqdm=True,
+    predict_with_generate=True,
+    load_best_model_at_end=True)
 
   trainer = Seq2SeqTrainer(
     model=model,
@@ -96,12 +97,12 @@ if __name__ == "__main__":
     xml_regex='.*[.]Temporal.*[.]xml',
     data_reader='dataset_rel',
     model_dir='Model/',
-    model_name='t5-small',
+    model_name='t5-base',
     max_input_length=512,
     max_output_length=512,
-    learning_rate=5e-5,
-    batch_size=1,
-    n_epochs=2)
+    learning_rate=1e-3,
+    batch_size=8,
+    n_epochs=5)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
