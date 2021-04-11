@@ -32,14 +32,20 @@ class Data(ThymeDataset):
     self.text_dir = text_dir
     self.xml_regex = xml_regex
 
-    self.map_notes_to_relations()
-    self.map_sections_to_relations()
-
-  def map_notes_to_relations(self):
-    """Map note paths to relation argument offsets"""
-
     # key: note path, value: (source, target) tuples
     self.note2args = {}
+
+    # key: note path; value: time expresions
+    self.note2times = {}
+
+    # key: note path; value: events
+    self.note2events = {}
+
+    self.map_notes_to_annotations()
+    self.map_sections_to_relations()
+
+  def map_notes_to_annotations(self):
+    """Map note paths to relation, time, and event offsets"""
 
     for sub_dir, text_name, file_names in anafora.walk(self.xml_dir, self.xml_regex):
       note_path = os.path.join(self.text_dir, text_name)
@@ -48,19 +54,30 @@ class Data(ThymeDataset):
 
       # (src_start, src_end, targ_start, targ_end) tuples
       rel_args = []
-
       for rel in ref_data.annotations.select_type('TLINK'):
         source = rel.properties['Source']
         target = rel.properties['Target']
         label = rel.properties['Type']
-
         if label == 'CONTAINS':
           rel_args.append((source.spans[0], target.spans[0]))
-
       self.note2args[note_path] = rel_args
+
+      # (time_start, time_end) tuples
+      times = []
+      for time in ref_data.annotations.select_type('TIMEX3'):
+        times.append(time.spans[0])
+      self.note2times[note_path] = times
+
+      # (event_start, event_end) tuples
+      events = []
+      for event in ref_data.annotations.select_type('EVENT'):
+        events.append(event.spans[0])
+      self.note2events[note_path] = events
 
   def map_sections_to_relations(self):
     """Sectionize and index"""
+
+    # todo: figure out what sections to skip
 
     # iterate over notes and sectionize them
     for note_path in glob.glob(self.text_dir + 'ID*'):
@@ -74,21 +91,41 @@ class Data(ThymeDataset):
 
       # iterate over sections
       for match in re.finditer(regex_str, note_text, re.DOTALL):
+        section_text = match.group(2)
         sec_start, sec_end = match.start(2), match.end(2)
 
-        rels_in_section = []
+        rels_in_sec = []
         for src_spans, targ_spans in self.note2args[note_path]:
           src_start, src_end = src_spans
           targ_start, targ_end = targ_spans
-
           if src_start >= sec_start and src_end <= sec_end and \
              targ_start >= sec_start and targ_end <= sec_end:
             src = note_text[src_start:src_end]
             targ = note_text[targ_start:targ_end]
-            rels_in_section.append('CONTAINS(%s, %s)' % (src, targ))
+            rels_in_sec.append('CONTAINS(%s, %s)' % (src, targ))
 
-        self.inputs.append(match.group(2))
-        self.outputs.append(' '.join(rels_in_section))
+        times_in_sec = []
+        for time_start, time_end in self.note2times[note_path]:
+          if time_start >= sec_start and time_end <= sec_end:
+            time_text = note_text[time_start:time_end]
+            times_in_sec.append(time_text)
+
+        events_in_sec = []
+        for event_start, event_end in self.note2events[note_path]:
+          if event_start >= sec_start and event_end <= sec_end:
+            event_text = note_text[event_start:event_end]
+            events_in_sec.append(event_text)
+
+        input_str = 'task: REL; section: %s; events: %s; times: %s' % \
+          (section_text, ', '.join(events_in_sec), ', '.join(times_in_sec))
+
+        if len(rels_in_sec) > 0:
+          output_str = ' '.join(rels_in_sec)
+        else:
+          output_str = 'no relations found'
+
+        self.inputs.append(input_str)
+        self.outputs.append(output_str)
 
 if __name__ == "__main__":
 
@@ -103,10 +140,9 @@ if __name__ == "__main__":
     max_input_length=512,
     max_output_length=512)
   args = argparse.Namespace(**arg_dict)
-  print('hyper-parameters:', args)
 
   tokenizer = T5Tokenizer.from_pretrained(args.model_name)
-  tokenizer.add_tokens(['<e>', '</e>'])
+  # tokenizer.add_tokens(['<e>', '</e>'])
 
   rel_data = Data(
     xml_dir=args.xml_dir,
