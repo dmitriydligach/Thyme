@@ -62,16 +62,18 @@ class Data(ThymeDataset):
           rel_args.append((source.spans[0], target.spans[0]))
       self.note2args[note_path] = rel_args
 
-      # (time_start, time_end) tuples
+      # (time_start, time_end, time_id) tuples
       times = []
       for time in ref_data.annotations.select_type('TIMEX3'):
-        times.append(time.spans[0])
+        time_begin, time_end = time.spans[0]
+        times.append((time_begin, time_end, time.id))
       self.note2times[note_path] = times
 
-      # (event_start, event_end) tuples
+      # (event_start, event_end, event_id) tuples
       events = []
       for event in ref_data.annotations.select_type('EVENT'):
-        events.append(event.spans[0])
+        event_begin, event_end = event.spans[0]
+        events.append((event_begin, event_end, event.id))
       self.note2events[note_path] = events
 
   def map_sections_to_relations(self):
@@ -105,16 +107,20 @@ class Data(ThymeDataset):
             rels_in_sec.append('CONTAINS(%s, %s)' % (src, targ))
 
         times_in_sec = []
-        for time_start, time_end in self.note2times[note_path]:
+        time_metadata = []
+        for time_start, time_end, time_id in self.note2times[note_path]:
           if time_start >= sec_start and time_end <= sec_end:
             time_text = note_text[time_start:time_end]
             times_in_sec.append(time_text)
+            time_metadata.append(time_id)
 
         events_in_sec = []
-        for event_start, event_end in self.note2events[note_path]:
+        event_metadata = []
+        for event_start, event_end, event_id in self.note2events[note_path]:
           if event_start >= sec_start and event_end <= sec_end:
             event_text = note_text[event_start:event_end]
             events_in_sec.append(event_text)
+            event_metadata.append(event_id)
 
         input_str = 'task: REL; section: %s; events: %s; times: %s' % \
           (section_text, ', '.join(events_in_sec), ', '.join(times_in_sec))
@@ -124,8 +130,13 @@ class Data(ThymeDataset):
         else:
           output_str = 'no relations found'
 
+        time_metadata_str = '|'.join(time_metadata)
+        event_metadata_str = '|'.join(event_metadata)
+
         self.inputs.append(input_str)
         self.outputs.append(output_str)
+        self.time_metadata.append(time_metadata_str)
+        self.event_metadata.append(event_metadata_str)
 
 if __name__ == "__main__":
 
@@ -152,5 +163,8 @@ if __name__ == "__main__":
     max_input_length=args.max_input_length,
     max_output_length=args.max_output_length)
 
-  print(rel_data.inputs[4])
-  print(rel_data.outputs[4])
+  index = 4
+  print('T5 INPUT:', rel_data.inputs[index])
+  print('T5 OUTPUT:', rel_data.outputs[index])
+  print('T5 TIME METADATA:', rel_data.time_metadata[index])
+  print('T5 EVENT METADATA:', rel_data.event_metadata[index])
