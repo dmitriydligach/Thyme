@@ -182,11 +182,6 @@ def generate(model, data_loader, tokenizer):
         continue
 
       arg2id = {}
-
-      # arg_id_pairs = metadata[i].split('||')
-      # if len(arg_id_pairs) == 0:
-      #   continue
-
       for arg_id_pair in metadata[i].split('||'):
         elements = arg_id_pair.split('|')
         if len(elements) == 2:
@@ -196,11 +191,14 @@ def generate(model, data_loader, tokenizer):
           print('problem:', arg_id_pair)
 
       for arg1, arg2 in matches:
-        print(arg1, arg2)
         if arg1 in arg2id and arg2 in arg2id:
-          print(arg2id[arg1], arg2id[arg2])
+          predicted_relations.append((arg2id[arg1], arg2id[arg2]))
         else:
-          print('non-gold time or event generated:', arg1, arg2)
+          pass
+          # this happens often
+          # print('non-gold time or event generated:', arg1, arg2)
+
+  return predicted_relations
 
 def perform_fine_tuning():
   """Fine-tune and save model"""
@@ -284,7 +282,8 @@ def perform_generation():
     batch_size=args.gener_batch_size)
 
   # generate output from the saved model
-  generate(model, test_data_loader, tokenizer)
+  predicted_relations = generate(model, test_data_loader, tokenizer)
+  print(predicted_relations)
 
 if __name__ == "__main__":
   "My kind of street"
@@ -304,10 +303,10 @@ if __name__ == "__main__":
     n_files='all',
     learning_rate=1e-3,
     train_batch_size=4,
-    gener_batch_size=4,
+    gener_batch_size=64,
     num_beams=1,
-    print_predictions=True,
-    do_train=False,
+    print_predictions=False,
+    do_train=True,
     n_epochs=1)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
