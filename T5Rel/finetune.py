@@ -164,12 +164,43 @@ def generate(model, data_loader, tokenizer):
         print('[predict]', predictions[i])
         print('[metadata]', metadata[i], '\n')
 
+      # imagine perfect predictions
+      predictions[i] = targets[i]
+
       # extract arguments from predictions
       # CONTAINS(February 8, 2010; scan) CONTAINS(currently; denies)
-      regex_str = r'CONTAINS\((.+?);(.+?)\)'
-      for match in re.finditer(regex_str, predictions[i], re.DOTALL):
-        arg1 = match.group(1)
-        arg2 = match.group(2)
+      regex_str = r'CONTAINS\((.+?); (.+?)\)'
+      matches = re.findall(regex_str, predictions[i], re.DOTALL)
+      if len(matches) == 0:
+        # no relations generated
+        continue
+
+      # map arg text to ids
+      if len(metadata[i]) == 0:
+        # todo: what if t5 still generates something?
+        # no events or times in this section
+        continue
+
+      arg2id = {}
+
+      # arg_id_pairs = metadata[i].split('||')
+      # if len(arg_id_pairs) == 0:
+      #   continue
+
+      for arg_id_pair in metadata[i].split('||'):
+        elements = arg_id_pair.split('|')
+        if len(elements) == 2:
+          arg_text, id = elements
+          arg2id[arg_text] = id
+        else:
+          print('problem:', arg_id_pair)
+
+      for arg1, arg2 in matches:
+        print(arg1, arg2)
+        if arg1 in arg2id and arg2 in arg2id:
+          print(arg2id[arg1], arg2id[arg2])
+        else:
+          print('non-gold time or event generated:', arg1, arg2)
 
 def perform_fine_tuning():
   """Fine-tune and save model"""
@@ -267,7 +298,7 @@ if __name__ == "__main__":
     xml_regex='.*[.]Temporal.*[.]xml',
     data_reader='dataset_rel',
     model_dir='Model/',
-    model_name='t5-large',
+    model_name='t5-small',
     max_input_length=512,
     max_output_length=512,
     n_files='all',
@@ -276,8 +307,8 @@ if __name__ == "__main__":
     gener_batch_size=4,
     num_beams=1,
     print_predictions=True,
-    do_train=True,
-    n_epochs=5)
+    do_train=False,
+    n_epochs=1)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 

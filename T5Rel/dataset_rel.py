@@ -106,21 +106,20 @@ class Data(ThymeDataset):
             targ = note_text[targ_start:targ_end]
             rels_in_sec.append('CONTAINS(%s; %s)' % (src, targ))
 
+        metadata = []
         times_in_sec = []
-        time_metadata = []
         for time_start, time_end, time_id in self.note2times[note_path]:
           if time_start >= sec_start and time_end <= sec_end:
             time_text = note_text[time_start:time_end]
             times_in_sec.append(time_text)
-            time_metadata.append('%s|%s' % (time_text, time_id))
+            metadata.append('%s|%s' % (time_text, time_id))
 
         events_in_sec = []
-        event_metadata = []
         for event_start, event_end, event_id in self.note2events[note_path]:
           if event_start >= sec_start and event_end <= sec_end:
             event_text = note_text[event_start:event_end]
             events_in_sec.append(event_text)
-            event_metadata.append('%s|%s' % (event_text, event_id))
+            metadata.append('%s|%s' % (event_text, event_id))
 
         input_str = 'task: REL; section: %s; events: %s; times: %s' % \
           (section_text, ', '.join(events_in_sec), ', '.join(times_in_sec))
@@ -130,13 +129,11 @@ class Data(ThymeDataset):
         else:
           output_str = 'no relations found'
 
-        time_metadata_str = '||'.join(time_metadata)
-        event_metadata_str = '||'.join(event_metadata)
+        metadata_str = '||'.join(metadata)
 
         self.inputs.append(input_str)
         self.outputs.append(output_str)
-        self.time_metadata.append(time_metadata_str)
-        self.event_metadata.append(event_metadata_str)
+        self.metadata.append(metadata_str)
 
 if __name__ == "__main__":
 
@@ -166,5 +163,4 @@ if __name__ == "__main__":
   index = 4
   print('T5 INPUT:', rel_data.inputs[index])
   print('T5 OUTPUT:', rel_data.outputs[index])
-  print('T5 TIME METADATA:', rel_data.time_metadata[index])
-  print('T5 EVENT METADATA:', rel_data.event_metadata[index])
+  print('T5 METADATA:', rel_data.metadata[index])
