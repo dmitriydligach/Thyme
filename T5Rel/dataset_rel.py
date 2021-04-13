@@ -42,7 +42,7 @@ class Data(ThymeDataset):
     self.note2events = {}
 
     self.map_notes_to_annotations()
-    self.map_sections_to_relations()
+    self.map_sections_to_annotations()
 
   def map_notes_to_annotations(self):
     """Map note paths to relation, time, and event offsets"""
@@ -76,7 +76,7 @@ class Data(ThymeDataset):
         events.append((event_begin, event_end, event.id))
       self.note2events[note_path] = events
 
-  def map_sections_to_relations(self):
+  def map_sections_to_annotations(self):
     """Sectionize and index"""
 
     # todo: figure out what sections to skip
@@ -104,7 +104,7 @@ class Data(ThymeDataset):
              targ_start >= sec_start and targ_end <= sec_end:
             src = note_text[src_start:src_end]
             targ = note_text[targ_start:targ_end]
-            rels_in_sec.append('CONTAINS(%s, %s)' % (src, targ))
+            rels_in_sec.append('CONTAINS(%s; %s)' % (src, targ))
 
         times_in_sec = []
         time_metadata = []
@@ -112,7 +112,7 @@ class Data(ThymeDataset):
           if time_start >= sec_start and time_end <= sec_end:
             time_text = note_text[time_start:time_end]
             times_in_sec.append(time_text)
-            time_metadata.append(time_id)
+            time_metadata.append('%s|%s' % (time_text, time_id))
 
         events_in_sec = []
         event_metadata = []
@@ -120,7 +120,7 @@ class Data(ThymeDataset):
           if event_start >= sec_start and event_end <= sec_end:
             event_text = note_text[event_start:event_end]
             events_in_sec.append(event_text)
-            event_metadata.append(event_id)
+            event_metadata.append('%s|%s' % (event_text, event_id))
 
         input_str = 'task: REL; section: %s; events: %s; times: %s' % \
           (section_text, ', '.join(events_in_sec), ', '.join(times_in_sec))
@@ -130,8 +130,8 @@ class Data(ThymeDataset):
         else:
           output_str = 'no relations found'
 
-        time_metadata_str = '|'.join(time_metadata)
-        event_metadata_str = '|'.join(event_metadata)
+        time_metadata_str = '||'.join(time_metadata)
+        event_metadata_str = '||'.join(event_metadata)
 
         self.inputs.append(input_str)
         self.outputs.append(output_str)

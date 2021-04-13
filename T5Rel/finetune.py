@@ -3,7 +3,7 @@
 import sys
 sys.path.append('../Lib/')
 
-import random, argparse, os, shutil, importlib, torch
+import random, argparse, os, shutil, importlib, torch, re
 
 from transformers import (
     AdamW,
@@ -49,6 +49,9 @@ def fit(model, train_loader, val_loader, tokenizer):
     for batch in train_loader:
       optimizer.zero_grad()
 
+      # metadata not needed here
+      batch.pop('metadata')
+
       # tensors in batch to gpu
       for key in batch.keys():
         batch[key] = batch[key].to(device)
@@ -91,6 +94,9 @@ def evaluate(model, data_loader, tokenizer):
 
   for batch in data_loader:
 
+    # metadata not needed here
+    batch.pop('metadata')
+
     # tensors in batch to gpu
     for key in batch.keys():
       batch[key] = batch[key].to(device)
@@ -115,7 +121,13 @@ def generate(model, data_loader, tokenizer):
   model.to(device)
   model.eval()
 
+  # relation arg id tuples
+  predicted_relations = []
+
   for batch in data_loader:
+
+    # metadata for this batch
+    metadata = batch.pop('metadata')
 
     for key in batch.keys():
       batch[key] = batch[key].to(device)
@@ -140,12 +152,24 @@ def generate(model, data_loader, tokenizer):
       skip_special_tokens=True,
       clean_up_tokenization_spaces=True)
 
+    # time and event metadata example for a section
+    # February 8, 2010|379@e@ID128_clinic_377@gold||currently|388@e@ID128_clinic_377@gold
+    # anastomosis|334@e@ID128_clinic_377@gold||diagnosis|336@e@ID128_clinic_377@gold
+
     # iterate over samples in this batch
     for i in range(len(predictions)):
       if args.print_predictions:
         print('[input]', inputs[i])
         print('[targets]', targets[i])
         print('[predict]', predictions[i])
+        print('[metadata]', metadata[i], '\n')
+
+      # extract arguments from predictions
+      # CONTAINS(February 8, 2010; scan) CONTAINS(currently; denies)
+      regex_str = r'CONTAINS\((.+?);(.+?)\)'
+      for match in re.finditer(regex_str, predictions[i], re.DOTALL):
+        arg1 = match.group(1)
+        arg2 = match.group(2)
 
 def perform_fine_tuning():
   """Fine-tune and save model"""
@@ -252,13 +276,13 @@ if __name__ == "__main__":
     gener_batch_size=4,
     num_beams=1,
     print_predictions=True,
-    fine_tune_first=True,
+    do_train=True,
     n_epochs=5)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
-  if args.fine_tune_first:
-    print('starting fine-tuning...')
+  if args.do_train:
+    print('starting training...')
     perform_fine_tuning()
 
   print('starting generation')
