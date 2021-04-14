@@ -188,6 +188,7 @@ def generate(model, data_loader, tokenizer):
           arg_text, id = elements
           arg2id[arg_text] = id
         else:
+          # doesn't look like this happens
           print('problem:', arg_id_pair)
 
       for arg1, arg2 in matches:
@@ -224,6 +225,7 @@ def perform_fine_tuning():
   train_dataset = data.Data(
     xml_dir=args.xml_train_dir,
     text_dir=args.text_train_dir,
+    out_dir=args.xml_out_dir,
     xml_regex=args.xml_regex,
     tokenizer=tokenizer,
     max_input_length=args.max_input_length,
@@ -236,6 +238,7 @@ def perform_fine_tuning():
   test_dataset = data.Data(
     xml_dir=args.xml_test_dir,
     text_dir=args.text_test_dir,
+    out_dir=args.xml_out_dir,
     xml_regex=args.xml_regex,
     tokenizer=tokenizer,
     max_input_length=args.max_input_length,
@@ -272,6 +275,7 @@ def perform_generation():
   test_dataset = data.Data(
     xml_dir=args.xml_test_dir,
     text_dir=args.text_test_dir,
+    out_dir=args.xml_out_dir,
     xml_regex=args.xml_regex,
     tokenizer=tokenizer,
     max_input_length=args.max_input_length,
@@ -283,7 +287,8 @@ def perform_generation():
 
   # generate output from the saved model
   predicted_relations = generate(model, test_data_loader, tokenizer)
-  print(predicted_relations)
+  print('writing xml...')
+  test_dataset.write_xml(predicted_relations)
 
 if __name__ == "__main__":
   "My kind of street"
@@ -294,6 +299,7 @@ if __name__ == "__main__":
     text_train_dir=os.path.join(base, 'Thyme/Text/train/'),
     xml_test_dir=os.path.join(base, 'Thyme/Official/thymedata/coloncancer/Dev/'),
     text_test_dir=os.path.join(base, 'Thyme/Text/dev/'),
+    xml_out_dir='./Xml/',
     xml_regex='.*[.]Temporal.*[.]xml',
     data_reader='dataset_rel',
     model_dir='Model/',
@@ -302,11 +308,11 @@ if __name__ == "__main__":
     max_output_length=512,
     n_files='all',
     learning_rate=1e-3,
-    train_batch_size=4,
-    gener_batch_size=64,
+    train_batch_size=32,
+    gener_batch_size=32,
     num_beams=1,
     print_predictions=False,
-    do_train=True,
+    do_train=False,
     n_epochs=1)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
@@ -315,5 +321,5 @@ if __name__ == "__main__":
     print('starting training...')
     perform_fine_tuning()
 
-  print('starting generation')
+  print('starting generation...')
   perform_generation()

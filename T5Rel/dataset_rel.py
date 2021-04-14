@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 
-import sys, re, glob, argparse
+import sys, re, glob, argparse, shutil, os, anafora, random
+from collections import defaultdict
 
 sys.dont_write_bytecode = True
 sys.path.append('../Anafora')
 
-import os
-import anafora
 from transformers import T5Tokenizer
 from dataset_base import ThymeDataset
 
@@ -17,6 +16,7 @@ class Data(ThymeDataset):
     self,
     xml_dir,
     text_dir,
+    out_dir,
     xml_regex,
     tokenizer,
     max_input_length,
@@ -30,6 +30,7 @@ class Data(ThymeDataset):
 
     self.xml_dir = xml_dir
     self.text_dir = text_dir
+    self.out_dir = out_dir
     self.xml_regex = xml_regex
 
     # key: note path, value: (source, target) tuples
@@ -135,12 +136,63 @@ class Data(ThymeDataset):
         self.outputs.append(output_str)
         self.metadata.append(metadata_str)
 
+  def write_xml(self, predicted_relations):
+    """Write predictions in anafora XML format"""
+
+    # make a directory to write anafora xml
+    if os.path.isdir(self.out_dir):
+      shutil.rmtree(self.out_dir)
+    os.mkdir(self.out_dir)
+
+    # key: note, value: list of rel arg tuples
+    note2rels = defaultdict(list)
+
+    for arg1id, arg2id in predicted_relations:
+      note_name = arg1id.split('@')[2]
+      note2rels[note_name].append((arg1id, arg2id))
+
+    # t5 occasionally fails to predict
+    missing_predictions = []
+
+    # iterate over reference xml files
+    for sub_dir, text_name, file_names in \
+            anafora.walk(self.xml_dir, self.xml_regex):
+
+      path = os.path.join(self.xml_dir, sub_dir, file_names[0])
+      ref_data = anafora.AnaforaData.from_file(path)
+      data = anafora.AnaforaData()
+
+      for event in ref_data.annotations.select_type('EVENT'):
+        entity = anafora.AnaforaEntity()
+        entity.id = event.id
+        entity.spans = event.spans
+        entity.type = event.type
+        data.annotations.append(entity)
+
+      note_name = file_names[0].split('.')[0]
+      for arg1id, arg2id in note2rels[note_name]:
+        relation = anafora.AnaforaRelation()
+        relation.id = str(random.random())
+        relation.type = 'TLINK'
+        relation.parents_type = 'TemporalRelations'
+        relation.properties['Source'] = arg1id
+        relation.properties['Type'] = 'CONTAINS'
+        relation.properties['Target'] = arg2id
+        data.annotations.append(relation)
+
+      data.indent()
+      os.mkdir(os.path.join(self.out_dir, sub_dir))
+      out_path = os.path.join(self.out_dir, sub_dir, file_names[0])
+      data.to_file(out_path)
+
+    print('number of missing predictions:', len(missing_predictions))
+
 if __name__ == "__main__":
 
   base = os.environ['DATA_ROOT']
   arg_dict = dict(
-    xml_dir=os.path.join(base, 'Thyme/Official/thymedata/coloncancer/Train/'),
-    text_dir = os.path.join(base, 'Thyme/Text/train/'),
+    xml_dir=os.path.join(base, 'Thyme/Official/thymedata/coloncancer/Dev/'),
+    text_dir = os.path.join(base, 'Thyme/Text/dev/'),
     xml_regex='.*[.]Temporal.*[.]xml',
     xml_out_dir='./Xml/',
     model_dir='Model/',
@@ -155,6 +207,7 @@ if __name__ == "__main__":
   rel_data = Data(
     xml_dir=args.xml_dir,
     text_dir=args.text_dir,
+    out_dir=args.xml_out_dir,
     xml_regex=args.xml_regex,
     tokenizer=tokenizer,
     max_input_length=args.max_input_length,
@@ -164,3 +217,9 @@ if __name__ == "__main__":
   print('T5 INPUT:', rel_data.inputs[index])
   print('T5 OUTPUT:', rel_data.outputs[index])
   print('T5 METADATA:', rel_data.metadata[index])
+
+  predicted_relations = (('75@e@ID077_clinic_229@gold', '74@e@ID077_clinic_229@gold'),
+                         ('92@e@ID077_clinic_229@gold', '54@e@ID077_clinic_229@gold'),
+                         ('142@e@ID021_clinic_063@gold', '213@e@ID021_clinic_063@gold'),
+                         ('89@e@ID021_clinic_063@gold', '66@e@ID021_clinic_063@gold'))
+  rel_data.write_xml(predicted_relations)
