@@ -7,7 +7,6 @@ sys.dont_write_bytecode = True
 sys.path.append('../Anafora')
 
 import anafora
-
 from transformers import T5Tokenizer
 from dataset_base import ThymeDataset
 
@@ -149,12 +148,9 @@ class Data(ThymeDataset):
     # key: note, value: list of rel arg tuples
     note2rels = defaultdict(list)
 
-    for arg1id, arg2id in predicted_relations:
-      note_name = arg1id.split('@')[2]
-      note2rels[note_name].append((arg1id, arg2id))
-
-    # t5 occasionally fails to predict
-    missing_predictions = []
+    for container_id, contained_id in predicted_relations:
+      note_name = container_id.split('@')[2]
+      note2rels[note_name].append((container_id, contained_id))
 
     # iterate over reference xml files
     for sub_dir, text_name, file_names in \
@@ -162,8 +158,11 @@ class Data(ThymeDataset):
 
       path = os.path.join(self.xml_dir, sub_dir, file_names[0])
       ref_data = anafora.AnaforaData.from_file(path)
+
+      # make a new XML file
       data = anafora.AnaforaData()
 
+      # copy gold events
       for event in ref_data.annotations.select_type('EVENT'):
         entity = anafora.AnaforaEntity()
         entity.id = event.id
@@ -171,23 +170,31 @@ class Data(ThymeDataset):
         entity.type = event.type
         data.annotations.append(entity)
 
+      # copy gold time expressions
+      for time in ref_data.annotations.select_type('TIMEX3'):
+        entity = anafora.AnaforaEntity()
+        entity.id = time.id
+        entity.spans = time.spans
+        entity.type = time.type
+        data.annotations.append(entity)
+
+      # add generated relations
       note_name = file_names[0].split('.')[0]
-      for arg1id, arg2id in note2rels[note_name]:
+      for container_id, contained_id in note2rels[note_name]:
         relation = anafora.AnaforaRelation()
         relation.id = str(random.random())
         relation.type = 'TLINK'
         relation.parents_type = 'TemporalRelations'
-        relation.properties['Source'] = arg1id
+        relation.properties['Source'] = container_id
         relation.properties['Type'] = 'CONTAINS'
-        relation.properties['Target'] = arg2id
+        relation.properties['Target'] = contained_id
         data.annotations.append(relation)
 
+      # write xml to file
       data.indent()
       os.mkdir(os.path.join(self.out_dir, sub_dir))
       out_path = os.path.join(self.out_dir, sub_dir, file_names[0])
       data.to_file(out_path)
-
-    print('number of missing predictions:', len(missing_predictions))
 
 if __name__ == "__main__":
 

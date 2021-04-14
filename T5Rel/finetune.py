@@ -312,7 +312,7 @@ if __name__ == "__main__":
     gener_batch_size=32,
     num_beams=1,
     print_predictions=False,
-    do_train=False,
+    do_train=True,
     n_epochs=1)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
