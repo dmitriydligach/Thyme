@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
-import sys, re, glob, argparse, shutil, os, anafora, random
+import sys, re, glob, argparse, shutil, os, random
 from collections import defaultdict
 
 sys.dont_write_bytecode = True
 sys.path.append('../Anafora')
+
+import anafora
 
 from transformers import T5Tokenizer
 from dataset_base import ThymeDataset
