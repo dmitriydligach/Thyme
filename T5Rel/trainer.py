@@ -36,6 +36,7 @@ def main():
   train_dataset = data.Data(
     xml_dir=args.xml_train_dir,
     text_dir=args.text_train_dir,
+    out_dir=args.xml_out_dir,
     xml_regex=args.xml_regex,
     tokenizer=tokenizer,
     max_input_length=args.max_input_length,
@@ -44,6 +45,7 @@ def main():
   test_dataset = data.Data(
     xml_dir=args.xml_test_dir,
     text_dir=args.text_test_dir,
+    out_dir=args.xml_out_dir,
     xml_regex=args.xml_regex,
     tokenizer=tokenizer,
     max_input_length=args.max_input_length,
@@ -95,6 +97,7 @@ if __name__ == "__main__":
     xml_test_dir=os.path.join(base, 'Thyme/Official/thymedata/coloncancer/Dev/'),
     text_test_dir=os.path.join(base, 'Thyme/Text/dev/'),
     xml_regex='.*[.]Temporal.*[.]xml',
+    xml_out_dir='./Xml/',
     data_reader='dataset_rel',
     model_dir='Model/',
     model_name='t5-base',
