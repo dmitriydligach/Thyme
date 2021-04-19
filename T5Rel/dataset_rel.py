@@ -10,6 +10,9 @@ import anafora
 from transformers import T5Tokenizer
 from dataset_base import ThymeDataset
 
+# ids of sections that weren't annotated
+sections_to_skip = {'20104', '20105', '20116', '20138'}
+
 class Data(ThymeDataset):
   """Make x and y from raw data"""
 
@@ -43,7 +46,10 @@ class Data(ThymeDataset):
     # key: note path; value: events
     self.note2events = {}
 
+    # note path mapped to annotation offsets
     self.map_notes_to_annotations()
+
+    # t5 i/o instances mapped to annotation offsets
     self.map_sections_to_annotations()
 
   def map_notes_to_annotations(self):
@@ -53,16 +59,6 @@ class Data(ThymeDataset):
       note_path = os.path.join(self.text_dir, text_name)
       xml_path = os.path.join(self.xml_dir, sub_dir, file_names[0])
       ref_data = anafora.AnaforaData.from_file(xml_path)
-
-      # (src_start, src_end, targ_start, targ_end) tuples
-      rel_args = []
-      for rel in ref_data.annotations.select_type('TLINK'):
-        source = rel.properties['Source']
-        target = rel.properties['Target']
-        label = rel.properties['Type']
-        if label == 'CONTAINS':
-          rel_args.append((source.spans[0], target.spans[0]))
-      self.note2args[note_path] = rel_args
 
       # (time_start, time_end, time_id) tuples
       times = []
@@ -78,13 +74,21 @@ class Data(ThymeDataset):
         events.append((event_begin, event_end, event.id))
       self.note2events[note_path] = events
 
+      # (src_start, src_end, targ_start, targ_end) tuples
+      rel_args = []
+      for rel in ref_data.annotations.select_type('TLINK'):
+        source = rel.properties['Source']
+        target = rel.properties['Target']
+        label = rel.properties['Type']
+        if label == 'CONTAINS':
+          rel_args.append((source.spans[0], target.spans[0]))
+      self.note2args[note_path] = rel_args
+
   def map_sections_to_annotations(self):
     """Sectionize and index"""
 
-    # todo: figure out what sections to skip
-
-    # iterate over notes and sectionize them
-    for note_path in glob.glob(self.text_dir + 'ID*'):
+    # iterate over clinical notes and sectionize them
+    for note_path in glob.glob(self.text_dir + 'ID*_clinic_*'):
 
       # some notes weren't annotated
       if note_path not in self.note2args:
@@ -95,6 +99,11 @@ class Data(ThymeDataset):
 
       # iterate over sections
       for match in re.finditer(regex_str, note_text, re.DOTALL):
+
+        section_id = match.group(1)
+        if section_id in sections_to_skip:
+          continue
+
         section_text = match.group(2)
         sec_start, sec_end = match.start(2), match.end(2)
 
@@ -123,15 +132,13 @@ class Data(ThymeDataset):
             events_in_sec.append(event_text)
             metadata.append('%s|%s' % (event_text, event_id))
 
+        metadata_str = '||'.join(metadata)
         input_str = 'task: REL; section: %s; events: %s; times: %s' % \
           (section_text, ', '.join(events_in_sec), ', '.join(times_in_sec))
-
         if len(rels_in_sec) > 0:
           output_str = ' '.join(rels_in_sec)
         else:
           output_str = 'no relations found'
-
-        metadata_str = '||'.join(metadata)
 
         self.inputs.append(input_str)
         self.outputs.append(output_str)
@@ -200,8 +207,8 @@ if __name__ == "__main__":
 
   base = os.environ['DATA_ROOT']
   arg_dict = dict(
-    xml_dir=os.path.join(base, 'Thyme/Official/thymedata/coloncancer/Dev/'),
-    text_dir = os.path.join(base, 'Thyme/Text/dev/'),
+    xml_dir=os.path.join(base, 'Thyme/Official/thymedata/coloncancer/Train/'),
+    text_dir = os.path.join(base, 'Thyme/Text/train/'),
     xml_regex='.*[.]Temporal.*[.]xml',
     xml_out_dir='./Xml/',
     model_dir='Model/',
@@ -223,12 +230,12 @@ if __name__ == "__main__":
     max_output_length=args.max_output_length)
 
   index = 4
-  print('T5 INPUT:', rel_data.inputs[index])
-  print('T5 OUTPUT:', rel_data.outputs[index])
+  print('T5 INPUT:', rel_data.inputs[index] + '\n')
+  print('T5 OUTPUT:', rel_data.outputs[index] + '\n')
   print('T5 METADATA:', rel_data.metadata[index])
 
-  predicted_relations = (('75@e@ID077_clinic_229@gold', '74@e@ID077_clinic_229@gold'),
-                         ('92@e@ID077_clinic_229@gold', '54@e@ID077_clinic_229@gold'),
-                         ('142@e@ID021_clinic_063@gold', '213@e@ID021_clinic_063@gold'),
-                         ('89@e@ID021_clinic_063@gold', '66@e@ID021_clinic_063@gold'))
-  rel_data.write_xml(predicted_relations)
+  # predicted_relations = (('75@e@ID077_clinic_229@gold', '74@e@ID077_clinic_229@gold'),
+  #                        ('92@e@ID077_clinic_229@gold', '54@e@ID077_clinic_229@gold'),
+  #                        ('142@e@ID021_clinic_063@gold', '213@e@ID021_clinic_063@gold'),
+  #                        ('89@e@ID021_clinic_063@gold', '66@e@ID021_clinic_063@gold'))
+  # rel_data.write_xml(predicted_relations)
