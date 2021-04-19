@@ -155,19 +155,19 @@ class Data(ThymeDataset):
     # key: note, value: list of rel arg tuples
     note2rels = defaultdict(list)
 
+    # map notes to relations in these notes
     for container_id, contained_id in predicted_relations:
       note_name = container_id.split('@')[2]
       note2rels[note_name].append((container_id, contained_id))
 
-    # iterate over reference xml files
-    for sub_dir, text_name, file_names in \
-            anafora.walk(self.xml_dir, self.xml_regex):
+    # iterate over reference anafora xml files
+    for sub_dir, text_name, file_names in anafora.walk(self.xml_dir, self.xml_regex):
 
       path = os.path.join(self.xml_dir, sub_dir, file_names[0])
       ref_data = anafora.AnaforaData.from_file(path)
 
       # make a new XML file
-      data = anafora.AnaforaData()
+      generated_data = anafora.AnaforaData()
 
       # copy gold events
       for event in ref_data.annotations.select_type('EVENT'):
@@ -175,7 +175,7 @@ class Data(ThymeDataset):
         entity.id = event.id
         entity.spans = event.spans
         entity.type = event.type
-        data.annotations.append(entity)
+        generated_data.annotations.append(entity)
 
       # copy gold time expressions
       for time in ref_data.annotations.select_type('TIMEX3'):
@@ -183,25 +183,25 @@ class Data(ThymeDataset):
         entity.id = time.id
         entity.spans = time.spans
         entity.type = time.type
-        data.annotations.append(entity)
+        generated_data.annotations.append(entity)
 
       # add generated relations
       note_name = file_names[0].split('.')[0]
       for container_id, contained_id in note2rels[note_name]:
         relation = anafora.AnaforaRelation()
-        relation.id = str(random.random())
+        relation.id = str(random.randint(1, 10000))
         relation.type = 'TLINK'
         relation.parents_type = 'TemporalRelations'
         relation.properties['Source'] = container_id
         relation.properties['Type'] = 'CONTAINS'
         relation.properties['Target'] = contained_id
-        data.annotations.append(relation)
+        generated_data.annotations.append(relation)
 
       # write xml to file
-      data.indent()
+      generated_data.indent()
       os.mkdir(os.path.join(self.out_dir, sub_dir))
       out_path = os.path.join(self.out_dir, sub_dir, file_names[0])
-      data.to_file(out_path)
+      generated_data.to_file(out_path)
 
 if __name__ == "__main__":
 

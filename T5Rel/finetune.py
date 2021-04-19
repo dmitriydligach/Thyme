@@ -122,7 +122,7 @@ def generate(model, data_loader, tokenizer):
   model.eval()
 
   # relation arg id tuples
-  predicted_relations = []
+  pred_rels = []
 
   for batch in data_loader:
 
@@ -167,11 +167,11 @@ def generate(model, data_loader, tokenizer):
       # imagine perfect predictions
       predictions[i] = targets[i]
 
-      # extract arguments from predictions
+      # match argument text in predictions
       # CONTAINS(February 8, 2010; scan) CONTAINS(currently; denies)
       regex_str = r'CONTAINS\((.+?); (.+?)\)'
-      matches = re.findall(regex_str, predictions[i], re.DOTALL)
-      if len(matches) == 0:
+      matched_args = re.findall(regex_str, predictions[i], re.DOTALL)
+      if len(matched_args) == 0:
         # no relations generated
         continue
 
@@ -181,25 +181,21 @@ def generate(model, data_loader, tokenizer):
         # no events or times in this section
         continue
 
-      arg2id = {}
+      arg_text2id = {}
       for arg_id_pair in metadata[i].split('||'):
         elements = arg_id_pair.split('|')
         if len(elements) == 2:
-          arg_text, id = elements
-          arg2id[arg_text] = id
-        else:
-          # doesn't look like this happens
-          print('problem:', arg_id_pair)
+          arg_text, arg_id = elements
+          arg_text2id[arg_text] = arg_id
 
-      for arg1, arg2 in matches:
-        if arg1 in arg2id and arg2 in arg2id:
-          predicted_relations.append((arg2id[arg1], arg2id[arg2]))
+      for arg1, arg2 in matched_args:
+        if arg1 in arg_text2id and arg2 in arg_text2id:
+          pred_rels.append((arg_text2id[arg1], arg_text2id[arg2]))
         else:
+          # t5 generated a rel over non-gold events/times
           pass
-          # this happens often
-          # print('non-gold time or event generated:', arg1, arg2)
 
-  return predicted_relations
+  return pred_rels
 
 def perform_fine_tuning():
   """Fine-tune and save model"""
