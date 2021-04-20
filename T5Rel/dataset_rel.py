@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import sys, re, glob, argparse, shutil, os, random, hashlib
+import sys, re, glob, argparse, shutil, os, random
 from collections import defaultdict
 
 sys.dont_write_bytecode = True
@@ -189,8 +189,7 @@ class Data(ThymeDataset):
       note_name = file_names[0].split('.')[0]
       for container_id, contained_id in note2rels[note_name]:
         relation = anafora.AnaforaRelation()
-        id_str = '%s%s%s' % (note_name, container_id, contained_id)
-        relation.id = hashlib.md5(id_str.encode()).hexdigest()
+        relation.id = str(random.random())[2:]
         relation.type = 'TLINK'
         relation.parents_type = 'TemporalRelations'
         relation.properties['Source'] = container_id
