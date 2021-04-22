@@ -23,6 +23,7 @@ class Data(ThymeDataset):
     out_dir,
     xml_regex,
     tokenizer,
+    chunk_size,
     max_input_length,
     max_output_length):
     """Constructor"""
@@ -32,6 +33,7 @@ class Data(ThymeDataset):
       max_input_length,
       max_output_length)
 
+    self.chunk_size = chunk_size
     self.xml_dir = xml_dir
     self.text_dir = text_dir
     self.out_dir = out_dir
@@ -47,10 +49,10 @@ class Data(ThymeDataset):
     self.note2events = {}
 
     # note path mapped to annotation offsets
-    # self.map_notes_to_annotations()
+    self.map_notes_to_annotations()
 
     # t5 i/o instances mapped to annotation offsets
-    # self.map_sections_to_annotations()
+    self.map_chunks_to_annotations()
 
   def map_notes_to_annotations(self):
     """Map note paths to relation, time, and event offsets"""
@@ -84,7 +86,34 @@ class Data(ThymeDataset):
           rel_args.append((source.spans[0], target.spans[0]))
       self.note2args[note_path] = rel_args
 
-  def map_sections_to_annotations(self):
+  def note_chunk_generator(self, note_text):
+    """Yield note chunks of suitable length"""
+
+    # split on sections and if they're too long, split further on paragraphs
+    # todo: MERGE SHORT PARAGRAPHS INTO LONGER CHUNKS
+
+    parag_re = r'(.+?\n)'
+    sec_re = r'\[start section id=\"(.+)"\](.*?)\[end section id=\"\1"\]'
+
+    # iterate over sections
+    for sec_match in re.finditer(sec_re, note_text, re.DOTALL):
+
+      section_id = sec_match.group(1)
+      if section_id in sections_to_skip:
+        continue
+
+      section_text = sec_match.group(2)
+      sec_start, sec_end = sec_match.start(2), sec_match.end(2)
+
+      if len(section_text.split(' ')) > self.chunk_size:
+        for parag_match in re.finditer(parag_re, section_text, re.DOTALL):
+          parag_start, parag_end = parag_match.start(1), parag_match.end(1)
+          yield parag_start, parag_end
+
+      else:
+        yield sec_start, sec_end
+
+  def map_chunks_to_annotations(self):
     """Sectionize and index"""
 
     # iterate over clinical notes and sectionize them
@@ -95,24 +124,16 @@ class Data(ThymeDataset):
         continue
 
       note_text = open(note_path).read()
-      regex_str = r'\[start section id=\"(.+)"\](.*?)\[end section id=\"\1"\]'
 
-      # iterate over sections
-      for match in re.finditer(regex_str, note_text, re.DOTALL):
-
-        section_id = match.group(1)
-        if section_id in sections_to_skip:
-          continue
-
-        section_text = match.group(2)
-        sec_start, sec_end = match.start(2), match.end(2)
+      # iterate over chunks
+      for chunk_start, chunk_end in self.note_chunk_generator(note_text):
 
         rels_in_sec = []
         for src_spans, targ_spans in self.note2args[note_path]:
           src_start, src_end = src_spans
           targ_start, targ_end = targ_spans
-          if src_start >= sec_start and src_end <= sec_end and \
-             targ_start >= sec_start and targ_end <= sec_end:
+          if src_start >= chunk_start and src_end <= chunk_end and \
+             targ_start >= chunk_start and targ_end <= chunk_end:
             src = note_text[src_start:src_end]
             targ = note_text[targ_start:targ_end]
             rels_in_sec.append('CONTAINS(%s; %s)' % (src, targ))
@@ -120,21 +141,23 @@ class Data(ThymeDataset):
         metadata = []
         times_in_sec = []
         for time_start, time_end, time_id in self.note2times[note_path]:
-          if time_start >= sec_start and time_end <= sec_end:
+          if time_start >= chunk_start and time_end <= chunk_end:
             time_text = note_text[time_start:time_end]
             times_in_sec.append(time_text)
             metadata.append('%s|%s' % (time_text, time_id))
 
         events_in_sec = []
         for event_start, event_end, event_id in self.note2events[note_path]:
-          if event_start >= sec_start and event_end <= sec_end:
+          if event_start >= chunk_start and event_end <= chunk_end:
             event_text = note_text[event_start:event_end]
             events_in_sec.append(event_text)
             metadata.append('%s|%s' % (event_text, event_id))
 
         metadata_str = '||'.join(metadata)
-        input_str = 'task: REL; section: %s; events: %s; times: %s' % \
-          (section_text, ', '.join(events_in_sec), ', '.join(times_in_sec))
+        input_str = 'task: REL; text: %s; times: %s; events: %s' % \
+          (note_text[chunk_start:chunk_end],
+           ', '.join(times_in_sec),
+           ', '.join(events_in_sec))
         if len(rels_in_sec) > 0:
           output_str = ' '.join(rels_in_sec)
         else:
@@ -143,31 +166,6 @@ class Data(ThymeDataset):
         self.inputs.append(input_str)
         self.outputs.append(output_str)
         self.metadata.append(metadata_str)
-
-  def note_chunk_generator(self, note_text, max_tokens=100):
-    """Yield note chunks of suitable length"""
-
-    # split on sections and if they're too long, split further on paragraphs
-
-    sec_re = r'\[start section id=\"(.+)"\](.*?)\[end section id=\"\1"\]'
-    parag_re = r'(.+?\n)'
-
-    # iterate over sections
-    for sec_match in re.finditer(sec_re, note_text, re.DOTALL):
-
-      section_id = sec_match.group(1)
-      if section_id in sections_to_skip:
-        continue
-
-      section_text = sec_match.group(2).strip()
-      sec_start, sec_end = sec_match.start(2), sec_match.end(2)
-
-      if len(section_text.split(' ')) > max_tokens:
-        for parag_match in re.finditer(parag_re, section_text, re.DOTALL):
-          yield 'paragraph: ' + parag_match.group(1).strip()
-
-      else:
-        yield 'section: ' + section_text
 
   def write_xml(self, predicted_relations):
     """Write predictions in anafora XML format"""
@@ -238,6 +236,7 @@ if __name__ == "__main__":
     xml_out_dir='./Xml/',
     model_dir='Model/',
     model_name='t5-small',
+    chunk_size=100,
     max_input_length=512,
     max_output_length=512)
   args = argparse.Namespace(**arg_dict)
@@ -251,13 +250,14 @@ if __name__ == "__main__":
     out_dir=args.xml_out_dir,
     xml_regex=args.xml_regex,
     tokenizer=tokenizer,
+    chunk_size=args.chunk_size,
     max_input_length=args.max_input_length,
     max_output_length=args.max_output_length)
 
-  # index = 4
-  # print('T5 INPUT:', rel_data.inputs[index] + '\n')
-  # print('T5 OUTPUT:', rel_data.outputs[index] + '\n')
-  # print('T5 METADATA:', rel_data.metadata[index])
+  index = 40
+  print('T5 INPUT:', rel_data.inputs[index] + '\n')
+  print('T5 OUTPUT:', rel_data.outputs[index] + '\n')
+  print('T5 METADATA:', rel_data.metadata[index])
 
   # predicted_relations = (('75@e@ID077_clinic_229@gold', '74@e@ID077_clinic_229@gold'),
   #                        ('92@e@ID077_clinic_229@gold', '54@e@ID077_clinic_229@gold'),
@@ -265,9 +265,7 @@ if __name__ == "__main__":
   #                        ('89@e@ID021_clinic_063@gold', '66@e@ID021_clinic_063@gold'))
   # rel_data.write_xml(predicted_relations)
 
-  # iterate over clinical notes and sectionize them
-  # for note_path in glob.glob(args.text_dir + 'ID*_clinic_*'):
-  note_path = os.path.join(args.text_dir, 'ID133_clinic_390')
-  note_text = open(note_path).read()
-  for chunk in rel_data.note_chunk_generator(note_text):
-    print(chunk)
+  # note_path = os.path.join(args.text_dir, 'ID133_clinic_390')
+  # note_text = open(note_path).read()
+  # for chunk in rel_data.note_chunk_generator(note_text):
+  #   print(chunk)
