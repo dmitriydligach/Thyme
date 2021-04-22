@@ -47,10 +47,10 @@ class Data(ThymeDataset):
     self.note2events = {}
 
     # note path mapped to annotation offsets
-    self.map_notes_to_annotations()
+    # self.map_notes_to_annotations()
 
     # t5 i/o instances mapped to annotation offsets
-    self.map_sections_to_annotations()
+    # self.map_sections_to_annotations()
 
   def map_notes_to_annotations(self):
     """Map note paths to relation, time, and event offsets"""
@@ -144,6 +144,31 @@ class Data(ThymeDataset):
         self.outputs.append(output_str)
         self.metadata.append(metadata_str)
 
+  def note_chunk_generator(self, note_text, max_tokens=100):
+    """Yield note chunks of suitable length"""
+
+    # split on sections and if they're too long, split further on paragraphs
+
+    sec_re = r'\[start section id=\"(.+)"\](.*?)\[end section id=\"\1"\]'
+    parag_re = r'(.+?\n)'
+
+    # iterate over sections
+    for sec_match in re.finditer(sec_re, note_text, re.DOTALL):
+
+      section_id = sec_match.group(1)
+      if section_id in sections_to_skip:
+        continue
+
+      section_text = sec_match.group(2).strip()
+      sec_start, sec_end = sec_match.start(2), sec_match.end(2)
+
+      if len(section_text.split(' ')) > max_tokens:
+        for parag_match in re.finditer(parag_re, section_text, re.DOTALL):
+          yield 'paragraph: ' + parag_match.group(1).strip()
+
+      else:
+        yield 'section: ' + section_text
+
   def write_xml(self, predicted_relations):
     """Write predictions in anafora XML format"""
 
@@ -229,13 +254,20 @@ if __name__ == "__main__":
     max_input_length=args.max_input_length,
     max_output_length=args.max_output_length)
 
-  index = 4
-  print('T5 INPUT:', rel_data.inputs[index] + '\n')
-  print('T5 OUTPUT:', rel_data.outputs[index] + '\n')
-  print('T5 METADATA:', rel_data.metadata[index])
+  # index = 4
+  # print('T5 INPUT:', rel_data.inputs[index] + '\n')
+  # print('T5 OUTPUT:', rel_data.outputs[index] + '\n')
+  # print('T5 METADATA:', rel_data.metadata[index])
 
   # predicted_relations = (('75@e@ID077_clinic_229@gold', '74@e@ID077_clinic_229@gold'),
   #                        ('92@e@ID077_clinic_229@gold', '54@e@ID077_clinic_229@gold'),
   #                        ('142@e@ID021_clinic_063@gold', '213@e@ID021_clinic_063@gold'),
   #                        ('89@e@ID021_clinic_063@gold', '66@e@ID021_clinic_063@gold'))
   # rel_data.write_xml(predicted_relations)
+
+  # iterate over clinical notes and sectionize them
+  # for note_path in glob.glob(args.text_dir + 'ID*_clinic_*'):
+  note_path = os.path.join(args.text_dir, 'ID133_clinic_390')
+  note_text = open(note_path).read()
+  for chunk in rel_data.note_chunk_generator(note_text):
+    print(chunk)
