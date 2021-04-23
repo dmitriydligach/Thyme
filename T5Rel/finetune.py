@@ -133,13 +133,13 @@ def generate(model, data_loader, tokenizer):
       batch[key] = batch[key].to(device)
 
     # generated tensor: (batch_size, max_output_length)
-    predictions = model.generate(
-      input_ids=batch['input_ids'],
-      max_length=args.max_output_length,
-      early_stopping=True,
-      num_beams=args.num_beams,
-      attention_mask=batch['attention_mask'],
-      decoder_attention_mask=batch['decoder_attention_mask']) # todo: is this necessary?
+    # predictions = model.generate(
+    #   input_ids=batch['input_ids'],
+    #   max_length=args.max_output_length,
+    #   early_stopping=True,
+    #   num_beams=args.num_beams,
+    #   attention_mask=batch['attention_mask'],
+    #   decoder_attention_mask=batch['decoder_attention_mask']) # todo: is this necessary?
 
     inputs = tokenizer.batch_decode(
       batch['input_ids'],
@@ -147,10 +147,15 @@ def generate(model, data_loader, tokenizer):
     targets = tokenizer.batch_decode(
       batch['labels'],
       skip_special_tokens=True)
-    predictions = tokenizer.batch_decode(
-      predictions,
-      skip_special_tokens=True,
-      clean_up_tokenization_spaces=True)
+
+    # imagine we're getting all relations 
+    # to test how well my evaluation works
+    predictions = targets
+
+    # predictions = tokenizer.batch_decode(
+    #   predictions,
+    #   skip_special_tokens=True,
+    #   clean_up_tokenization_spaces=True)
 
     # time and event metadata example for a section
     # February 8, 2010|379@e@ID128_clinic_377@gold||currently|388@e@ID128_clinic_377@gold
@@ -163,9 +168,6 @@ def generate(model, data_loader, tokenizer):
         print('[targets]', targets[i])
         print('[predict]', predictions[i])
         print('[metadata]', metadata[i], '\n')
-
-      # imagine perfect predictions
-      predictions[i] = targets[i]
 
       # match argument text in predictions
       # CONTAINS(February 8, 2010; scan) CONTAINS(currently; denies)
@@ -302,18 +304,18 @@ if __name__ == "__main__":
     xml_regex='.*[.]Temporal.*[.]xml',
     data_reader='dataset_rel',
     model_dir='Model/',
-    model_name='t5-large',
+    model_name='t5-small',
     max_input_length=300,
     max_output_length=300,
     chunk_size=50,
     n_files='all',
     learning_rate=1e-4,
-    train_batch_size=8,
-    gener_batch_size=8,
+    train_batch_size=64,
+    gener_batch_size=64,
     num_beams=1,
     print_predictions=False,
     do_train=True,
-    n_epochs=3)
+    n_epochs=1)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
