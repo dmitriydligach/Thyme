@@ -115,6 +115,9 @@ class Data(ThymeDataset):
         n_chunks = (len(section_tokenized) // self.max_input_length) + 1
 
         for parags in numpy.array_split(parag_offsets, n_chunks):
+          if len(parags) != 2:
+            continue # need to look into this
+
           chunk_start, _ = parags[0].tolist()
           _, chunk_end = parags[-1].tolist()
           yield sec_start + chunk_start, sec_start + chunk_end
@@ -259,10 +262,10 @@ if __name__ == "__main__":
     max_input_length=args.max_input_length,
     max_output_length=args.max_output_length)
 
-  # index = 40
-  # print('T5 INPUT:', rel_data.inputs[index] + '\n')
-  # print('T5 OUTPUT:', rel_data.outputs[index] + '\n')
-  # print('T5 METADATA:', rel_data.metadata[index])
+  index = 4
+  print('T5 INPUT:', rel_data.inputs[index] + '\n')
+  print('T5 OUTPUT:', rel_data.outputs[index] + '\n')
+  print('T5 METADATA:', rel_data.metadata[index])
 
   # predicted_relations = (('75@e@ID077_clinic_229@gold', '74@e@ID077_clinic_229@gold'),
   #                        ('92@e@ID077_clinic_229@gold', '54@e@ID077_clinic_229@gold'),
@@ -270,8 +273,8 @@ if __name__ == "__main__":
   #                        ('89@e@ID021_clinic_063@gold', '66@e@ID021_clinic_063@gold'))
   # rel_data.write_xml(predicted_relations)
 
-  note_path = os.path.join(args.text_dir, 'ID133_clinic_390')
-  note_text = open(note_path).read()
-  for start, end in rel_data.note_chunk_generator(note_text):
-    print(note_text[start:end])
-    print('='*30)
+  # note_path = os.path.join(args.text_dir, 'ID133_clinic_390')
+  # note_text = open(note_path).read()
+  # for start, end in rel_data.note_chunk_generator(note_text):
+  #   print(note_text[start:end])
+  #   print('='*30)

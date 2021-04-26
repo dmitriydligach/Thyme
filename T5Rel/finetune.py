@@ -226,7 +226,6 @@ def perform_fine_tuning():
     out_dir=args.xml_out_dir,
     xml_regex=args.xml_regex,
     tokenizer=tokenizer,
-    chunk_size=args.chunk_size,
     max_input_length=args.max_input_length,
     max_output_length=args.max_output_length)
   train_data_loader = DataLoader(
@@ -240,7 +239,6 @@ def perform_fine_tuning():
     out_dir=args.xml_out_dir,
     xml_regex=args.xml_regex,
     tokenizer=tokenizer,
-    chunk_size=args.chunk_size,
     max_input_length=args.max_input_length,
     max_output_length=args.max_output_length)
   val_data_loader = DataLoader(
@@ -278,7 +276,6 @@ def perform_generation():
     out_dir=args.xml_out_dir,
     xml_regex=args.xml_regex,
     tokenizer=tokenizer,
-    chunk_size=args.chunk_size,
     max_input_length=args.max_input_length,
     max_output_length=args.max_output_length)
   test_data_loader = DataLoader(
@@ -307,7 +304,6 @@ if __name__ == "__main__":
     model_name='t5-small',
     max_input_length=300,
     max_output_length=300,
-    chunk_size=50,
     n_files='all',
     learning_rate=1e-4,
     train_batch_size=64,
