@@ -85,10 +85,7 @@ class Data(ThymeDataset):
       self.note2args[note_path] = rel_args
 
   def note_chunk_generator(self, note_text):
-    """Yield note chunks of suitable length"""
-
-    # split on sections and if they're too long, split further on paragraphs
-    # todo: MERGE SHORT PARAGRAPHS INTO LONGER CHUNKS
+    """Yield note chunk offsets of suitable length"""
 
     parag_re = r'(.+?\n)'
     sec_re = r'\[start section id=\"(.+)"\](.*?)\[end section id=\"\1"\]'
@@ -103,16 +100,12 @@ class Data(ThymeDataset):
       section_text = sec_match.group(2)
       sec_start, sec_end = sec_match.start(2), sec_match.end(2)
       section_tokenized = self.tokenizer(section_text).input_ids
-      print('tokens in section:', len(section_tokenized))
 
       # do we need to break this section into chunks?
       if len(section_tokenized) < self.max_input_length:
-        print('entire section:', sec_start, sec_end)
-        print()
         yield sec_start, sec_end
 
       else:
-
         parag_offsets = []
         for parag_match in re.finditer(parag_re, section_text, re.DOTALL):
           parag_start, parag_end = parag_match.start(1), parag_match.end(1)
@@ -121,15 +114,10 @@ class Data(ThymeDataset):
         # form this many chunks (plus an overflow chunk)
         n_chunks = (len(section_tokenized) // self.max_input_length) + 1
 
-        print('number of chunks:', n_chunks)
-        print('splits:', numpy.array_split(parag_offsets, n_chunks))
-
         for parags in numpy.array_split(parag_offsets, n_chunks):
           chunk_start, _ = parags[0].tolist()
           _, chunk_end = parags[-1].tolist()
-          print('yielding:', chunk_start, chunk_end)
-          print()
-          yield chunk_start, chunk_end
+          yield sec_start + chunk_start, sec_start + chunk_end
 
   def map_chunks_to_annotations(self):
     """Sectionize and index"""
@@ -284,5 +272,6 @@ if __name__ == "__main__":
 
   note_path = os.path.join(args.text_dir, 'ID133_clinic_390')
   note_text = open(note_path).read()
-  for chunk in rel_data.note_chunk_generator(note_text):
-    pass
+  for start, end in rel_data.note_chunk_generator(note_text):
+    print(note_text[start:end])
+    print('='*30)
