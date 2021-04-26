@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import sys, re, glob, argparse, shutil, os, random
+import sys, re, glob, argparse, shutil, os, random, numpy
 from collections import defaultdict
 
 sys.dont_write_bytecode = True
@@ -23,7 +23,6 @@ class Data(ThymeDataset):
     out_dir,
     xml_regex,
     tokenizer,
-    chunk_size,
     max_input_length,
     max_output_length):
     """Constructor"""
@@ -33,7 +32,6 @@ class Data(ThymeDataset):
       max_input_length,
       max_output_length)
 
-    self.chunk_size = chunk_size
     self.xml_dir = xml_dir
     self.text_dir = text_dir
     self.out_dir = out_dir
@@ -104,14 +102,34 @@ class Data(ThymeDataset):
 
       section_text = sec_match.group(2)
       sec_start, sec_end = sec_match.start(2), sec_match.end(2)
+      section_tokenized = self.tokenizer(section_text).input_ids
+      print('tokens in section:', len(section_tokenized))
 
-      if len(section_text.split(' ')) > self.chunk_size:
-        for parag_match in re.finditer(parag_re, section_text, re.DOTALL):
-          parag_start, parag_end = parag_match.start(1), parag_match.end(1)
-          yield parag_start, parag_end
+      # do we need to break this section into chunks?
+      if len(section_tokenized) < self.max_input_length:
+        print('entire section:', sec_start, sec_end)
+        print()
+        yield sec_start, sec_end
 
       else:
-        yield sec_start, sec_end
+
+        parag_offsets = []
+        for parag_match in re.finditer(parag_re, section_text, re.DOTALL):
+          parag_start, parag_end = parag_match.start(1), parag_match.end(1)
+          parag_offsets.append((parag_start, parag_end))
+
+        # form this many chunks (plus an overflow chunk)
+        n_chunks = (len(section_tokenized) // self.max_input_length) + 1
+
+        print('number of chunks:', n_chunks)
+        print('splits:', numpy.array_split(parag_offsets, n_chunks))
+
+        for parags in numpy.array_split(parag_offsets, n_chunks):
+          chunk_start, _ = parags[0].tolist()
+          _, chunk_end = parags[-1].tolist()
+          print('yielding:', chunk_start, chunk_end)
+          print()
+          yield chunk_start, chunk_end
 
   def map_chunks_to_annotations(self):
     """Sectionize and index"""
@@ -250,14 +268,13 @@ if __name__ == "__main__":
     out_dir=args.xml_out_dir,
     xml_regex=args.xml_regex,
     tokenizer=tokenizer,
-    chunk_size=args.chunk_size,
     max_input_length=args.max_input_length,
     max_output_length=args.max_output_length)
 
-  index = 40
-  print('T5 INPUT:', rel_data.inputs[index] + '\n')
-  print('T5 OUTPUT:', rel_data.outputs[index] + '\n')
-  print('T5 METADATA:', rel_data.metadata[index])
+  # index = 40
+  # print('T5 INPUT:', rel_data.inputs[index] + '\n')
+  # print('T5 OUTPUT:', rel_data.outputs[index] + '\n')
+  # print('T5 METADATA:', rel_data.metadata[index])
 
   # predicted_relations = (('75@e@ID077_clinic_229@gold', '74@e@ID077_clinic_229@gold'),
   #                        ('92@e@ID077_clinic_229@gold', '54@e@ID077_clinic_229@gold'),
@@ -265,7 +282,7 @@ if __name__ == "__main__":
   #                        ('89@e@ID021_clinic_063@gold', '66@e@ID021_clinic_063@gold'))
   # rel_data.write_xml(predicted_relations)
 
-  # note_path = os.path.join(args.text_dir, 'ID133_clinic_390')
-  # note_text = open(note_path).read()
-  # for chunk in rel_data.note_chunk_generator(note_text):
-  #   print(chunk)
+  note_path = os.path.join(args.text_dir, 'ID133_clinic_390')
+  note_text = open(note_path).read()
+  for chunk in rel_data.note_chunk_generator(note_text):
+    pass
