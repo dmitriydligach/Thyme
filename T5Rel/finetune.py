@@ -226,6 +226,7 @@ def perform_fine_tuning():
     out_dir=args.xml_out_dir,
     xml_regex=args.xml_regex,
     tokenizer=tokenizer,
+    chunk_size=args.chunk_size,
     max_input_length=args.max_input_length,
     max_output_length=args.max_output_length)
   train_data_loader = DataLoader(
@@ -239,6 +240,7 @@ def perform_fine_tuning():
     out_dir=args.xml_out_dir,
     xml_regex=args.xml_regex,
     tokenizer=tokenizer,
+    chunk_size=args.chunk_size,
     max_input_length=args.max_input_length,
     max_output_length=args.max_output_length)
   val_data_loader = DataLoader(
@@ -276,6 +278,7 @@ def perform_generation():
     out_dir=args.xml_out_dir,
     xml_regex=args.xml_regex,
     tokenizer=tokenizer,
+    chunk_size=args.chunk_size,
     max_input_length=args.max_input_length,
     max_output_length=args.max_output_length)
   test_data_loader = DataLoader(
@@ -302,12 +305,13 @@ if __name__ == "__main__":
     data_reader='dataset_rel',
     model_dir='Model/',
     model_name='t5-small',
-    max_input_length=300,
-    max_output_length=300,
+    chunk_size=400, # smaller than 512 to accomodate events/times
+    max_input_length=512,
+    max_output_length=512,
     n_files='all',
     learning_rate=1e-4,
-    train_batch_size=64,
-    gener_batch_size=64,
+    train_batch_size=32,
+    gener_batch_size=32,
     num_beams=1,
     print_predictions=False,
     do_train=True,

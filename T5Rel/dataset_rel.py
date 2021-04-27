@@ -10,7 +10,7 @@ import anafora
 from transformers import T5Tokenizer
 from dataset_base import ThymeDataset
 
-# ids of sections that weren't annotated
+# skip sections defined in eval/THYMEData.java
 sections_to_skip = {'20104', '20105', '20116', '20138'}
 
 class Data(ThymeDataset):
@@ -23,6 +23,7 @@ class Data(ThymeDataset):
     out_dir,
     xml_regex,
     tokenizer,
+    chunk_size,
     max_input_length,
     max_output_length):
     """Constructor"""
@@ -32,6 +33,7 @@ class Data(ThymeDataset):
       max_input_length,
       max_output_length)
 
+    self.chunk_size = chunk_size
     self.xml_dir = xml_dir
     self.text_dir = text_dir
     self.out_dir = out_dir
@@ -46,13 +48,13 @@ class Data(ThymeDataset):
     # key: note path; value: events
     self.note2events = {}
 
-    # note path mapped to annotation offsets
-    self.map_notes_to_annotations()
+    # map note path to annotation offsets
+    self.notes_to_annotations()
 
-    # t5 i/o instances mapped to annotation offsets
-    self.map_chunks_to_annotations()
+    # map t5 i/o instances to annotation offsets
+    self.chunks_to_annotations()
 
-  def map_notes_to_annotations(self):
+  def notes_to_annotations(self):
     """Map note paths to relation, time, and event offsets"""
 
     for sub_dir, text_name, file_names in anafora.walk(self.xml_dir, self.xml_regex):
@@ -84,7 +86,7 @@ class Data(ThymeDataset):
           rel_args.append((source.spans[0], target.spans[0]))
       self.note2args[note_path] = rel_args
 
-  def note_chunk_generator(self, note_text):
+  def chunk_generator(self, note_text):
     """Yield note chunk offsets of suitable length"""
 
     parag_re = r'(.+?\n)'
@@ -102,7 +104,7 @@ class Data(ThymeDataset):
       section_tokenized = self.tokenizer(section_text).input_ids
 
       # do we need to break this section into chunks?
-      if len(section_tokenized) < self.max_input_length:
+      if len(section_tokenized) < self.chunk_size:
         yield sec_start, sec_end
 
       else:
@@ -112,7 +114,7 @@ class Data(ThymeDataset):
           parag_offsets.append((parag_start, parag_end))
 
         # form this many chunks (plus an overflow chunk)
-        n_chunks = (len(section_tokenized) // self.max_input_length) + 1
+        n_chunks = (len(section_tokenized) // self.chunk_size) + 1
 
         for parags in numpy.array_split(parag_offsets, n_chunks):
           if len(parags) != 2:
@@ -122,7 +124,7 @@ class Data(ThymeDataset):
           _, chunk_end = parags[-1].tolist()
           yield sec_start + chunk_start, sec_start + chunk_end
 
-  def map_chunks_to_annotations(self):
+  def chunks_to_annotations(self):
     """Sectionize and index"""
 
     # iterate over clinical notes and sectionize them
@@ -135,7 +137,7 @@ class Data(ThymeDataset):
       note_text = open(note_path).read()
 
       # iterate over chunks
-      for chunk_start, chunk_end in self.note_chunk_generator(note_text):
+      for chunk_start, chunk_end in self.chunk_generator(note_text):
 
         rels_in_sec = []
         for src_spans, targ_spans in self.note2args[note_path]:
@@ -245,7 +247,7 @@ if __name__ == "__main__":
     xml_out_dir='./Xml/',
     model_dir='Model/',
     model_name='t5-small',
-    chunk_size=100,
+    chunk_size=400, # smaller than 512 to accomodate events/times
     max_input_length=512,
     max_output_length=512)
   args = argparse.Namespace(**arg_dict)
@@ -259,6 +261,7 @@ if __name__ == "__main__":
     out_dir=args.xml_out_dir,
     xml_regex=args.xml_regex,
     tokenizer=tokenizer,
+    chunk_size=args.chunk_size,
     max_input_length=args.max_input_length,
     max_output_length=args.max_output_length)
 
