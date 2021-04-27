@@ -139,30 +139,45 @@ class Data(ThymeDataset):
       # iterate over chunks
       for chunk_start, chunk_end in self.chunk_generator(note_text):
 
-        rels_in_sec = []
-        for src_spans, targ_spans in self.note2args[note_path]:
-          src_start, src_end = src_spans
-          targ_start, targ_end = targ_spans
-          if src_start >= chunk_start and src_end <= chunk_end and \
-             targ_start >= chunk_start and targ_end <= chunk_end:
-            src = note_text[src_start:src_end]
-            targ = note_text[targ_start:targ_end]
-            rels_in_sec.append('CONTAINS(%s; %s)' % (src, targ))
+        # key: start/end, value: sequence number
+        seq_num = 0
+        span2seq_num = {}
 
         metadata = []
         times_in_sec = []
         for time_start, time_end, time_id in self.note2times[note_path]:
           if time_start >= chunk_start and time_end <= chunk_end:
             time_text = note_text[time_start:time_end]
-            times_in_sec.append(time_text)
-            metadata.append('%s|%s' % (time_text, time_id))
+            times_in_sec.append('%s!%s' % (time_text, seq_num))
+            span2seq_num[(time_start, time_end)] = seq_num
+            metadata.append('%s!%s|%s' % (time_text, seq_num, time_id))
+            seq_num = seq_num + 1
 
         events_in_sec = []
         for event_start, event_end, event_id in self.note2events[note_path]:
           if event_start >= chunk_start and event_end <= chunk_end:
             event_text = note_text[event_start:event_end]
-            events_in_sec.append(event_text)
-            metadata.append('%s|%s' % (event_text, event_id))
+            events_in_sec.append('%s!%s' % (event_text, seq_num))
+            span2seq_num[(event_start, event_end)] = seq_num
+            metadata.append('%s!%s|%s' % (event_text, seq_num, event_id))
+            seq_num = seq_num + 1
+
+        rels_in_sec = []
+        for src_spans, targ_spans in self.note2args[note_path]:
+          src_start, src_end = src_spans
+          targ_start, targ_end = targ_spans
+          if src_start >= chunk_start and src_end <= chunk_end and \
+             targ_start >= chunk_start and targ_end <= chunk_end:
+
+            if (src_start, src_end) not in span2seq_num:
+              continue # investigate this
+
+            src_seq_num = span2seq_num[(src_start, src_end)]
+            targ_seq_num = span2seq_num[(targ_start, targ_end)]
+
+            src = '%s!%s' % (note_text[src_start:src_end], src_seq_num)
+            targ = '%s!%s' % (note_text[targ_start:targ_end], targ_seq_num)
+            rels_in_sec.append('CONTAINS(%s; %s)' % (src, targ))
 
         metadata_str = '||'.join(metadata)
         input_str = 'task: REL; text: %s; times: %s; events: %s' % \
