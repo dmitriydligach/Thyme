@@ -179,9 +179,19 @@ class Data(ThymeDataset):
             targ = '%s!%s' % (note_text[targ_start:targ_end], targ_seq_num)
             rels_in_sec.append('CONTAINS(%s; %s)' % (src, targ))
 
+        # key: offset in chunk; value: seq number
+        chunk_offset2char = {}
+
+        for (start, end), seq_num in span2seq_num.items():
+          # offsets relative to chunk start
+          chunk_offset2char[end - chunk_start] = str(seq_num)
+
+        # chunk_text = note_text[chunk_start:chunk_end]
+        chunk_text = insert_at_offsets(note_text[chunk_start:chunk_end], chunk_offset2char)
+
         metadata_str = '||'.join(metadata)
         input_str = 'task: REL; text: %s; times: %s; events: %s' % \
-          (note_text[chunk_start:chunk_end],
+           (chunk_text,
            ', '.join(times_in_sec),
            ', '.join(events_in_sec))
         if len(rels_in_sec) > 0:
@@ -252,7 +262,23 @@ class Data(ThymeDataset):
       out_path = os.path.join(self.out_dir, sub_dir, file_names[0])
       generated_data.to_file(out_path)
 
+def insert_at_offsets(text, offset2string):
+  """Insert strings at specific offset"""
+
+  dict_as_list = list(offset2string.items())
+  dict_as_list.sort(key=lambda t: t[0], reverse=True)
+
+  for offset, chr in dict_as_list:
+    text = text[:offset] + '!' + chr + text[offset:]
+
+  return text
+
 if __name__ == "__main__":
+
+  # text = 'one two three four five six seven eight nine'
+  # offset2string = {2:'1', 6:'2', 17:'3', 26:'4'}
+  #
+  # insert_at_offsets(text, offset2string)
 
   base = os.environ['DATA_ROOT']
   arg_dict = dict(
@@ -280,7 +306,7 @@ if __name__ == "__main__":
     max_input_length=args.max_input_length,
     max_output_length=args.max_output_length)
 
-  index = 4
+  index = 6
   print('T5 INPUT:', rel_data.inputs[index] + '\n')
   print('T5 OUTPUT:', rel_data.outputs[index] + '\n')
   print('T5 METADATA:', rel_data.metadata[index])
