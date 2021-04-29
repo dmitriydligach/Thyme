@@ -40,7 +40,7 @@ class Data(ThymeDataset):
     self.xml_regex = xml_regex
 
     # key: note path, value: (source, target) tuples
-    self.note2args = {}
+    self.note2rel_args = {}
 
     # key: note path; value: time expresions
     self.note2times = {}
@@ -48,11 +48,100 @@ class Data(ThymeDataset):
     # key: note path; value: events
     self.note2events = {}
 
-    # map note path to annotation offsets
+    # map t5 i/o instances to annotation offsets
+    self.t5_input_and_outputs()
+
+  def t5_input_and_outputs(self):
+    """Prepare i/o pairs to feed to T5"""
+
+    # map note paths to annotation offsets
     self.notes_to_annotations()
 
-    # map t5 i/o instances to annotation offsets
-    self.chunks_to_annotations()
+    # count relation instances
+    total_rel_count = 0
+
+    for note_path in glob.glob(self.text_dir + 'ID*_clinic_*'):
+
+      # some notes weren't annotated
+      if note_path not in self.note2rel_args:
+        continue
+
+      note_text = open(note_path).read()
+
+      # iterate over note chunks
+      for chunk_start, chunk_end in self.chunk_generator(note_text):
+
+        # each event/time gets a number
+        seq_num = 0
+
+        # key: start/end, value: sequence number
+        span2seq_num = {}
+
+        # t5 i/o
+        metadata = []
+        rels_in_sec = []
+        times_in_chunk = []
+        events_in_chunk = []
+
+        for time_start, time_end, time_id in self.note2times[note_path]:
+          if time_start >= chunk_start and time_end <= chunk_end:
+            time_text = note_text[time_start:time_end]
+            times_in_chunk.append('%s!%s' % (time_text, seq_num))
+            span2seq_num[(time_start, time_end)] = seq_num
+            metadata.append('%s!%s|%s' % (time_text, seq_num, time_id))
+            seq_num += 1
+
+        for event_start, event_end, event_id in self.note2events[note_path]:
+          if event_start >= chunk_start and event_end <= chunk_end:
+            event_text = note_text[event_start:event_end]
+            events_in_chunk.append('%s!%s' % (event_text, seq_num))
+            span2seq_num[(event_start, event_end)] = seq_num
+            metadata.append('%s!%s|%s' % (event_text, seq_num, event_id))
+            seq_num += 1
+
+        for src_spans, targ_spans in self.note2rel_args[note_path]:
+          src_start, src_end = src_spans
+          targ_start, targ_end = targ_spans
+
+          # are both rel args inside this chunk?
+          if src_start >= chunk_start and src_end <= chunk_end and \
+                  targ_start >= chunk_start and targ_end <= chunk_end:
+
+            if (src_start, src_end) not in span2seq_num:
+              continue  # investigate this
+
+            total_rel_count += 1
+            src_seq_num = span2seq_num[(src_start, src_end)]
+            targ_seq_num = span2seq_num[(targ_start, targ_end)]
+
+            src = '%s!%s' % (note_text[src_start:src_end], src_seq_num)
+            targ = '%s!%s' % (note_text[targ_start:targ_end], targ_seq_num)
+            rels_in_sec.append('CONTAINS(%s; %s)' % (src, targ))
+
+        # add a seq num to all events/times in chunk text
+        offset2str = {}
+        for (start, end), seq_num in span2seq_num.items():
+          offset2str[end - chunk_start] = '!' + str(seq_num)
+        chunk_text_with_markers = insert_at_offsets(
+          note_text[chunk_start:chunk_end],
+          offset2str)
+
+        metadata_str = '||'.join(metadata)
+        input_str = 'task: REL; text: %s; times: %s; events: %s' % \
+                    (chunk_text_with_markers,
+                     ', '.join(times_in_chunk),
+                     ', '.join(events_in_chunk))
+        if len(rels_in_sec) > 0:
+          output_str = ' '.join(rels_in_sec)
+        else:
+          output_str = 'no relations found'
+
+        self.inputs.append(input_str)
+        self.outputs.append(output_str)
+        self.metadata.append(metadata_str)
+
+    print('generated %d t5 i/o pairs' % len(self.inputs))
+    print('including %d total relation instances' % total_rel_count)
 
   def notes_to_annotations(self):
     """Map note paths to relation, time, and event offsets"""
@@ -84,7 +173,7 @@ class Data(ThymeDataset):
         label = rel.properties['Type']
         if label == 'CONTAINS':
           rel_args.append((source.spans[0], target.spans[0]))
-      self.note2args[note_path] = rel_args
+      self.note2rel_args[note_path] = rel_args
 
   def chunk_generator(self, note_text):
     """Yield note chunk offsets of suitable length"""
@@ -123,85 +212,6 @@ class Data(ThymeDataset):
           chunk_start, _ = parags[0].tolist()
           _, chunk_end = parags[-1].tolist()
           yield sec_start + chunk_start, sec_start + chunk_end
-
-  def chunks_to_annotations(self):
-    """Sectionize and index"""
-
-    # iterate over clinical notes and sectionize them
-    for note_path in glob.glob(self.text_dir + 'ID*_clinic_*'):
-
-      # some notes weren't annotated
-      if note_path not in self.note2args:
-        continue
-
-      note_text = open(note_path).read()
-
-      # iterate over chunks
-      for chunk_start, chunk_end in self.chunk_generator(note_text):
-
-        # key: start/end, value: sequence number
-        seq_num = 0
-        span2seq_num = {}
-
-        metadata = []
-        times_in_sec = []
-        for time_start, time_end, time_id in self.note2times[note_path]:
-          if time_start >= chunk_start and time_end <= chunk_end:
-            time_text = note_text[time_start:time_end]
-            times_in_sec.append('%s!%s' % (time_text, seq_num))
-            span2seq_num[(time_start, time_end)] = seq_num
-            metadata.append('%s!%s|%s' % (time_text, seq_num, time_id))
-            seq_num = seq_num + 1
-
-        events_in_sec = []
-        for event_start, event_end, event_id in self.note2events[note_path]:
-          if event_start >= chunk_start and event_end <= chunk_end:
-            event_text = note_text[event_start:event_end]
-            events_in_sec.append('%s!%s' % (event_text, seq_num))
-            span2seq_num[(event_start, event_end)] = seq_num
-            metadata.append('%s!%s|%s' % (event_text, seq_num, event_id))
-            seq_num = seq_num + 1
-
-        rels_in_sec = []
-        for src_spans, targ_spans in self.note2args[note_path]:
-          src_start, src_end = src_spans
-          targ_start, targ_end = targ_spans
-          if src_start >= chunk_start and src_end <= chunk_end and \
-             targ_start >= chunk_start and targ_end <= chunk_end:
-
-            if (src_start, src_end) not in span2seq_num:
-              continue # investigate this
-
-            src_seq_num = span2seq_num[(src_start, src_end)]
-            targ_seq_num = span2seq_num[(targ_start, targ_end)]
-
-            src = '%s!%s' % (note_text[src_start:src_end], src_seq_num)
-            targ = '%s!%s' % (note_text[targ_start:targ_end], targ_seq_num)
-            rels_in_sec.append('CONTAINS(%s; %s)' % (src, targ))
-
-        # key: offset in chunk; value: seq number
-        chunk_offset2char = {}
-
-        for (start, end), seq_num in span2seq_num.items():
-          # offsets relative to chunk start
-          chunk_offset2char[end - chunk_start] = str(seq_num)
-
-        # chunk_text = note_text[chunk_start:chunk_end]
-        chunk_text = insert_at_offsets(note_text[chunk_start:chunk_end], chunk_offset2char)
-
-        metadata_str = '||'.join(metadata)
-        input_str = 'task: REL; text: %s; times: %s; events: %s' % \
-           (chunk_text,
-           ', '.join(times_in_sec),
-           ', '.join(events_in_sec))
-        if len(rels_in_sec) > 0:
-          output_str = ' '.join(rels_in_sec)
-        else:
-          output_str = 'no relations found'
-
-        self.inputs.append(input_str)
-        self.outputs.append(output_str)
-        self.metadata.append(metadata_str)
 
   def write_xml(self, predicted_relations):
     """Write predictions in anafora XML format"""
@@ -268,8 +278,8 @@ def insert_at_offsets(text, offset2string):
   dict_as_list = list(offset2string.items())
   dict_as_list.sort(key=lambda t: t[0], reverse=True)
 
-  for offset, chr in dict_as_list:
-    text = text[:offset] + '!' + chr + text[offset:]
+  for offset, s in dict_as_list:
+    text = text[:offset] + s + text[offset:]
 
   return text
 
