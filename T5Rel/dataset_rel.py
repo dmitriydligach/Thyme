@@ -39,6 +39,10 @@ class Data(ThymeDataset):
     self.out_dir = out_dir
     self.xml_regex = xml_regex
 
+    # count inputs/outputs that are too long
+    self.in_over_maxlen = 0
+    self.out_over_maxlen = 0
+
     # key: note path, value: (source, target) tuples
     self.note2rel_args = {}
 
@@ -133,12 +137,20 @@ class Data(ThymeDataset):
         else:
           output_str = 'no relations found'
 
+        # counts inputs and outputs that t5 cannot handle
+        if len(self.tokenizer(input_str).input_ids) > self.max_input_length:
+          self.in_over_maxlen += 1
+        if len(self.tokenizer(output_str).input_ids) > self.max_input_length:
+          self.in_over_maxlen += 1
+
         self.inputs.append(input_str)
         self.outputs.append(output_str)
         self.metadata.append(metadata_str)
 
-    print('generated %d t5 i/o pairs' % len(self.inputs))
-    print('including %d total relation instances' % total_rel_count)
+    print('%d total input/output pairs' % len(self.inputs))
+    print('%d total relation instances' % total_rel_count)
+    print('%d inputs over maxlen' % self.in_over_maxlen)
+    print('%d outputs over maxlen' % self.out_over_maxlen)
 
   def notes_to_annotations(self):
     """Map note paths to relation, time, and event offsets"""
