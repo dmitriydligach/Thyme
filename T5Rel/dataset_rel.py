@@ -79,7 +79,7 @@ class Data(ThymeDataset):
 
         # t5 i/o
         metadata = []
-        rels_in_sec = []
+        rels_in_chunk = []
         times_in_chunk = []
         events_in_chunk = []
 
@@ -105,10 +105,7 @@ class Data(ThymeDataset):
 
           # are both rel args inside this chunk?
           if src_start >= chunk_start and src_end <= chunk_end and \
-                  targ_start >= chunk_start and targ_end <= chunk_end:
-
-            if (src_start, src_end) not in span2seq_num:
-              continue  # investigate this
+             targ_start >= chunk_start and targ_end <= chunk_end:
 
             total_rel_count += 1
             src_seq_num = span2seq_num[(src_start, src_end)]
@@ -116,7 +113,7 @@ class Data(ThymeDataset):
 
             src = '%s!%s' % (note_text[src_start:src_end], src_seq_num)
             targ = '%s!%s' % (note_text[targ_start:targ_end], targ_seq_num)
-            rels_in_sec.append('CONTAINS(%s; %s)' % (src, targ))
+            rels_in_chunk.append('CONTAINS(%s; %s)' % (src, targ))
 
         # add a seq num to all events/times in chunk text
         offset2str = {}
@@ -131,8 +128,8 @@ class Data(ThymeDataset):
                     (chunk_text_with_markers,
                      ', '.join(times_in_chunk),
                      ', '.join(events_in_chunk))
-        if len(rels_in_sec) > 0:
-          output_str = ' '.join(rels_in_sec)
+        if len(rels_in_chunk) > 0:
+          output_str = ' '.join(rels_in_chunk)
         else:
           output_str = 'no relations found'
 
@@ -154,6 +151,12 @@ class Data(ThymeDataset):
       # (time_start, time_end, time_id) tuples
       times = []
       for time in ref_data.annotations.select_type('TIMEX3'):
+        time_begin, time_end = time.spans[0]
+        times.append((time_begin, time_end, time.id))
+      for time in ref_data.annotations.select_type('SECTIONTIME'):
+        time_begin, time_end = time.spans[0]
+        times.append((time_begin, time_end, time.id))
+      for time in ref_data.annotations.select_type('DOCTIME'):
         time_begin, time_end = time.spans[0]
         times.append((time_begin, time_end, time.id))
       self.note2times[note_path] = times
