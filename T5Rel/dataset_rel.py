@@ -269,6 +269,22 @@ class Data(ThymeDataset):
         entity.type = time.type
         generated_data.annotations.append(entity)
 
+      # copy gold section times
+      for time in ref_data.annotations.select_type('SECTIONTIME'):
+        entity = anafora.AnaforaEntity()
+        entity.id = time.id
+        entity.spans = time.spans
+        entity.type = time.type
+        generated_data.annotations.append(entity)
+
+      # copy gold doc times
+      for time in ref_data.annotations.select_type('DOCTIME'):
+        entity = anafora.AnaforaEntity()
+        entity.id = time.id
+        entity.spans = time.spans
+        entity.type = time.type
+        generated_data.annotations.append(entity)
+
       # add generated relations
       note_name = file_names[0].split('.')[0]
       for container_id, contained_id in note2rels[note_name]:
