@@ -39,12 +39,15 @@ class Data(ThymeDataset):
     self.out_dir = out_dir
     self.xml_regex = xml_regex
 
+    # debug how many fall outside chunks
+    self.captured_relations = []
+
     # count inputs/outputs that are too long
     self.in_over_maxlen = 0
     self.out_over_maxlen = 0
 
     # key: note path, value: (source, target) tuples
-    self.note2rel_args = {}
+    self.note2rels = {}
 
     # key: note path; value: time expresions
     self.note2times = {}
@@ -53,104 +56,7 @@ class Data(ThymeDataset):
     self.note2events = {}
 
     # map t5 i/o instances to annotation offsets
-    self.t5_input_and_outputs()
-
-  def t5_input_and_outputs(self):
-    """Prepare i/o pairs to feed to T5"""
-
-    # map note paths to annotation offsets
-    self.notes_to_annotations()
-
-    # count relation instances
-    total_rel_count = 0
-
-    for note_path in glob.glob(self.text_dir + 'ID*_clinic_*'):
-
-      # some notes weren't annotated
-      if note_path not in self.note2rel_args:
-        continue
-
-      note_text = open(note_path).read()
-
-      # iterate over note chunks
-      for chunk_start, chunk_end in self.chunk_generator(note_text):
-
-        # each event/time gets a number
-        seq_num = 0
-
-        # key: start/end, value: sequence number
-        span2seq_num = {}
-
-        # t5 i/o
-        metadata = []
-        rels_in_chunk = []
-        times_in_chunk = []
-        events_in_chunk = []
-
-        for time_start, time_end, time_id in self.note2times[note_path]:
-          if time_start >= chunk_start and time_end <= chunk_end:
-            time_text = note_text[time_start:time_end]
-            times_in_chunk.append('%s!%s' % (time_text, seq_num))
-            span2seq_num[(time_start, time_end)] = seq_num
-            metadata.append('%s!%s|%s' % (time_text, seq_num, time_id))
-            seq_num += 1
-
-        for event_start, event_end, event_id in self.note2events[note_path]:
-          if event_start >= chunk_start and event_end <= chunk_end:
-            event_text = note_text[event_start:event_end]
-            events_in_chunk.append('%s!%s' % (event_text, seq_num))
-            span2seq_num[(event_start, event_end)] = seq_num
-            metadata.append('%s!%s|%s' % (event_text, seq_num, event_id))
-            seq_num += 1
-
-        for src_spans, targ_spans in self.note2rel_args[note_path]:
-          src_start, src_end = src_spans
-          targ_start, targ_end = targ_spans
-
-          # are both rel args inside this chunk?
-          if src_start >= chunk_start and src_end <= chunk_end and \
-             targ_start >= chunk_start and targ_end <= chunk_end:
-
-            total_rel_count += 1
-            src_seq_num = span2seq_num[(src_start, src_end)]
-            targ_seq_num = span2seq_num[(targ_start, targ_end)]
-
-            src = '%s!%s' % (note_text[src_start:src_end], src_seq_num)
-            targ = '%s!%s' % (note_text[targ_start:targ_end], targ_seq_num)
-            rels_in_chunk.append('CONTAINS(%s; %s)' % (src, targ))
-
-        # add a seq num to all events/times in chunk text
-        offset2str = {}
-        for (start, end), seq_num in span2seq_num.items():
-          offset2str[end - chunk_start] = '!' + str(seq_num)
-        chunk_text_with_markers = insert_at_offsets(
-          note_text[chunk_start:chunk_end],
-          offset2str)
-
-        metadata_str = '||'.join(metadata)
-        input_str = 'task: REL; text: %s; times: %s; events: %s' % \
-                    (chunk_text_with_markers,
-                     ', '.join(times_in_chunk),
-                     ', '.join(events_in_chunk))
-        if len(rels_in_chunk) > 0:
-          output_str = ' '.join(rels_in_chunk)
-        else:
-          output_str = 'no relations found'
-
-        # counts inputs and outputs that t5 cannot handle
-        if len(self.tokenizer(input_str).input_ids) > self.max_input_length:
-          self.in_over_maxlen += 1
-        if len(self.tokenizer(output_str).input_ids) > self.max_input_length:
-          self.in_over_maxlen += 1
-
-        self.inputs.append(input_str)
-        self.outputs.append(output_str)
-        self.metadata.append(metadata_str)
-
-    print('%d total input/output pairs' % len(self.inputs))
-    print('%d total relation instances' % total_rel_count)
-    print('%d inputs over maxlen' % self.in_over_maxlen)
-    print('%d outputs over maxlen' % self.out_over_maxlen)
+    self.model_inputs_and_outputs()
 
   def notes_to_annotations(self):
     """Map note paths to relation, time, and event offsets"""
@@ -180,15 +86,115 @@ class Data(ThymeDataset):
         events.append((event_begin, event_end, event.id))
       self.note2events[note_path] = events
 
-      # (src_start, src_end, targ_start, targ_end) tuples
+      # (src, targ, ids) tuples
       rel_args = []
       for rel in ref_data.annotations.select_type('TLINK'):
-        source = rel.properties['Source']
-        target = rel.properties['Target']
+        src = rel.properties['Source']
+        targ = rel.properties['Target']
         label = rel.properties['Type']
         if label == 'CONTAINS':
-          rel_args.append((source.spans[0], target.spans[0]))
-      self.note2rel_args[note_path] = rel_args
+          rel_args.append((src.spans[0], targ.spans[0], src.id, targ.id))
+      self.note2rels[note_path] = rel_args
+
+  def model_inputs_and_outputs(self):
+    """Prepare i/o pairs to feed to T5"""
+
+    # map note paths to annotation offsets
+    self.notes_to_annotations()
+
+    # count relation instances
+    total_rel_count = 0
+
+    for note_path in glob.glob(self.text_dir + 'ID*_clinic_*'):
+
+      # some notes weren't annotated
+      if note_path not in self.note2rels:
+        continue
+
+      # may be broken down into chunks later
+      note_text = open(note_path).read()
+
+      # iterate over note chunks
+      for chunk_start, chunk_end in self.chunk_generator(note_text):
+
+        # each event/time gets a number
+        entity_num = 0
+
+        # assign an id to each event/time
+        span2int = {}
+
+        # t5 i/o
+        metadata = []
+        rels_in_chunk = []
+        times_in_chunk = []
+        events_in_chunk = []
+
+        for time_start, time_end, time_id in self.note2times[note_path]:
+          if time_start >= chunk_start and time_end <= chunk_end:
+            time_text = note_text[time_start:time_end]
+            times_in_chunk.append('%s!%s' % (time_text, entity_num))
+            span2int[(time_start, time_end)] = entity_num
+            metadata.append('%s!%s|%s' % (time_text, entity_num, time_id))
+            entity_num += 1
+
+        for event_start, event_end, event_id in self.note2events[note_path]:
+          if event_start >= chunk_start and event_end <= chunk_end:
+            event_text = note_text[event_start:event_end]
+            events_in_chunk.append('%s!%s' % (event_text, entity_num))
+            span2int[(event_start, event_end)] = entity_num
+            metadata.append('%s!%s|%s' % (event_text, entity_num, event_id))
+            entity_num += 1
+
+        for src_spans, targ_spans, src_id, targ_id in self.note2rels[note_path]:
+          src_start, src_end = src_spans
+          targ_start, targ_end = targ_spans
+
+          # are both rel args inside this chunk?
+          if src_start >= chunk_start and src_end <= chunk_end and \
+             targ_start >= chunk_start and targ_end <= chunk_end:
+
+            self.captured_relations.append((src_id, targ_id))
+
+            total_rel_count += 1
+            src_seq_num = span2int[(src_start, src_end)]
+            targ_seq_num = span2int[(targ_start, targ_end)]
+
+            src = '%s!%s' % (note_text[src_start:src_end], src_seq_num)
+            targ = '%s!%s' % (note_text[targ_start:targ_end], targ_seq_num)
+            rels_in_chunk.append('CONTAINS(%s; %s)' % (src, targ))
+
+        # add a seq num to all events/times in chunk text
+        offset2str = {}
+        for (start, end), entity_num in span2int.items():
+          offset2str[end - chunk_start] = '!' + str(entity_num)
+        chunk_text_with_markers = insert_at_offsets(
+          note_text[chunk_start:chunk_end],
+          offset2str)
+
+        metadata_str = '||'.join(metadata)
+        input_str = 'task: REL; text: %s; times: %s; events: %s' % \
+                    (chunk_text_with_markers,
+                     ', '.join(times_in_chunk),
+                     ', '.join(events_in_chunk))
+        if len(rels_in_chunk) > 0:
+          output_str = ' '.join(rels_in_chunk)
+        else:
+          output_str = 'no relations found'
+
+        # counts inputs and outputs that t5 cannot handle
+        if len(self.tokenizer(input_str).input_ids) > self.max_input_length:
+          self.in_over_maxlen += 1
+        if len(self.tokenizer(output_str).input_ids) > self.max_input_length:
+          self.in_over_maxlen += 1
+
+        self.inputs.append(input_str)
+        self.outputs.append(output_str)
+        self.metadata.append(metadata_str)
+
+    print('%d total input/output pairs' % len(self.inputs))
+    print('%d total relation instances' % total_rel_count)
+    print('%d inputs over maxlen' % self.in_over_maxlen)
+    print('%d outputs over maxlen' % self.out_over_maxlen)
 
   def chunk_generator(self, note_text):
     """Yield note chunk offsets of suitable length"""
@@ -316,11 +322,6 @@ def insert_at_offsets(text, offset2string):
 
 if __name__ == "__main__":
 
-  # text = 'one two three four five six seven eight nine'
-  # offset2string = {2:'1', 6:'2', 17:'3', 26:'4'}
-  #
-  # insert_at_offsets(text, offset2string)
-
   base = os.environ['DATA_ROOT']
   arg_dict = dict(
     xml_dir=os.path.join(base, 'Thyme/Official/thymedata/coloncancer/Dev/'),
@@ -329,13 +330,12 @@ if __name__ == "__main__":
     xml_out_dir='./Xml/',
     model_dir='Model/',
     model_name='t5-small',
-    chunk_size=400, # smaller than 512 to accomodate events/times
+    chunk_size=400,
     max_input_length=512,
     max_output_length=512)
   args = argparse.Namespace(**arg_dict)
 
   tokenizer = T5Tokenizer.from_pretrained(args.model_name)
-  # tokenizer.add_tokens(['<e>', '</e>'])
 
   rel_data = Data(
     xml_dir=args.xml_dir,
@@ -347,19 +347,21 @@ if __name__ == "__main__":
     max_input_length=args.max_input_length,
     max_output_length=args.max_output_length)
 
+  rel_data.model_inputs_and_outputs()
+  rel_data.write_xml(rel_data.captured_relations)
+
   index = 6
   print('T5 INPUT:', rel_data.inputs[index] + '\n')
   print('T5 OUTPUT:', rel_data.outputs[index] + '\n')
   print('T5 METADATA:', rel_data.metadata[index])
-
-  # predicted_relations = (('75@e@ID077_clinic_229@gold', '74@e@ID077_clinic_229@gold'),
-  #                        ('92@e@ID077_clinic_229@gold', '54@e@ID077_clinic_229@gold'),
-  #                        ('142@e@ID021_clinic_063@gold', '213@e@ID021_clinic_063@gold'),
-  #                        ('89@e@ID021_clinic_063@gold', '66@e@ID021_clinic_063@gold'))
-  # rel_data.write_xml(predicted_relations)
 
   # note_path = os.path.join(args.text_dir, 'ID133_clinic_390')
   # note_text = open(note_path).read()
   # for start, end in rel_data.note_chunk_generator(note_text):
   #   print(note_text[start:end])
   #   print('='*30)
+
+  # text = 'one two three four five six seven eight nine'
+  # offset2string = {2:'1', 6:'2', 17:'3', 26:'4'}
+  #
+  # insert_at_offsets(text, offset2string)
