@@ -227,9 +227,6 @@ class Data(ThymeDataset):
         n_chunks = (len(section_tokenized) // self.chunk_size) + 1
 
         for parags in numpy.array_split(parag_offsets, n_chunks):
-          if len(parags) != 2:
-            continue # need to look into this
-
           chunk_start, _ = parags[0].tolist()
           _, chunk_end = parags[-1].tolist()
           yield sec_start + chunk_start, sec_start + chunk_end
