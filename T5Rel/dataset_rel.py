@@ -343,8 +343,6 @@ if __name__ == "__main__":
     chunk_size=args.chunk_size,
     max_input_length=args.max_input_length,
     max_output_length=args.max_output_length)
-
-  rel_data.model_inputs_and_outputs()
   rel_data.write_xml(rel_data.captured_relations)
 
   index = 6
