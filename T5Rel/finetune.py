@@ -133,13 +133,13 @@ def generate(model, data_loader, tokenizer):
       batch[key] = batch[key].to(device)
 
     # generated tensor: (batch_size, max_output_length)
-    # predictions = model.generate(
-    #   input_ids=batch['input_ids'],
-    #   max_length=args.max_output_length,
-    #   early_stopping=True,
-    #   num_beams=args.num_beams,
-    #   attention_mask=batch['attention_mask'],
-    #   decoder_attention_mask=batch['decoder_attention_mask']) # todo: is this necessary?
+    predictions = model.generate(
+      input_ids=batch['input_ids'],
+      max_length=args.max_output_length,
+      early_stopping=True,
+      num_beams=args.num_beams,
+      attention_mask=batch['attention_mask'],
+      decoder_attention_mask=batch['decoder_attention_mask']) # todo: is this necessary?
 
     inputs = tokenizer.batch_decode(
       batch['input_ids'],
@@ -147,15 +147,10 @@ def generate(model, data_loader, tokenizer):
     targets = tokenizer.batch_decode(
       batch['labels'],
       skip_special_tokens=True)
-
-    # imagine we're getting all relations 
-    # to test how well my evaluation works
-    predictions = targets
-
-    # predictions = tokenizer.batch_decode(
-    #   predictions,
-    #   skip_special_tokens=True,
-    #   clean_up_tokenization_spaces=True)
+    predictions = tokenizer.batch_decode(
+      predictions,
+      skip_special_tokens=True,
+      clean_up_tokenization_spaces=True)
 
     # time and event metadata example for a section
     # February 8, 2010|379@e@ID128_clinic_377@gold||currently|388@e@ID128_clinic_377@gold
@@ -183,6 +178,7 @@ def generate(model, data_loader, tokenizer):
         # no events or times in this section
         continue
 
+      # parse metadata and map args to anafora ids
       arg_text2id = {}
       for arg_id_pair in metadata[i].split('||'):
         elements = arg_id_pair.split('|')
@@ -190,6 +186,7 @@ def generate(model, data_loader, tokenizer):
           arg_text, arg_id = elements
           arg_text2id[arg_text] = arg_id
 
+      # convert generated relations to anafora id pairs
       for arg1, arg2 in matched_args:
         if arg1 in arg_text2id and arg2 in arg_text2id:
           pred_rels.append((arg_text2id[arg1], arg_text2id[arg2]))
@@ -305,7 +302,7 @@ if __name__ == "__main__":
     data_reader='dataset_rel',
     model_dir='Model/',
     model_name='t5-small',
-    chunk_size=400, # smaller than 512 to accomodate events/times
+    chunk_size=250, # smaller than 512 to accomodate events/times
     max_input_length=512,
     max_output_length=512,
     n_files='all',
@@ -313,9 +310,9 @@ if __name__ == "__main__":
     train_batch_size=32,
     gener_batch_size=32,
     num_beams=1,
-    print_predictions=False,
+    print_predictions=True,
     do_train=True,
-    n_epochs=1)
+    n_epochs=2)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
