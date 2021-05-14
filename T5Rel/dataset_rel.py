@@ -223,10 +223,16 @@ class Data(ThymeDataset):
           parag_start, parag_end = parag_match.start(1), parag_match.end(1)
           parag_offsets.append((parag_start, parag_end))
 
-        # form this many chunks (plus an overflow chunk)
+        # form this many chunks (add an overflow chunk)
         n_chunks = (len(section_tokenized) // self.chunk_size) + 1
 
         for parags in numpy.array_split(parag_offsets, n_chunks):
+
+          # this happens if there are fewer paragraphs than chunks
+          # e.g. 2 large paragraphs in section and n_chunks is 3
+          if parags.size == 0:
+            continue
+
           chunk_start, _ = parags[0].tolist()
           _, chunk_end = parags[-1].tolist()
           yield sec_start + chunk_start, sec_start + chunk_end
@@ -327,7 +333,7 @@ if __name__ == "__main__":
     xml_out_dir='./Xml/',
     model_dir='Model/',
     model_name='t5-small',
-    chunk_size=400,
+    chunk_size=250,
     max_input_length=512,
     max_output_length=512)
   args = argparse.Namespace(**arg_dict)
