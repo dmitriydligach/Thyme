@@ -89,9 +89,9 @@ class Data(ThymeDataset):
     self.note2events = {}
 
     # map t5 i/o instances to annotation offsets
-    self.model_inputs_and_outputs()
+    self.model_io('TIMEX3', 'EVENT', 'CONTAINS')
 
-  def notes_to_annotations(self):
+  def notes_to_annotations(self, src_type, targ_type, label):
     """Map note paths to relation, time, and event offsets"""
 
     for sub_dir, text_name, file_names in anafora.walk(self.xml_dir, self.xml_regex):
@@ -112,8 +112,8 @@ class Data(ThymeDataset):
       for rel in ref_data.annotations.select_type('TLINK'):
         src = rel.properties['Source']
         targ = rel.properties['Target']
-        label = rel.properties['Type']
-        if label == 'CONTAINS':
+        if rel.properties['Type'] == label and \
+             src.type == src_type and targ.type == targ_type:
           rel_args.append((src.spans[0], targ.spans[0], src.id, targ.id))
       self.note2rels[note_path] = rel_args
 
@@ -158,11 +158,11 @@ class Data(ThymeDataset):
           _, chunk_end = parags[-1].tolist()
           yield sec_start + chunk_start, sec_start + chunk_end
 
-  def model_inputs_and_outputs(self):
+  def model_io(self, src_type, targ_type, label):
     """Prepare i/o pairs to feed to T5"""
 
     # map note paths to annotation offsets
-    self.notes_to_annotations()
+    self.notes_to_annotations(src_type, targ_type, label)
 
     # count relation instances
     total_rel_count = 0
