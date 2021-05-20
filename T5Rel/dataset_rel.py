@@ -24,7 +24,7 @@ def insert_at_offsets(text, offset2string):
 
   return text
 
-def get_annotations(ref_data, annot_type):
+def get_annots(ref_data, annot_type):
   """Get span and id of an anafora annotation"""
 
   # (annot_start, annot_end, annot_id) tuples
@@ -99,15 +99,13 @@ class Data(ThymeDataset):
       xml_path = os.path.join(self.xml_dir, sub_dir, file_names[0])
       ref_data = anafora.AnaforaData.from_file(xml_path)
 
-      times = []
-      times.extend(get_annotations(ref_data, 'TIMEX3'))
-      times.extend(get_annotations(ref_data, 'SECTIONTIME'))
-      times.extend(get_annotations(ref_data, 'DOCTIME'))
-      self.note2times[note_path] = times
+      self.note2times[note_path] = []
+      self.note2times[note_path].extend(get_annots(ref_data, 'TIMEX3'))
+      self.note2times[note_path].extend(get_annots(ref_data, 'SECTIONTIME'))
+      self.note2times[note_path].extend(get_annots(ref_data, 'DOCTIME'))
 
-      events = []
-      events.extend(get_annotations(ref_data, 'EVENT'))
-      self.note2events[note_path] = events
+      self.note2events[note_path] = []
+      self.note2events[note_path].extend(get_annots(ref_data, 'EVENT'))
 
       # (src, targ, ids) tuples
       rel_args = []

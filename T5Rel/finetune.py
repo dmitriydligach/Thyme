@@ -301,18 +301,18 @@ if __name__ == "__main__":
     xml_regex='.*[.]Temporal.*[.]xml',
     data_reader='dataset_rel',
     model_dir='Model/',
-    model_name='t5-small',
-    chunk_size=250, # smaller than 512 to accomodate events/times
+    model_name='t5-base',
+    chunk_size=256,
     max_input_length=512,
     max_output_length=512,
     n_files='all',
-    learning_rate=1e-4,
-    train_batch_size=32,
-    gener_batch_size=32,
+    learning_rate=1e-3,
+    train_batch_size=16,
+    gener_batch_size=16,
     num_beams=1,
-    print_predictions=True,
+    print_predictions=False,
     do_train=True,
-    n_epochs=2)
+    n_epochs=5)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
