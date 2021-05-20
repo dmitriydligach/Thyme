@@ -89,6 +89,7 @@ class Data(ThymeDataset):
     self.note2events = {}
 
     # map t5 i/o instances to annotation offsets
+    self.model_io('EVENT', 'EVENT', 'CONTAINS')
     self.model_io('TIMEX3', 'EVENT', 'CONTAINS')
 
   def notes_to_annotations(self, src_type, targ_type, label):
@@ -234,8 +235,10 @@ class Data(ThymeDataset):
           offset2str)
 
         metadata_str = '||'.join(metadata)
-        input_str = 'task: REL; text: %s; times: %s; events: %s' % \
-                    (chunk_text_with_markers,
+        input_str = 'task: %s-%s; text: %s; times: %s; events: %s' % \
+                    (src_type,
+                     targ_type,
+                     chunk_text_with_markers,
                      ', '.join(times_in_chunk),
                      ', '.join(events_in_chunk))
         if len(rels_in_chunk) > 0:
