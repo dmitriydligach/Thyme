@@ -13,6 +13,29 @@ from dataset_base import ThymeDataset
 # skip sections defined in eval/THYMEData.java
 sections_to_skip = {'20104', '20105', '20116', '20138'}
 
+def insert_at_offsets(text, offset2string):
+  """Insert strings at specific offset"""
+
+  dict_as_list = list(offset2string.items())
+  dict_as_list.sort(key=lambda t: t[0], reverse=True)
+
+  for offset, s in dict_as_list:
+    text = text[:offset] + s + text[offset:]
+
+  return text
+
+def get_annotations(ref_data, annot_type):
+  """Get span and id of an anafora annotation"""
+
+  # (annot_start, annot_end, annot_id) tuples
+  annotations = []
+
+  for annot in ref_data.annotations.select_type(annot_type):
+    annot_begin, annot_end = annot.spans[0]
+    annotations.append((annot_begin, annot_end, annot.id))
+
+  return annotations
+
 class Data(ThymeDataset):
   """Make x and y from raw data"""
 
@@ -66,24 +89,14 @@ class Data(ThymeDataset):
       xml_path = os.path.join(self.xml_dir, sub_dir, file_names[0])
       ref_data = anafora.AnaforaData.from_file(xml_path)
 
-      # (time_start, time_end, time_id) tuples
       times = []
-      for time in ref_data.annotations.select_type('TIMEX3'):
-        time_begin, time_end = time.spans[0]
-        times.append((time_begin, time_end, time.id))
-      for time in ref_data.annotations.select_type('SECTIONTIME'):
-        time_begin, time_end = time.spans[0]
-        times.append((time_begin, time_end, time.id))
-      for time in ref_data.annotations.select_type('DOCTIME'):
-        time_begin, time_end = time.spans[0]
-        times.append((time_begin, time_end, time.id))
+      times.extend(get_annotations(ref_data, 'TIMEX3'))
+      times.extend(get_annotations(ref_data, 'SECTIONTIME'))
+      times.extend(get_annotations(ref_data, 'DOCTIME'))
       self.note2times[note_path] = times
 
-      # (event_start, event_end, event_id) tuples
       events = []
-      for event in ref_data.annotations.select_type('EVENT'):
-        event_begin, event_end = event.spans[0]
-        events.append((event_begin, event_end, event.id))
+      events.extend(get_annotations(ref_data, 'EVENT'))
       self.note2events[note_path] = events
 
       # (src, targ, ids) tuples
@@ -95,6 +108,47 @@ class Data(ThymeDataset):
         if label == 'CONTAINS':
           rel_args.append((src.spans[0], targ.spans[0], src.id, targ.id))
       self.note2rels[note_path] = rel_args
+
+  def chunk_generator(self, note_text):
+    """Yield note chunk offsets of suitable length"""
+
+    parag_re = r'(.+?\n)'
+    sec_re = r'\[start section id=\"(.+)"\](.*?)\[end section id=\"\1"\]'
+
+    # iterate over sections
+    for sec_match in re.finditer(sec_re, note_text, re.DOTALL):
+
+      section_id = sec_match.group(1)
+      if section_id in sections_to_skip:
+        continue
+
+      section_text = sec_match.group(2)
+      sec_start, sec_end = sec_match.start(2), sec_match.end(2)
+      section_tokenized = self.tokenizer(section_text).input_ids
+
+      # do we need to break this section into chunks?
+      if len(section_tokenized) < self.chunk_size:
+        yield sec_start, sec_end
+
+      else:
+        parag_offsets = []
+        for parag_match in re.finditer(parag_re, section_text, re.DOTALL):
+          parag_start, parag_end = parag_match.start(1), parag_match.end(1)
+          parag_offsets.append((parag_start, parag_end))
+
+        # form this many chunks (add an overflow chunk)
+        n_chunks = (len(section_tokenized) // self.chunk_size) + 1
+
+        for parags in numpy.array_split(parag_offsets, n_chunks):
+
+          # this happens if there are fewer paragraphs than chunks
+          # e.g. 2 large paragraphs in section and n_chunks is 3
+          if parags.size == 0:
+            continue
+
+          chunk_start, _ = parags[0].tolist()
+          _, chunk_end = parags[-1].tolist()
+          yield sec_start + chunk_start, sec_start + chunk_end
 
   def model_inputs_and_outputs(self):
     """Prepare i/o pairs to feed to T5"""
@@ -196,47 +250,6 @@ class Data(ThymeDataset):
     print('%d inputs over maxlen' % self.in_over_maxlen)
     print('%d outputs over maxlen' % self.out_over_maxlen)
 
-  def chunk_generator(self, note_text):
-    """Yield note chunk offsets of suitable length"""
-
-    parag_re = r'(.+?\n)'
-    sec_re = r'\[start section id=\"(.+)"\](.*?)\[end section id=\"\1"\]'
-
-    # iterate over sections
-    for sec_match in re.finditer(sec_re, note_text, re.DOTALL):
-
-      section_id = sec_match.group(1)
-      if section_id in sections_to_skip:
-        continue
-
-      section_text = sec_match.group(2)
-      sec_start, sec_end = sec_match.start(2), sec_match.end(2)
-      section_tokenized = self.tokenizer(section_text).input_ids
-
-      # do we need to break this section into chunks?
-      if len(section_tokenized) < self.chunk_size:
-        yield sec_start, sec_end
-
-      else:
-        parag_offsets = []
-        for parag_match in re.finditer(parag_re, section_text, re.DOTALL):
-          parag_start, parag_end = parag_match.start(1), parag_match.end(1)
-          parag_offsets.append((parag_start, parag_end))
-
-        # form this many chunks (add an overflow chunk)
-        n_chunks = (len(section_tokenized) // self.chunk_size) + 1
-
-        for parags in numpy.array_split(parag_offsets, n_chunks):
-
-          # this happens if there are fewer paragraphs than chunks
-          # e.g. 2 large paragraphs in section and n_chunks is 3
-          if parags.size == 0:
-            continue
-
-          chunk_start, _ = parags[0].tolist()
-          _, chunk_end = parags[-1].tolist()
-          yield sec_start + chunk_start, sec_start + chunk_end
-
   def write_xml(self, predicted_relations):
     """Write predictions in anafora XML format"""
 
@@ -311,17 +324,6 @@ class Data(ThymeDataset):
       os.mkdir(os.path.join(self.out_dir, sub_dir))
       out_path = os.path.join(self.out_dir, sub_dir, file_names[0])
       generated_data.to_file(out_path)
-
-def insert_at_offsets(text, offset2string):
-  """Insert strings at specific offset"""
-
-  dict_as_list = list(offset2string.items())
-  dict_as_list.sort(key=lambda t: t[0], reverse=True)
-
-  for offset, s in dict_as_list:
-    text = text[:offset] + s + text[offset:]
-
-  return text
 
 if __name__ == "__main__":
 
