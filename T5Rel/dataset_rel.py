@@ -36,6 +36,16 @@ def get_annotations(ref_data, annot_type):
 
   return annotations
 
+def copy_annotations(from_data, to_data, annot_type):
+  """Copy id, spans, and type of an annotation of specific type"""
+
+  for annot in from_data.annotations.select_type(annot_type):
+    entity = anafora.AnaforaEntity()
+    entity.id = annot.id
+    entity.spans = annot.spans
+    entity.type = annot.type
+    to_data.annotations.append(entity)
+
 class Data(ThymeDataset):
   """Make x and y from raw data"""
 
@@ -275,37 +285,11 @@ class Data(ThymeDataset):
       # make a new XML file
       generated_data = anafora.AnaforaData()
 
-      # copy gold events
-      for event in ref_data.annotations.select_type('EVENT'):
-        entity = anafora.AnaforaEntity()
-        entity.id = event.id
-        entity.spans = event.spans
-        entity.type = event.type
-        generated_data.annotations.append(entity)
-
-      # copy gold time expressions
-      for time in ref_data.annotations.select_type('TIMEX3'):
-        entity = anafora.AnaforaEntity()
-        entity.id = time.id
-        entity.spans = time.spans
-        entity.type = time.type
-        generated_data.annotations.append(entity)
-
-      # copy gold section times
-      for time in ref_data.annotations.select_type('SECTIONTIME'):
-        entity = anafora.AnaforaEntity()
-        entity.id = time.id
-        entity.spans = time.spans
-        entity.type = time.type
-        generated_data.annotations.append(entity)
-
-      # copy gold doc times
-      for time in ref_data.annotations.select_type('DOCTIME'):
-        entity = anafora.AnaforaEntity()
-        entity.id = time.id
-        entity.spans = time.spans
-        entity.type = time.type
-        generated_data.annotations.append(entity)
+      # copy gold events and times
+      copy_annotations(ref_data, generated_data, 'EVENT')
+      copy_annotations(ref_data, generated_data, 'TIMEX3')
+      copy_annotations(ref_data, generated_data, 'SECTIONTIME')
+      copy_annotations(ref_data, generated_data, 'DOCTIME')
 
       # add generated relations
       note_name = file_names[0].split('.')[0]
