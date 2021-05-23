@@ -24,7 +24,7 @@ def insert_at_offsets(text, offset2string):
 
   return text
 
-def get_annots(ref_data, annot_type):
+def get_annotations(ref_data, annot_type):
   """Get span and id of an anafora annotation"""
 
   # (annot_start, annot_end, annot_id) tuples
@@ -91,6 +91,7 @@ class Data(ThymeDataset):
     # map t5 i/o instances to annotation offsets
     self.model_io('EVENT', 'EVENT', 'CONTAINS')
     self.model_io('TIMEX3', 'EVENT', 'CONTAINS')
+    self.model_io('SECTIONTIME', 'EVENT', 'CONTAINS')
 
   def notes_to_annotations(self, src_type, targ_type, label):
     """Map note paths to relation, time, and event offsets"""
@@ -101,12 +102,12 @@ class Data(ThymeDataset):
       ref_data = anafora.AnaforaData.from_file(xml_path)
 
       self.note2times[note_path] = []
-      self.note2times[note_path].extend(get_annots(ref_data, 'TIMEX3'))
-      self.note2times[note_path].extend(get_annots(ref_data, 'SECTIONTIME'))
-      self.note2times[note_path].extend(get_annots(ref_data, 'DOCTIME'))
+      self.note2times[note_path].extend(get_annotations(ref_data, 'TIMEX3'))
+      self.note2times[note_path].extend(get_annotations(ref_data, 'SECTIONTIME'))
+      self.note2times[note_path].extend(get_annotations(ref_data, 'DOCTIME'))
 
       self.note2events[note_path] = []
-      self.note2events[note_path].extend(get_annots(ref_data, 'EVENT'))
+      self.note2events[note_path].extend(get_annotations(ref_data, 'EVENT'))
 
       # (src, targ, ids) tuples
       rel_args = []
@@ -235,10 +236,8 @@ class Data(ThymeDataset):
           offset2str)
 
         metadata_str = '||'.join(metadata)
-        input_str = 'task: %s-%s; text: %s; times: %s; events: %s' % \
-                    (src_type,
-                     targ_type,
-                     chunk_text_with_markers,
+        input_str = 'note_text: %s; times: %s; events: %s' % \
+                    (chunk_text_with_markers,
                      ', '.join(times_in_chunk),
                      ', '.join(events_in_chunk))
         if len(rels_in_chunk) > 0:
