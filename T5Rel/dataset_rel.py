@@ -24,17 +24,12 @@ def insert_at_offsets(text, offset2string):
 
   return text
 
-def get_annots(ref_data, annot_type):
-  """Get span and id of an anafora annotation"""
-
-  # (annot_start, annot_end, annot_id) tuples
-  annotations = []
+def add_annotations(annot_tuples, ref_data, annot_type):
+  """Add (span, id) tuples of anafora annotations to annot_tuples"""
 
   for annot in ref_data.annotations.select_type(annot_type):
     annot_begin, annot_end = annot.spans[0]
-    annotations.append((annot_begin, annot_end, annot.id))
-
-  return annotations
+    annot_tuples.append((annot_begin, annot_end, annot.id))
 
 def copy_annotations(from_data, to_data, annot_type):
   """Copy id, spans, and type of an annotation of specific type"""
@@ -80,42 +75,16 @@ class Data(ThymeDataset):
     self.out_over_maxlen = 0
 
     # key: note path, value: (source, target) tuples
-    self.note2rels = {}
+    self.note2rels = defaultdict(list)
 
     # key: note path; value: time expresions
-    self.note2times = {}
+    self.note2times = defaultdict(list)
 
     # key: note path; value: events
-    self.note2events = {}
+    self.note2events = defaultdict(list)
 
     # map t5 i/o instances to annotation offsets
     self.model_inputs_and_outputs()
-
-  def notes_to_annotations(self):
-    """Map note paths to relation, time, and event offsets"""
-
-    for sub_dir, text_name, file_names in anafora.walk(self.xml_dir, self.xml_regex):
-      note_path = os.path.join(self.text_dir, text_name)
-      xml_path = os.path.join(self.xml_dir, sub_dir, file_names[0])
-      ref_data = anafora.AnaforaData.from_file(xml_path)
-
-      self.note2times[note_path] = []
-      self.note2times[note_path].extend(get_annots(ref_data, 'TIMEX3'))
-      self.note2times[note_path].extend(get_annots(ref_data, 'SECTIONTIME'))
-      self.note2times[note_path].extend(get_annots(ref_data, 'DOCTIME'))
-
-      self.note2events[note_path] = []
-      self.note2events[note_path].extend(get_annots(ref_data, 'EVENT'))
-
-      # (src, targ, ids) tuples
-      rel_args = []
-      for rel in ref_data.annotations.select_type('TLINK'):
-        src = rel.properties['Source']
-        targ = rel.properties['Target']
-        label = rel.properties['Type']
-        if label == 'CONTAINS':
-          rel_args.append((src.spans[0], targ.spans[0], src.id, targ.id))
-      self.note2rels[note_path] = rel_args
 
   def chunk_generator(self, note_text):
     """Yield note chunk offsets of suitable length"""
@@ -157,6 +126,29 @@ class Data(ThymeDataset):
           chunk_start, _ = parags[0].tolist()
           _, chunk_end = parags[-1].tolist()
           yield sec_start + chunk_start, sec_start + chunk_end
+
+  def notes_to_annotations(self):
+    """Map note paths to relation, time, and event offsets"""
+
+    for sub_dir, text_name, file_names in anafora.walk(self.xml_dir, self.xml_regex):
+      note_path = os.path.join(self.text_dir, text_name)
+      xml_path = os.path.join(self.xml_dir, sub_dir, file_names[0])
+      ref_data = anafora.AnaforaData.from_file(xml_path)
+
+      # populate (annot_start, annot_end, annot_id) tuples for a note
+      add_annotations(self.note2times[note_path], ref_data, 'TIMEX3')
+      add_annotations(self.note2times[note_path], ref_data, 'SECTIONTIME')
+      add_annotations(self.note2times[note_path], ref_data, 'DOCTIME')
+      add_annotations(self.note2events[note_path], ref_data, 'EVENT')
+
+      # populate (src span, targ spans, src id, targ id) tuples for a note
+      for rel in ref_data.annotations.select_type('TLINK'):
+        src = rel.properties['Source']
+        targ = rel.properties['Target']
+        label = rel.properties['Type']
+        if label == 'CONTAINS':
+          self.note2rels[note_path].append(
+            (src.spans[0], targ.spans[0], src.id, targ.id))
 
   def model_inputs_and_outputs(self):
     """Prepare i/o pairs to feed to T5"""
