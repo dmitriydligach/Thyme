@@ -24,7 +24,7 @@ def insert_at_offsets(text, offset2string):
 
   return text
 
-def get_annotations(ref_data, annot_type):
+def get_annots(ref_data, annot_type):
   """Get span and id of an anafora annotation"""
 
   # (annot_start, annot_end, annot_id) tuples
@@ -89,11 +89,9 @@ class Data(ThymeDataset):
     self.note2events = {}
 
     # map t5 i/o instances to annotation offsets
-    self.model_io('EVENT', 'EVENT', 'CONTAINS')
-    self.model_io('TIMEX3', 'EVENT', 'CONTAINS')
-    self.model_io('SECTIONTIME', 'EVENT', 'CONTAINS')
+    self.model_inputs_and_outputs()
 
-  def notes_to_annotations(self, src_type, targ_type, label):
+  def notes_to_annotations(self):
     """Map note paths to relation, time, and event offsets"""
 
     for sub_dir, text_name, file_names in anafora.walk(self.xml_dir, self.xml_regex):
@@ -102,20 +100,20 @@ class Data(ThymeDataset):
       ref_data = anafora.AnaforaData.from_file(xml_path)
 
       self.note2times[note_path] = []
-      self.note2times[note_path].extend(get_annotations(ref_data, 'TIMEX3'))
-      self.note2times[note_path].extend(get_annotations(ref_data, 'SECTIONTIME'))
-      self.note2times[note_path].extend(get_annotations(ref_data, 'DOCTIME'))
+      self.note2times[note_path].extend(get_annots(ref_data, 'TIMEX3'))
+      self.note2times[note_path].extend(get_annots(ref_data, 'SECTIONTIME'))
+      self.note2times[note_path].extend(get_annots(ref_data, 'DOCTIME'))
 
       self.note2events[note_path] = []
-      self.note2events[note_path].extend(get_annotations(ref_data, 'EVENT'))
+      self.note2events[note_path].extend(get_annots(ref_data, 'EVENT'))
 
       # (src, targ, ids) tuples
       rel_args = []
       for rel in ref_data.annotations.select_type('TLINK'):
         src = rel.properties['Source']
         targ = rel.properties['Target']
-        if rel.properties['Type'] == label and \
-             src.type == src_type and targ.type == targ_type:
+        label = rel.properties['Type']
+        if label == 'CONTAINS':
           rel_args.append((src.spans[0], targ.spans[0], src.id, targ.id))
       self.note2rels[note_path] = rel_args
 
@@ -160,11 +158,11 @@ class Data(ThymeDataset):
           _, chunk_end = parags[-1].tolist()
           yield sec_start + chunk_start, sec_start + chunk_end
 
-  def model_io(self, src_type, targ_type, label):
+  def model_inputs_and_outputs(self):
     """Prepare i/o pairs to feed to T5"""
 
     # map note paths to annotation offsets
-    self.notes_to_annotations(src_type, targ_type, label)
+    self.notes_to_annotations()
 
     # count relation instances
     total_rel_count = 0
@@ -236,7 +234,7 @@ class Data(ThymeDataset):
           offset2str)
 
         metadata_str = '||'.join(metadata)
-        input_str = 'note_text: %s; times: %s; events: %s' % \
+        input_str = 'task: REL; text: %s; times: %s; events: %s' % \
                     (chunk_text_with_markers,
                      ', '.join(times_in_chunk),
                      ', '.join(events_in_chunk))
