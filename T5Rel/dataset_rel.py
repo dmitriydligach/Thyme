@@ -315,6 +315,7 @@ if __name__ == "__main__":
   args = argparse.Namespace(**arg_dict)
 
   tokenizer = T5Tokenizer.from_pretrained(args.model_name)
+  tokenizer.add_tokens(['CONTAINS'])
 
   rel_data = Data(
     xml_dir=args.xml_dir,
