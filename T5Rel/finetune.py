@@ -134,6 +134,7 @@ def generate(model, data_loader, tokenizer):
 
     # generated tensor: (batch_size, max_output_length)
     predictions = model.generate(
+      do_sample=True,
       input_ids=batch['input_ids'],
       max_length=args.max_output_length,
       early_stopping=True,
