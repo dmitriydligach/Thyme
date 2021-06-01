@@ -180,13 +180,10 @@ class Data(ThymeDataset):
         # t5 i/o
         metadata = []
         rels_in_chunk = []
-        times_in_chunk = []
-        events_in_chunk = []
 
         for time_start, time_end, time_id in self.note2times[note_path]:
           if time_start >= chunk_start and time_end <= chunk_end:
             time_text = note_text[time_start:time_end]
-            times_in_chunk.append('%s!%s' % (time_text, entity_num))
             span2int[(time_start, time_end)] = entity_num
             metadata.append('%s!%s|%s' % (time_text, entity_num, time_id))
             entity_num += 1
@@ -194,7 +191,6 @@ class Data(ThymeDataset):
         for event_start, event_end, event_id in self.note2events[note_path]:
           if event_start >= chunk_start and event_end <= chunk_end:
             event_text = note_text[event_start:event_end]
-            events_in_chunk.append('%s!%s' % (event_text, entity_num))
             span2int[(event_start, event_end)] = entity_num
             metadata.append('%s!%s|%s' % (event_text, entity_num, event_id))
             entity_num += 1
@@ -226,10 +222,7 @@ class Data(ThymeDataset):
           offset2str)
 
         metadata_str = '||'.join(metadata)
-        input_str = 'task: REL; text: %s; times: %s; events: %s' % \
-                    (chunk_text_with_markers,
-                     ', '.join(times_in_chunk),
-                     ', '.join(events_in_chunk))
+        input_str = 'task: RELEXT; text: %s' % chunk_text_with_markers
         if len(rels_in_chunk) > 0:
           output_str = ' '.join(rels_in_chunk)
         else:

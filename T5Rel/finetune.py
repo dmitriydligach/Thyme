@@ -159,10 +159,10 @@ def generate(model, data_loader, tokenizer):
     # iterate over samples in this batch
     for i in range(len(predictions)):
       if args.print_predictions:
-        print('[input]', inputs[i])
-        print('[targets]', targets[i])
-        print('[predict]', predictions[i])
-        print('[metadata]', metadata[i], '\n')
+        print('[input]', inputs[i], '\n')
+        print('[targets]', targets[i], '\n')
+        print('[predict]', predictions[i], '\n')
+        print('[metadata]', metadata[i], '\n\n')
 
       # match argument text in predictions
       # CONTAINS(February 8, 2010; scan) CONTAINS(currently; denies)
