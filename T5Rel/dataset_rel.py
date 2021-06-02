@@ -226,9 +226,12 @@ class Data(ThymeDataset):
         # add a seq num to all events/times in chunk text
         offset2str = {}
         for (start, end), entity_num in time_offsets2int.items():
-          offset2str[end - chunk_start] = '/' + str(entity_num)
+          offset2str[start - chunk_start] = '<t> '
+          offset2str[end - chunk_start] = '/' + str(entity_num) + ' </t>'
         for (start, end), entity_num in event_offsets2int.items():
-          offset2str[end - chunk_start] = '/' + str(entity_num)
+          offset2str[start - chunk_start] = '<e> '
+          offset2str[end - chunk_start] = '/' + str(entity_num) + ' </e>'
+
         chunk_text_with_markers = insert_at_offsets(
           note_text[chunk_start:chunk_end],
           offset2str)
