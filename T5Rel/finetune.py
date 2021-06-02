@@ -304,14 +304,14 @@ if __name__ == "__main__":
     model_dir='Model/',
     model_name='t5-base',
     chunk_size=100,
-    max_input_length=400,
-    max_output_length=400,
+    max_input_length=512,
+    max_output_length=512,
     n_files='all',
     learning_rate=1e-3,
     train_batch_size=16,
     gener_batch_size=16,
     num_beams=3,
-    print_predictions=False,
+    print_predictions=True,
     do_train=True,
     n_epochs=5)
   args = argparse.Namespace(**arg_dict)
