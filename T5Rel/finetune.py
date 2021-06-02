@@ -215,8 +215,8 @@ def perform_fine_tuning():
   model = T5ForConditionalGeneration.from_pretrained(args.model_name)
 
   # add event markers to tokenizer
-  # tokenizer.add_tokens(['CONTAINS'])
-  # model.resize_token_embeddings(len(tokenizer))
+  tokenizer.add_tokens(['<t>', '</t>', '<e>', '</e>'])
+  model.resize_token_embeddings(len(tokenizer))
 
   train_dataset = data.Data(
     xml_dir=args.xml_train_dir,
@@ -267,8 +267,8 @@ def perform_generation():
   model = T5ForConditionalGeneration.from_pretrained(args.model_dir)
 
   # add event markers to tokenizer
-  # tokenizer.add_tokens(['CONTAINS'])
-  # model.resize_token_embeddings(len(tokenizer)) # todo: need this?
+  tokenizer.add_tokens(['<t>', '</t>', '<e>', '</e>'])
+  model.resize_token_embeddings(len(tokenizer)) # todo: need this?
 
   test_dataset = data.Data(
     xml_dir=args.xml_test_dir,

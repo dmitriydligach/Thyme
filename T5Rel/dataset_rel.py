@@ -223,7 +223,7 @@ class Data(ThymeDataset):
             targ = '%s/%s' % (note_text[targ_start:targ_end], targ_seq_num)
             rels_in_chunk.append('CONTAINS(%s; %s)' % (src, targ))
 
-        # add a seq num to all events/times in chunk text
+        # add seq numbers and markers to events/times
         offset2str = {}
         for (start, end), entity_num in time_offsets2int.items():
           offset2str[start - chunk_start] = '<t> '
@@ -235,8 +235,6 @@ class Data(ThymeDataset):
         chunk_text_with_markers = insert_at_offsets(
           note_text[chunk_start:chunk_end],
           offset2str)
-
-        # mark event start and event end </e>
 
         metadata_str = '||'.join(metadata)
         input_str = 'task: RELEXT; text: %s' % chunk_text_with_markers
