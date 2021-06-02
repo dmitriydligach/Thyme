@@ -174,8 +174,9 @@ class Data(ThymeDataset):
         # each event/time gets a number
         entity_num = 0
 
-        # assign an id to each event/time
-        span2int = {}
+        # assign an id to each event and time
+        time_offsets2int = {}
+        event_offsets2int = {}
 
         # t5 i/o
         metadata = []
@@ -184,15 +185,15 @@ class Data(ThymeDataset):
         for time_start, time_end, time_id in self.note2times[note_path]:
           if time_start >= chunk_start and time_end <= chunk_end:
             time_text = note_text[time_start:time_end]
-            span2int[(time_start, time_end)] = entity_num
-            metadata.append('%s!%s|%s' % (time_text, entity_num, time_id))
+            time_offsets2int[(time_start, time_end)] = entity_num
+            metadata.append('%s/%s|%s' % (time_text, entity_num, time_id))
             entity_num += 1
 
         for event_start, event_end, event_id in self.note2events[note_path]:
           if event_start >= chunk_start and event_end <= chunk_end:
             event_text = note_text[event_start:event_end]
-            span2int[(event_start, event_end)] = entity_num
-            metadata.append('%s!%s|%s' % (event_text, entity_num, event_id))
+            event_offsets2int[(event_start, event_end)] = entity_num
+            metadata.append('%s/%s|%s' % (event_text, entity_num, event_id))
             entity_num += 1
 
         for src_spans, targ_spans, src_id, targ_id in self.note2rels[note_path]:
@@ -203,23 +204,36 @@ class Data(ThymeDataset):
           if src_start >= chunk_start and src_end <= chunk_end and \
              targ_start >= chunk_start and targ_end <= chunk_end:
 
+            total_rel_count += 1
             self.captured_relations.append((src_id, targ_id))
 
-            total_rel_count += 1
-            src_seq_num = span2int[(src_start, src_end)]
-            targ_seq_num = span2int[(targ_start, targ_end)]
+            # retrieve id of the source argument
+            if (src_start, src_end) in time_offsets2int:
+              src_seq_num = time_offsets2int[(src_start, src_end)]
+            else:
+              src_seq_num = event_offsets2int[(src_start, src_end)]
 
-            src = '%s!%s' % (note_text[src_start:src_end], src_seq_num)
-            targ = '%s!%s' % (note_text[targ_start:targ_end], targ_seq_num)
+            # retrieved id of the target argument
+            if (targ_start, targ_end) in time_offsets2int:
+              targ_seq_num = time_offsets2int[(targ_start, targ_end)]
+            else:
+              targ_seq_num = event_offsets2int[(targ_start, targ_end)]
+
+            src = '%s/%s' % (note_text[src_start:src_end], src_seq_num)
+            targ = '%s/%s' % (note_text[targ_start:targ_end], targ_seq_num)
             rels_in_chunk.append('CONTAINS(%s; %s)' % (src, targ))
 
         # add a seq num to all events/times in chunk text
         offset2str = {}
-        for (start, end), entity_num in span2int.items():
-          offset2str[end - chunk_start] = '!' + str(entity_num)
+        for (start, end), entity_num in time_offsets2int.items():
+          offset2str[end - chunk_start] = '/' + str(entity_num)
+        for (start, end), entity_num in event_offsets2int.items():
+          offset2str[end - chunk_start] = '/' + str(entity_num)
         chunk_text_with_markers = insert_at_offsets(
           note_text[chunk_start:chunk_end],
           offset2str)
+
+        # mark event start and event end </e>
 
         metadata_str = '||'.join(metadata)
         input_str = 'task: RELEXT; text: %s' % chunk_text_with_markers
