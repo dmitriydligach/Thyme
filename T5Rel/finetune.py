@@ -138,9 +138,7 @@ def generate(model, data_loader, tokenizer):
       input_ids=batch['input_ids'],
       max_length=args.max_output_length,
       early_stopping=True,
-      num_beams=args.num_beams,
-      attention_mask=batch['attention_mask'],
-      decoder_attention_mask=batch['decoder_attention_mask']) # todo: is this necessary?
+      num_beams=args.num_beams)
 
     inputs = tokenizer.batch_decode(
       batch['input_ids'],
@@ -311,7 +309,7 @@ if __name__ == "__main__":
     train_batch_size=16,
     gener_batch_size=16,
     num_beams=3,
-    print_predictions=True,
+    print_predictions=False,
     do_train=True,
     n_epochs=5)
   args = argparse.Namespace(**arg_dict)
