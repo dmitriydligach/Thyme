@@ -150,6 +150,11 @@ class Data(ThymeDataset):
           self.note2rels[note_path].append(
             (src.spans[0], targ.spans[0], src.id, targ.id))
 
+      # sort relations by src argument's offset
+      relations = self.note2rels[note_path]
+      relations.sort(key=lambda t: t[0][0], reverse=False)
+      self.note2rels[note_path] = relations
+
   def model_inputs_and_outputs(self):
     """Prepare i/o pairs to feed to T5"""
 
@@ -181,6 +186,10 @@ class Data(ThymeDataset):
         # t5 i/o
         metadata = []
         rels_in_chunk = []
+
+        #
+        # look for times, events, and relations within this chunk
+        #
 
         for time_start, time_end, time_id in self.note2times[note_path]:
           if time_start >= chunk_start and time_end <= chunk_end:
