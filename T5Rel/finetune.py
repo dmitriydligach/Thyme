@@ -161,7 +161,8 @@ def generate(model, data_loader, tokenizer):
         print('[input]', inputs[i], '\n')
         print('[targets]', targets[i], '\n')
         print('[predict]', predictions[i], '\n')
-        print('[metadata]', metadata[i], '\n\n')
+      if args.print_metadata:
+        print('[metadata]', metadata[i], '\n')
 
       # match argument text in predictions
       # CONTAINS(February 8, 2010; scan) CONTAINS(currently; denies)
@@ -310,6 +311,7 @@ if __name__ == "__main__":
     gener_batch_size=16,
     num_beams=3,
     print_predictions=False,
+    print_metadata=False,
     do_train=True,
     n_epochs=5)
   args = argparse.Namespace(**arg_dict)
