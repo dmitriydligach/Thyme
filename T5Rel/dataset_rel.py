@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import sys, re, glob, argparse, shutil, os, random, numpy
-from collections import defaultdict, Counter
+from collections import defaultdict
 
 sys.dont_write_bytecode = True
 sys.path.append('../Anafora')
@@ -187,44 +187,21 @@ class Data(ThymeDataset):
 
         #
         # look for times, events, and relations within this chunk
-        # add ids (1, 2, ...) to repeated events and times
         #
 
-        time_mentions = []
         for time_start, time_end, time_id in self.note2times[note_path]:
           if time_start >= chunk_start and time_end <= chunk_end:
             time_text = note_text[time_start:time_end]
-            time_mentions.append(time_text)
-        time_counter = Counter(time_mentions)
-
-        event_mentions = []
-        for event_start, event_end, event_id in self.note2events[note_path]:
-          if event_start >= chunk_start and event_end <= chunk_end:
-            event_text = note_text[event_start:event_end]
-            event_mentions.append(event_text)
-        event_counter = Counter(event_mentions)
-
-        for time_start, time_end, time_id in self.note2times[note_path]:
-          if time_start >= chunk_start and time_end <= chunk_end:
-            time_text = note_text[time_start:time_end]
-            if time_counter[time_text] > 1:
-              time_offsets2int[(time_start, time_end)] = entity_num
-              metadata.append('%s/%s|%s' % (time_text, '', time_id))
-              entity_num += 1
-            else:
-              time_offsets2int[(time_start, time_end)] = ''
-              metadata.append('%s|%s' % (time_text, time_id))
+            time_offsets2int[(time_start, time_end)] = entity_num
+            metadata.append('%s/%s|%s' % (time_text, entity_num, time_id))
+            entity_num += 1
 
         for event_start, event_end, event_id in self.note2events[note_path]:
           if event_start >= chunk_start and event_end <= chunk_end:
             event_text = note_text[event_start:event_end]
-            if event_counter[event_text] > 1:
-              event_offsets2int[(event_start, event_end)] = entity_num
-              metadata.append('%s/%s|%s' % (event_text, entity_num, event_id))
-              entity_num += 1
-            else:
-              event_offsets2int[(event_start, event_end)] = ''
-              metadata.append('%s|%s' % (event_text, event_id))
+            event_offsets2int[(event_start, event_end)] = entity_num
+            metadata.append('%s/%s|%s' % (event_text, entity_num, event_id))
+            entity_num += 1
 
         for src_spans, targ_spans, src_id, targ_id in self.note2rels[note_path]:
           src_start, src_end = src_spans
@@ -249,32 +226,18 @@ class Data(ThymeDataset):
             else:
               targ_seq_num = event_offsets2int[(targ_start, targ_end)]
 
-            if src_seq_num != '':
-              src = '%s/%s' % (note_text[src_start:src_end], src_seq_num)
-            else:
-              src = note_text[src_start:src_end]
-
-            if targ_seq_num != '':
-              targ = '%s/%s' % (note_text[targ_start:targ_end], targ_seq_num)
-            else:
-              targ = note_text[targ_start:targ_end]
-
+            src = '%s/%s' % (note_text[src_start:src_end], src_seq_num)
+            targ = '%s/%s' % (note_text[targ_start:targ_end], targ_seq_num)
             rels_in_chunk.append('CONTAINS(%s; %s)' % (src, targ))
 
         # add seq numbers and markers to events/times
         offset2str = {}
         for (start, end), entity_num in time_offsets2int.items():
           offset2str[start - chunk_start] = '<t> '
-          if entity_num != '':
-            offset2str[end - chunk_start] = '/' + str(entity_num) + ' </t>'
-          else:
-            offset2str[end - chunk_start] = ' </t>'
+          offset2str[end - chunk_start] = '/' + str(entity_num) + ' </t>'
         for (start, end), entity_num in event_offsets2int.items():
           offset2str[start - chunk_start] = '<e> '
-          if entity_num != '':
-            offset2str[end - chunk_start] = '/' + str(entity_num) + ' </e>'
-          else:
-            offset2str[end - chunk_start] = ' </e>'
+          offset2str[end - chunk_start] = '/' + str(entity_num) + ' </e>'
 
         chunk_text_with_markers = insert_at_offsets(
           note_text[chunk_start:chunk_end],
