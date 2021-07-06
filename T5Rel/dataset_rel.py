@@ -238,11 +238,10 @@ class Data(ThymeDataset):
         for (start, end), entity_num in event_offsets2int.items():
           offset2str[start - chunk_start] = '<e> '
           offset2str[end - chunk_start] = '/' + str(entity_num) + ' </e>'
-
         chunk_text_with_markers = insert_at_offsets(
           note_text[chunk_start:chunk_end],
           offset2str)
-
+        
         metadata_str = '||'.join(metadata)
         input_str = 'task: RELEXT; text: %s' % chunk_text_with_markers
         if len(rels_in_chunk) > 0:
@@ -323,14 +322,14 @@ if __name__ == "__main__":
     xml_regex='.*[.]Temporal.*[.]xml',
     xml_out_dir='./Xml/',
     model_dir='Model/',
-    model_name='t5-small',
-    chunk_size=250,
+    model_name='t5-base',
+    chunk_size=100,
     max_input_length=512,
     max_output_length=512)
   args = argparse.Namespace(**arg_dict)
 
   tokenizer = T5Tokenizer.from_pretrained(args.model_name)
-  tokenizer.add_tokens(['CONTAINS'])
+  tokenizer.add_tokens(['<t>', '</t>', '<e>', '</e>'])
 
   rel_data = Data(
     xml_dir=args.xml_dir,
