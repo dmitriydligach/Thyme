@@ -151,7 +151,7 @@ class Data(ThymeDataset):
             (src.spans[0], targ.spans[0], src.id, targ.id))
 
       # sort relation tuples by src and targ arguments' offsets
-      self.note2rels[note_path].sort(key=lambda t: (t[0][0], t[1][0]))
+      self.note2rels[note_path].sort(key=lambda t: t[0][0])
 
   def model_inputs_and_outputs(self):
     """Prepare i/o pairs to feed to T5"""
