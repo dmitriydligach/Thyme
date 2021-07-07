@@ -86,6 +86,51 @@ class Data(ThymeDataset):
     # map t5 i/o instances to annotation offsets
     self.model_inputs_and_outputs()
 
+  def chunk_generator2(self, note_text, note_path, events_per_chunk=10):
+    """Note chunks in terms of the number of events"""
+
+    parag_re = r'(.+?\n)'
+    sec_re = r'\[start section id=\"(.+)"\](.*?)\[end section id=\"\1"\]'
+
+    # iterate over sections
+    for sec_match in re.finditer(sec_re, note_text, re.DOTALL):
+
+      section_id = sec_match.group(1)
+      if section_id in sections_to_skip:
+        continue
+
+      section_text = sec_match.group(2)
+      sec_start, sec_end = sec_match.start(2), sec_match.end(2)
+
+      # count events in section
+      num_events_in_section = 0
+      for event_start, event_end, event_id in self.note2events[note_path]:
+        if event_start >= sec_start and event_end <= sec_end:
+          num_events_in_section += 1
+
+      # do we need to break this section into chunks?
+      if num_events_in_section < events_per_chunk:
+        yield sec_start, sec_end
+
+      else:
+        parag_offsets = []
+        for parag_match in re.finditer(parag_re, section_text, re.DOTALL):
+          parag_start, parag_end = parag_match.start(1), parag_match.end(1)
+          parag_offsets.append((parag_start, parag_end))
+
+        # form this many chunks (add an overflow chunk)
+        n_chunks = (num_events_in_section // events_per_chunk) + 1
+
+        for parags in numpy.array_split(parag_offsets, n_chunks):
+          # below happens if there are fewer paragraphs than chunks
+          # e.g. 2 large paragraphs in section and n_chunks is 3
+          if parags.size == 0:
+            continue
+
+          chunk_start, _ = parags[0].tolist()
+          _, chunk_end = parags[-1].tolist()
+          yield sec_start + chunk_start, sec_start + chunk_end
+
   def chunk_generator(self, note_text):
     """Yield note chunk offsets of suitable length"""
 
@@ -172,7 +217,7 @@ class Data(ThymeDataset):
       note_text = open(note_path).read()
 
       # iterate over note chunks
-      for chunk_start, chunk_end in self.chunk_generator(note_text):
+      for chunk_start, chunk_end in self.chunk_generator2(note_text, note_path):
 
         # each event/time gets a number
         entity_num = 0
@@ -342,18 +387,13 @@ if __name__ == "__main__":
     max_output_length=args.max_output_length)
   rel_data.write_xml(rel_data.captured_relations)
 
-  index = 6
-  print('T5 INPUT:', rel_data.inputs[index] + '\n')
-  print('T5 OUTPUT:', rel_data.outputs[index] + '\n')
-  print('T5 METADATA:', rel_data.metadata[index])
-
   # note_path = os.path.join(args.text_dir, 'ID133_clinic_390')
   # note_text = open(note_path).read()
-  # for start, end in rel_data.note_chunk_generator(note_text):
+  # for start, end in rel_data.chunk_generator2(note_text, note_path):
   #   print(note_text[start:end])
   #   print('='*30)
 
-  # text = 'one two three four five six seven eight nine'
-  # offset2string = {2:'1', 6:'2', 17:'3', 26:'4'}
-  #
-  # insert_at_offsets(text, offset2string)
+  index = 66
+  print('T5 INPUT:', rel_data.inputs[index] + '\n')
+  print('T5 OUTPUT:', rel_data.outputs[index] + '\n')
+  print('T5 METADATA:', rel_data.metadata[index])
