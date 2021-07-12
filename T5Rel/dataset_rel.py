@@ -86,6 +86,53 @@ class Data(ThymeDataset):
     # map t5 i/o instances to annotation offsets
     self.model_inputs_and_outputs()
 
+  def chunk_generator2(self, note_text):
+    """Yield note chunk offsets of suitable length"""
+
+    # section regular expression
+    sec_re = r'\[start section id=\"(.+)"\](.*?)\[end section id=\"\1"\]'
+
+    # sentences end with a period followed by \n or by two spaces
+    # re.split(r'(.+?\.\s\s|.+?\.\n)', section_text) works
+    # re.split(r'(.+?)(\.\s\s)|(\.\n)', section_text) also works with None(s)
+    # sent_re = r'(.+?)(\.\s\s)|(.+?\.\n)'
+    sent_re = r'(.+?\.\s\s)|(.+?.+?\.\n)'
+
+    # iterate over sections
+    for sec_match in re.finditer(sec_re, note_text, re.DOTALL):
+
+      section_id = sec_match.group(1)
+      if section_id in sections_to_skip:
+        continue
+
+      section_text = sec_match.group(2)
+      sec_start, sec_end = sec_match.start(2), sec_match.end(2)
+      section_tokenized = self.tokenizer(section_text).input_ids
+
+      # do we need to break this section into chunks?
+      if len(section_tokenized) < self.chunk_size:
+        yield sec_start, sec_end
+
+      else:
+        sent_offsets = []
+        for sent_match in re.finditer(sent_re, section_text, re.DOTALL):
+          sent_start, sent_end = sent_match.start(1), sent_match.end(1)
+          sent_offsets.append((sent_start, sent_end))
+
+        # form this many chunks (add an overflow chunk)
+        n_chunks = (len(section_tokenized) // self.chunk_size) + 1
+
+        for sents in numpy.array_split(sent_offsets, n_chunks):
+
+          # this happens if there are fewer paragraphs than chunks
+          # e.g. 2 large paragraphs in section and n_chunks is 3
+          if sents.size == 0:
+            continue
+
+          chunk_start, _ = sents[0].tolist()
+          _, chunk_end = sents[-1].tolist()
+          yield sec_start + chunk_start, sec_start + chunk_end
+
   def chunk_generator(self, note_text):
     """Yield note chunk offsets of suitable length"""
 
@@ -172,7 +219,7 @@ class Data(ThymeDataset):
       note_text = open(note_path).read()
 
       # iterate over note chunks
-      for chunk_start, chunk_end in self.chunk_generator(note_text):
+      for chunk_start, chunk_end in self.chunk_generator2(note_text):
 
         # each event/time gets a number
         entity_num = 0
@@ -323,7 +370,7 @@ if __name__ == "__main__":
     xml_out_dir='./Xml/',
     model_dir='Model/',
     model_name='t5-base',
-    chunk_size=100,
+    chunk_size=200,
     max_input_length=512,
     max_output_length=512)
   args = argparse.Namespace(**arg_dict)
@@ -344,11 +391,11 @@ if __name__ == "__main__":
 
   # note_path = os.path.join(args.text_dir, 'ID133_clinic_390')
   # note_text = open(note_path).read()
-  # for start, end in rel_data.chunk_generator2(note_text, note_path):
+  # for start, end in rel_data.chunk_generator2(note_text):
   #   print(note_text[start:end])
   #   print('='*30)
 
-  index = 6
+  index = 66
   print('T5 INPUT:', rel_data.inputs[index] + '\n')
   print('T5 OUTPUT:', rel_data.outputs[index] + '\n')
   print('T5 METADATA:', rel_data.metadata[index])
