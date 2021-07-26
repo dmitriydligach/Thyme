@@ -267,7 +267,7 @@ class Data(ThymeDataset):
 
             src = '%s/%s' % (note_text[src_start:src_end], src_seq_num)
             targ = '%s/%s' % (note_text[targ_start:targ_end], targ_seq_num)
-            rels_in_chunk.append('CONTAINS(%s; %s)' % (src, targ))
+            rels_in_chunk.append('c(%s; %s)' % (src, targ))
 
         # add seq numbers and markers to events/times
         offset2str = {}

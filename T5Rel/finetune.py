@@ -165,8 +165,8 @@ def generate(model, data_loader, tokenizer):
         print('[metadata]', metadata[i], '\n')
 
       # match argument text in predictions
-      # CONTAINS(February 8, 2010; scan) CONTAINS(currently; denies)
-      regex_str = r'CONTAINS\((.+?); (.+?)\)'
+      # c(February 8, 2010; scan) c(currently; denies)
+      regex_str = r'c\((.+?); (.+?)\)'
       matched_args = re.findall(regex_str, predictions[i], re.DOTALL)
       if len(matched_args) == 0:
         # no relations generated
@@ -302,7 +302,7 @@ if __name__ == "__main__":
     data_reader='dataset_rel',
     model_dir='Model/',
     model_name='t5-base',
-    chunk_size=100,
+    chunk_size=50,
     max_input_length=512,
     max_output_length=512,
     n_files='all',
