@@ -86,7 +86,7 @@ class Data(ThymeDataset):
     # map t5 i/o instances to annotation offsets
     self.model_inputs_and_outputs()
 
-  def chunk_generator2(self, note_text):
+  def chunk_generator(self, note_text):
     """Yield note chunk offsets of suitable length"""
 
     # section regular expression
@@ -124,47 +124,6 @@ class Data(ThymeDataset):
         chunk_start, _ = sents[0].tolist()
         _, chunk_end = sents[-1].tolist()
         yield sec_start + chunk_start, sec_start + chunk_end
-
-  def chunk_generator(self, note_text):
-    """Yield note chunk offsets of suitable length"""
-
-    parag_re = r'(.+?\n)'
-    sec_re = r'\[start section id=\"(.+)"\](.*?)\[end section id=\"\1"\]'
-
-    # iterate over sections
-    for sec_match in re.finditer(sec_re, note_text, re.DOTALL):
-
-      section_id = sec_match.group(1)
-      if section_id in sections_to_skip:
-        continue
-
-      section_text = sec_match.group(2)
-      sec_start, sec_end = sec_match.start(2), sec_match.end(2)
-      section_tokenized = self.tokenizer(section_text).input_ids
-
-      # do we need to break this section into chunks?
-      if len(section_tokenized) < self.chunk_size:
-        yield sec_start, sec_end
-
-      else:
-        parag_offsets = []
-        for parag_match in re.finditer(parag_re, section_text, re.DOTALL):
-          parag_start, parag_end = parag_match.start(1), parag_match.end(1)
-          parag_offsets.append((parag_start, parag_end))
-
-        # form this many chunks (add an overflow chunk)
-        n_chunks = (len(section_tokenized) // self.chunk_size) + 1
-
-        for parags in numpy.array_split(parag_offsets, n_chunks):
-
-          # this happens if there are fewer paragraphs than chunks
-          # e.g. 2 large paragraphs in section and n_chunks is 3
-          if parags.size == 0:
-            continue
-
-          chunk_start, _ = parags[0].tolist()
-          _, chunk_end = parags[-1].tolist()
-          yield sec_start + chunk_start, sec_start + chunk_end
 
   def notes_to_annotations(self):
     """Map note paths to relation, time, and event offsets"""
@@ -211,7 +170,7 @@ class Data(ThymeDataset):
       note_text = open(note_path).read()
 
       # iterate over note chunks
-      for chunk_start, chunk_end in self.chunk_generator2(note_text):
+      for chunk_start, chunk_end in self.chunk_generator(note_text):
 
         # each event/time gets a number
         entity_num = 0
