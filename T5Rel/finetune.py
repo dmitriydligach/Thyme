@@ -164,8 +164,7 @@ def generate(model, data_loader, tokenizer):
       if args.print_metadata:
         print('[metadata]', metadata[i], '\n')
 
-      # match argument text in predictions
-      # c(February 8, 2010; scan) c(currently; denies)
+      # match arguments in predictions: c(contained, container)
       regex_str = r'c\((.+?); (.+?)\)'
       matched_args = re.findall(regex_str, predictions[i], re.DOTALL)
       if len(matched_args) == 0:
@@ -187,6 +186,7 @@ def generate(model, data_loader, tokenizer):
           arg_text2id[arg_text] = arg_id
 
       # convert generated relations to anafora id pairs
+      # skip relations where second arg is NONE
       for arg1, arg2 in matched_args:
         if arg1 in arg_text2id and arg2 in arg_text2id:
           pred_rels.append((arg_text2id[arg1], arg_text2id[arg2]))

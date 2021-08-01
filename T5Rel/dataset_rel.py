@@ -176,6 +176,7 @@ class Data(ThymeDataset):
         entity_num = 0
 
         # assign an id to each event and time
+        # store in separate dictionary to add different markers later
         time_offsets2int = {}
         event_offsets2int = {}
 
@@ -201,32 +202,45 @@ class Data(ThymeDataset):
             metadata.append('%s/%s|%s' % (event_text, entity_num, event_id))
             entity_num += 1
 
+        #
+        # new algorithm that makes a prediction for each event
+        # in anafora, relations are represented as t-link(source, target)
+        # for contains relation, source is the container event or time
+        #
+
+        # key: contained event offsets, value: container offsets
+        targ2src = {}
+
+        # map contained events to their containers to use as a lookup
         for src_spans, targ_spans, src_id, targ_id in self.note2rels[note_path]:
           src_start, src_end = src_spans
           targ_start, targ_end = targ_spans
-
-          # are both rel args inside this chunk?
           if src_start >= chunk_start and src_end <= chunk_end and \
              targ_start >= chunk_start and targ_end <= chunk_end:
+            targ2src[(targ_start, targ_end)] = (src_start, src_end)
 
-            total_rel_count += 1
-            self.captured_relations.append((src_id, targ_id))
+        arg2num = {}
+        targs_in_chunk = list(time_offsets2int.items()) + list(event_offsets2int.items())
 
-            # retrieve id of the source argument
-            if (src_start, src_end) in time_offsets2int:
-              src_seq_num = time_offsets2int[(src_start, src_end)]
-            else:
-              src_seq_num = event_offsets2int[(src_start, src_end)]
+        for (targ_start, targ_end), targ_num in targs_in_chunk:
+          arg2num[(targ_start, targ_end)] = targ_num
 
-            # retrieved id of the target argument
-            if (targ_start, targ_end) in time_offsets2int:
-              targ_seq_num = time_offsets2int[(targ_start, targ_end)]
-            else:
-              targ_seq_num = event_offsets2int[(targ_start, targ_end)]
+        # map targets (i.e. every event or time) to their containers
+        for (targ_start, targ_end), targ_num in targs_in_chunk:
+          target = '%s/%s' % (note_text[targ_start:targ_end], targ_num)
 
-            src = '%s/%s' % (note_text[src_start:src_end], src_seq_num)
-            targ = '%s/%s' % (note_text[targ_start:targ_end], targ_seq_num)
-            rels_in_chunk.append('c(%s; %s)' % (src, targ))
+          # does this target have a source (container)?
+          if (targ_start, targ_end) in targ2src:
+            (src_start, src_end) = targ2src[(targ_start, targ_end)]
+            src_num = arg2num[(src_start, src_end)]
+            container = '%s/%s' % (note_text[src_start:src_end], src_num)
+          else:
+            container = 'NONE'
+          rels_in_chunk.append('c(%s; %s)' % (target, container))
+
+        #
+        # end new algorithm that makes a prediction for each event
+        #
 
         # add seq numbers and markers to events/times
         offset2str = {}
@@ -274,7 +288,8 @@ class Data(ThymeDataset):
     note2rels = defaultdict(list)
 
     # map notes to relations in these notes
-    for container_id, contained_id in predicted_relations:
+    # for container_id, contained_id in predicted_relations:
+    for contained_id, container_id in predicted_relations:
       note_name = container_id.split('@')[2]
       note2rels[note_name].append((container_id, contained_id))
 
