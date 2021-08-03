@@ -67,9 +67,6 @@ class Data(ThymeDataset):
     self.out_dir = out_dir
     self.xml_regex = xml_regex
 
-    # debug how many fall outside chunks
-    self.captured_relations = []
-
     # count inputs/outputs that are too long
     self.in_over_maxlen = 0
     self.out_over_maxlen = 0
@@ -83,7 +80,10 @@ class Data(ThymeDataset):
     # key: note path; value: events
     self.note2events = defaultdict(list)
 
-    # map t5 i/o instances to annotation offsets
+    # map note paths to annotation offsets
+    self.notes_to_annotations()
+
+    # make t5 i/o instances for training
     self.model_inputs_and_outputs()
 
   def chunk_generator(self, note_text):
@@ -95,7 +95,7 @@ class Data(ThymeDataset):
     # sentence regular expressions; use group 0 for entire match
     sent_re = r'(.+?\.\s\s)|(.+?\.\n)|(.+?\n)'
 
-    # iterate over sections; DOTALL to match newlines
+    # iterate over sections; using DOTALL to match newlines
     for sec_match in re.finditer(sec_re, note_text, re.DOTALL):
 
       section_id = sec_match.group(1)
@@ -133,29 +133,28 @@ class Data(ThymeDataset):
       xml_path = os.path.join(self.xml_dir, sub_dir, file_names[0])
       ref_data = anafora.AnaforaData.from_file(xml_path)
 
-      # populate (annot_start, annot_end, annot_id) tuples for a note
+      # collect (annot_start, annot_end, annot_id) tuples
       add_annotations(self.note2times[note_path], ref_data, 'TIMEX3')
       add_annotations(self.note2times[note_path], ref_data, 'SECTIONTIME')
       add_annotations(self.note2times[note_path], ref_data, 'DOCTIME')
       add_annotations(self.note2events[note_path], ref_data, 'EVENT')
 
-      # populate (src span, targ spans, src id, targ id) tuples for a note
+      # collect (src spans, targ spans, src id, targ id) tuples
       for rel in ref_data.annotations.select_type('TLINK'):
         src = rel.properties['Source']
         targ = rel.properties['Target']
         label = rel.properties['Type']
         if label == 'CONTAINS':
+          src_start, src_end = src.spans[0]
+          targ_start, targ_end = targ.spans[0]
           self.note2rels[note_path].append(
-            (src.spans[0], targ.spans[0], src.id, targ.id))
+            (src_start, src_end, targ_start, targ_end, src.id, targ.id))
 
-      # sort relation tuples by src and targ arguments' offsets
-      self.note2rels[note_path].sort(key=lambda t: t[0][0])
+      # sort relation tuples by src arguments' offsets
+      self.note2rels[note_path].sort(key=lambda t: t[0])
 
   def model_inputs_and_outputs(self):
     """Prepare i/o pairs to feed to T5"""
-
-    # map note paths to annotation offsets
-    self.notes_to_annotations()
 
     # count relation instances
     total_rel_count = 0
@@ -166,7 +165,7 @@ class Data(ThymeDataset):
       if note_path not in self.note2rels:
         continue
 
-      # may be broken down into chunks later
+      # to be broken into chunks later
       note_text = open(note_path).read()
 
       # iterate over note chunks
@@ -176,7 +175,6 @@ class Data(ThymeDataset):
         entity_num = 0
 
         # assign an id to each event and time
-        # store in separate dictionary to add different markers later
         time_offsets2int = {}
         event_offsets2int = {}
 
@@ -202,45 +200,29 @@ class Data(ThymeDataset):
             metadata.append('%s/%s|%s' % (event_text, entity_num, event_id))
             entity_num += 1
 
-        #
-        # new algorithm that makes a prediction for each event
-        # in anafora, relations are represented as t-link(source, target)
-        # for contains relation, source is the container event or time
-        #
+        # combine time_offsets2int and event_offsets2int
+        arg2num = dict(list(time_offsets2int.items()) +
+                       list(event_offsets2int.items()))
 
-        # key: contained event offsets, value: container offsets
-        targ2src = {}
-
-        # map contained events to their containers to use as a lookup
-        for src_spans, targ_spans, src_id, targ_id in self.note2rels[note_path]:
-          src_start, src_end = src_spans
-          targ_start, targ_end = targ_spans
+        targ2src = {} # map contained events to their containers
+        for rel in self.note2rels[note_path]:
+          src_start, src_end, targ_start, targ_end, src_id, targ_id = rel
           if src_start >= chunk_start and src_end <= chunk_end and \
              targ_start >= chunk_start and targ_end <= chunk_end:
             targ2src[(targ_start, targ_end)] = (src_start, src_end)
 
-        arg2num = {}
-        targs_in_chunk = list(time_offsets2int.items()) + list(event_offsets2int.items())
-
-        for (targ_start, targ_end), targ_num in targs_in_chunk:
-          arg2num[(targ_start, targ_end)] = targ_num
-
         # map targets (i.e. every event or time) to their containers
-        for (targ_start, targ_end), targ_num in targs_in_chunk:
+        for (targ_start, targ_end), targ_num in arg2num.items():
           target = '%s/%s' % (note_text[targ_start:targ_end], targ_num)
 
           # does this target have a source (container)?
           if (targ_start, targ_end) in targ2src:
-            (src_start, src_end) = targ2src[(targ_start, targ_end)]
+            src_start, src_end = targ2src[(targ_start, targ_end)]
             src_num = arg2num[(src_start, src_end)]
             container = '%s/%s' % (note_text[src_start:src_end], src_num)
           else:
             container = 'NONE'
           rels_in_chunk.append('c(%s; %s)' % (target, container))
-
-        #
-        # end new algorithm that makes a prediction for each event
-        #
 
         # add seq numbers and markers to events/times
         offset2str = {}
@@ -353,7 +335,6 @@ if __name__ == "__main__":
     chunk_size=args.chunk_size,
     max_input_length=args.max_input_length,
     max_output_length=args.max_output_length)
-  rel_data.write_xml(rel_data.captured_relations)
 
   # note_path = os.path.join(args.text_dir, 'ID133_clinic_390')
   # note_text = open(note_path).read()
