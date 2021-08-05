@@ -151,7 +151,7 @@ class Data(ThymeDataset):
             (src_start, src_end, targ_start, targ_end, src.id, targ.id))
 
       # sort relation tuples by src arguments' offsets
-      self.note2rels[note_path].sort(key=lambda t: t[0])
+      # self.note2rels[note_path].sort(key=lambda t: t[0])
 
   def model_inputs_and_outputs(self):
     """Prepare i/o pairs to feed to T5"""
@@ -174,35 +174,31 @@ class Data(ThymeDataset):
         # each event/time gets a number
         entity_num = 0
 
-        # assign an id to each event and time
-        time_offsets2int = {}
-        event_offsets2int = {}
+        # assign a number to each event and time
+        time_offsets2num = {}
+        event_offsets2num = {}
 
         # t5 i/o
         metadata = []
         rels_in_chunk = []
 
-        #
-        # look for times, events, and relations within this chunk
-        #
-
+        # look for times and events in this chunk
         for time_start, time_end, time_id in self.note2times[note_path]:
           if time_start >= chunk_start and time_end <= chunk_end:
             time_text = note_text[time_start:time_end]
-            time_offsets2int[(time_start, time_end)] = entity_num
+            time_offsets2num[(time_start, time_end)] = entity_num
             metadata.append('%s/%s|%s' % (time_text, entity_num, time_id))
             entity_num += 1
-
         for event_start, event_end, event_id in self.note2events[note_path]:
           if event_start >= chunk_start and event_end <= chunk_end:
             event_text = note_text[event_start:event_end]
-            event_offsets2int[(event_start, event_end)] = entity_num
+            event_offsets2num[(event_start, event_end)] = entity_num
             metadata.append('%s/%s|%s' % (event_text, entity_num, event_id))
             entity_num += 1
 
-        # combine time_offsets2int and event_offsets2int
-        arg2num = dict(list(time_offsets2int.items()) +
-                       list(event_offsets2int.items()))
+        # combine time_offsets2num and event_offsets2num
+        arg2num = dict(list(time_offsets2num.items()) +
+                       list(event_offsets2num.items()))
 
         targ2src = {} # map contained events to their containers
         for rel in self.note2rels[note_path]:
@@ -211,25 +207,25 @@ class Data(ThymeDataset):
              targ_start >= chunk_start and targ_end <= chunk_end:
             targ2src[(targ_start, targ_end)] = (src_start, src_end)
 
-        # map targets (i.e. every event or time) to their containers
-        for (targ_start, targ_end), targ_num in arg2num.items():
-          target = '%s/%s' % (note_text[targ_start:targ_end], targ_num)
+        # map every event / time to its container (or none)
+        for (arg_start, arg_end), arg_num in arg2num.items():
+          target = '%s/%s' % (note_text[arg_start:arg_end], arg_num)
 
           # does this target have a source (container)?
-          if (targ_start, targ_end) in targ2src:
-            src_start, src_end = targ2src[(targ_start, targ_end)]
+          if (arg_start, arg_end) in targ2src:
+            src_start, src_end = targ2src[(arg_start, arg_end)]
             src_num = arg2num[(src_start, src_end)]
             container = '%s/%s' % (note_text[src_start:src_end], src_num)
           else:
-            container = 'NONE'
+            container = '_' # no container
           rels_in_chunk.append('c(%s; %s)' % (target, container))
 
         # add seq numbers and markers to events/times
         offset2str = {}
-        for (start, end), entity_num in time_offsets2int.items():
+        for (start, end), entity_num in time_offsets2num.items():
           offset2str[start - chunk_start] = '<t> '
           offset2str[end - chunk_start] = '/' + str(entity_num) + ' </t>'
-        for (start, end), entity_num in event_offsets2int.items():
+        for (start, end), entity_num in event_offsets2num.items():
           offset2str[start - chunk_start] = '<e> '
           offset2str[end - chunk_start] = '/' + str(entity_num) + ' </e>'
         chunk_text_with_markers = insert_at_offsets(

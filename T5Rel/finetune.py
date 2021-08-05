@@ -186,7 +186,7 @@ def generate(model, data_loader, tokenizer):
           arg_text2id[arg_text] = arg_id
 
       # convert generated relations to anafora id pairs
-      # skip relations where second arg is NONE
+      # skip relations where second arg is '_' (i.e. none)
       for arg1, arg2 in matched_args:
         if arg1 in arg_text2id and arg2 in arg_text2id:
           pred_rels.append((arg_text2id[arg1], arg_text2id[arg2]))
