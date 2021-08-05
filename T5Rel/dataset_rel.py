@@ -234,7 +234,7 @@ class Data(ThymeDataset):
           offset2str)
         
         metadata_str = '||'.join(metadata)
-        input_str = 'task: RELEXT; text: %s' % chunk_text_with_markers
+        input_str = 'task: RELEXT; %s' % chunk_text_with_markers
         if len(rels_in_chunk) > 0:
           output_str = ' '.join(rels_in_chunk)
         else:
