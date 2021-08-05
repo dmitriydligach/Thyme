@@ -208,7 +208,8 @@ class Data(ThymeDataset):
             targ2src[(targ_start, targ_end)] = (src_start, src_end)
 
         # map every event / time to its container (or none)
-        for (arg_start, arg_end), arg_num in arg2num.items():
+        sorted_args = sorted(arg2num.items(), key=lambda t: t[0][0])
+        for (arg_start, arg_end), arg_num in sorted_args:
           target = '%s/%s' % (note_text[arg_start:arg_end], arg_num)
 
           # does this target have a source (container)?
