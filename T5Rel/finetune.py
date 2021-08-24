@@ -24,19 +24,11 @@ def fit(model, train_loader, val_loader, tokenizer):
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
   model.to(device)
 
-  # define parameter groups
-  no_decay = ['bias', 'LayerNorm.weight']
-  optimizer_grouped_parameters = [
-    {'params': [p for n, p in model.named_parameters()
-                if not any(nd in n for nd in no_decay)],
-     'weight_decay': 0.01},
-    {'params': [p for n, p in model.named_parameters()
-                if any(nd in n for nd in no_decay)],
-     'weight_decay': 0.0}]
-
   # implements gradient bias correction as well as weight decay
-  # optimizer = AdamW(model.parameters(), lr=args.learning_rate)
-  optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate)
+  optimizer = AdamW(
+    model.parameters(),
+    lr=args.learning_rate,
+    weight_decay=args.weight_decay)
   scheduler = get_linear_schedule_with_warmup(optimizer, 100, 1500)
 
   optimal_epochs = 0
@@ -310,6 +302,7 @@ if __name__ == "__main__":
     train_batch_size=16,
     gener_batch_size=16,
     num_beams=3,
+    weight_decay=0.01,
     print_predictions=False,
     print_metadata=False,
     do_train=True,
