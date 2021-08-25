@@ -299,7 +299,7 @@ if __name__ == "__main__":
     data_reader='dataset_rel',
     model_dir='Model/',
     model_name='t5-base',
-    chunk_size=50,
+    chunk_size=75,
     max_input_length=512,
     max_output_length=512,
     n_files='all',
