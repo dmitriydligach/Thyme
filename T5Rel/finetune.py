@@ -153,6 +153,11 @@ def generate(model, data_loader, tokenizer):
         print('[input]', inputs[i], '\n')
         print('[targets]', targets[i], '\n')
         print('[predict]', predictions[i], '\n')
+      if args.print_errors:
+        if targets[i] != predictions[i]:
+          print('[input]', inputs[i], '\n')
+          print('[targets]', targets[i], '\n')
+          print('[predict]', predictions[i], '\n')
       if args.print_metadata:
         print('[metadata]', metadata[i], '\n')
 
@@ -305,6 +310,7 @@ if __name__ == "__main__":
     weight_decay=0.01,
     print_predictions=False,
     print_metadata=False,
+    print_errors=False,
     do_train=True,
     n_epochs=5)
   args = argparse.Namespace(**arg_dict)
