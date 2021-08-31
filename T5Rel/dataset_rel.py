@@ -185,15 +185,17 @@ class Data(ThymeDataset):
         # look for times and events in this chunk
         for time_start, time_end, time_id in self.note2times[note_path]:
           if time_start >= chunk_start and time_end <= chunk_end:
-            time_text = note_text[time_start:time_end]
+            # time_text = note_text[time_start:time_end]
             time_offsets2num[(time_start, time_end)] = entity_num
-            metadata.append('%s/%s|%s' % (time_text, entity_num, time_id))
+            # metadata.append('%s/%s|%s' % (time_text, entity_num, time_id))
+            metadata.append('%s|%s' % (entity_num, time_id))
             entity_num += 1
         for event_start, event_end, event_id in self.note2events[note_path]:
           if event_start >= chunk_start and event_end <= chunk_end:
-            event_text = note_text[event_start:event_end]
+            # event_text = note_text[event_start:event_end]
             event_offsets2num[(event_start, event_end)] = entity_num
-            metadata.append('%s/%s|%s' % (event_text, entity_num, event_id))
+            # metadata.append('%s/%s|%s' % (event_text, entity_num, event_id))
+            metadata.append('%s|%s' % (entity_num, event_id))
             entity_num += 1
 
         # combine time_offsets2num and event_offsets2num

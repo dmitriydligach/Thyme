@@ -143,10 +143,6 @@ def generate(model, data_loader, tokenizer):
       skip_special_tokens=True,
       clean_up_tokenization_spaces=True)
 
-    # time and event metadata example for a section
-    # February 8, 2010|379@e@ID128_clinic_377@gold||currently|388@e@ID128_clinic_377@gold
-    # anastomosis|334@e@ID128_clinic_377@gold||diagnosis|336@e@ID128_clinic_377@gold
-
     # iterate over samples in this batch
     for i in range(len(predictions)):
       if args.print_predictions:
@@ -165,31 +161,31 @@ def generate(model, data_loader, tokenizer):
       regex_str = r'c\((.+?); (.+?)\)'
       matched_args = re.findall(regex_str, predictions[i], re.DOTALL)
       if len(matched_args) == 0:
-        # no relations generated
+        # 'no relations found' string generated
         continue
 
-      # map arg text to ids
       if len(metadata[i]) == 0:
-        # todo: what if t5 still generates something?
-        # no events or times in this section
+        # no events or times in this chunk
         continue
 
-      # parse metadata and map args to anafora ids
-      arg_text2id = {}
+      # parse metadata and map arg nums to anafora ids
+      arg_num2id = {}
       for arg_id_pair in metadata[i].split('||'):
         elements = arg_id_pair.split('|')
         if len(elements) == 2:
-          arg_text, arg_id = elements
-          arg_text2id[arg_text] = arg_id
+          # no metadata lost due to length limitation
+          arg_num, arg_id = elements
+          arg_num2id[arg_num] = arg_id
 
       # convert generated relations to anafora id pairs
-      # skip relations where second arg is '_' (i.e. none)
       for arg1, arg2 in matched_args:
-        if arg1 in arg_text2id and arg2 in arg_text2id:
-          pred_rels.append((arg_text2id[arg1], arg_text2id[arg2]))
-        else:
-          # t5 generated a rel over non-gold events/times
-          pass
+        if arg2 == '_':
+          # no container for arg1
+          continue
+        arg1_num = arg1.split('/')[-1]
+        arg2_num = arg2.split('/')[-1]
+        if arg1_num in arg_num2id and arg2_num in arg_num2id:
+          pred_rels.append((arg_num2id[arg1_num], arg_num2id[arg2_num]))
 
   return pred_rels
 
