@@ -165,27 +165,22 @@ def generate(model, data_loader, tokenizer):
         continue
 
       if len(metadata[i]) == 0:
-        # no events or times in this chunk
+        # no gold events or times in this chunk
         continue
 
       # parse metadata and map arg nums to anafora ids
-      arg_num2id = {}
-      for arg_id_pair in metadata[i].split('||'):
-        elements = arg_id_pair.split('|')
+      arg_num2anaf_id = {}
+      for entry in metadata[i].split('||'):
+        elements = entry.split('|')
         if len(elements) == 2:
           # no metadata lost due to length limitation
-          arg_num, arg_id = elements
-          arg_num2id[arg_num] = arg_id
+          arg_num, anafora_id = elements
+          arg_num2anaf_id[arg_num] = anafora_id
 
       # convert generated relations to anafora id pairs
       for arg1, arg2 in matched_args:
-        if arg2 == '_':
-          # no container for arg1
-          continue
-        arg1_num = arg1.split('/')[-1]
-        arg2_num = arg2.split('/')[-1]
-        if arg1_num in arg_num2id and arg2_num in arg_num2id:
-          pred_rels.append((arg_num2id[arg1_num], arg_num2id[arg2_num]))
+        if arg1 in arg_num2anaf_id and arg2 in arg_num2anaf_id:
+          pred_rels.append((arg_num2anaf_id[arg1], arg_num2anaf_id[arg2]))
 
   return pred_rels
 

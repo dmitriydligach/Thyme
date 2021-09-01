@@ -185,16 +185,12 @@ class Data(ThymeDataset):
         # look for times and events in this chunk
         for time_start, time_end, time_id in self.note2times[note_path]:
           if time_start >= chunk_start and time_end <= chunk_end:
-            # time_text = note_text[time_start:time_end]
             time_offsets2num[(time_start, time_end)] = entity_num
-            # metadata.append('%s/%s|%s' % (time_text, entity_num, time_id))
             metadata.append('%s|%s' % (entity_num, time_id))
             entity_num += 1
         for event_start, event_end, event_id in self.note2events[note_path]:
           if event_start >= chunk_start and event_end <= chunk_end:
-            # event_text = note_text[event_start:event_end]
             event_offsets2num[(event_start, event_end)] = entity_num
-            # metadata.append('%s/%s|%s' % (event_text, entity_num, event_id))
             metadata.append('%s|%s' % (entity_num, event_id))
             entity_num += 1
 
@@ -212,16 +208,14 @@ class Data(ThymeDataset):
         # map every event / time to its container (or none)
         sorted_args = sorted(arg2num.items(), key=lambda t: t[0][0])
         for (arg_start, arg_end), arg_num in sorted_args:
-          target = '%s/%s' % (note_text[arg_start:arg_end], arg_num)
-
-          # does this target have a source (container)?
           if (arg_start, arg_end) in targ2src:
+            # this target has a source (container)
             src_start, src_end = targ2src[(arg_start, arg_end)]
             src_num = arg2num[(src_start, src_end)]
-            container = '%s/%s' % (note_text[src_start:src_end], src_num)
+            container = src_num
           else:
             container = '_' # no container
-          rels_in_chunk.append('c(%s; %s)' % (target, container))
+          rels_in_chunk.append('c(%s; %s)' % (arg_num, container))
 
         # add seq numbers and markers to events/times
         offset2str = {}
