@@ -180,7 +180,6 @@ class Data(ThymeDataset):
 
         # t5 i/o
         metadata = []
-        rels_in_chunk = []
 
         # look for times and events in this chunk
         for time_start, time_end, time_id in self.note2times[note_path]:
@@ -194,28 +193,7 @@ class Data(ThymeDataset):
             metadata.append('%s|%s' % (entity_num, event_id))
             entity_num += 1
 
-        # combine time_offsets2num and event_offsets2num
-        arg2num = dict(list(time_offsets2num.items()) +
-                       list(event_offsets2num.items()))
-
-        targ2src = {} # map contained events to their containers
-        for rel in self.note2rels[note_path]:
-          src_start, src_end, targ_start, targ_end, src_id, targ_id = rel
-          if src_start >= chunk_start and src_end <= chunk_end and \
-             targ_start >= chunk_start and targ_end <= chunk_end:
-            targ2src[(targ_start, targ_end)] = (src_start, src_end)
-
-        # map every event / time to its container (or none)
-        sorted_args = sorted(arg2num.items(), key=lambda t: t[0][0])
-        for (arg_start, arg_end), arg_num in sorted_args:
-          if (arg_start, arg_end) in targ2src:
-            # this target has a source (container)
-            src_start, src_end = targ2src[(arg_start, arg_end)]
-            src_num = arg2num[(src_start, src_end)]
-            container = src_num
-          else:
-            container = '_' # no container
-          rels_in_chunk.append('c(%s; %s)' % (arg_num, container))
+        metadata_str = '||'.join(metadata)
 
         # add seq numbers and markers to events/times
         offset2str = {}
@@ -228,28 +206,46 @@ class Data(ThymeDataset):
         chunk_text_with_markers = insert_at_offsets(
           note_text[chunk_start:chunk_end],
           offset2str)
-        
-        metadata_str = '||'.join(metadata)
-        input_str = 'task: RELEXT; %s' % chunk_text_with_markers
-        if len(rels_in_chunk) > 0:
-          output_str = ' '.join(rels_in_chunk)
-        else:
-          output_str = 'no relations found'
 
-        # counts inputs and outputs that t5 cannot handle
-        if len(self.tokenizer(input_str).input_ids) > self.max_input_length:
-          self.in_over_maxlen += 1
-        if len(self.tokenizer(output_str).input_ids) > self.max_input_length:
-          self.in_over_maxlen += 1
+        # combine time_offsets2num and event_offsets2num
+        arg2num = dict(list(time_offsets2num.items()) +
+                       list(event_offsets2num.items()))
 
-        self.inputs.append(input_str)
-        self.outputs.append(output_str)
-        self.metadata.append(metadata_str)
+        targ2src = {} # map contained events to their containers
+        for rel in self.note2rels[note_path]:
+          src_start, src_end, targ_start, targ_end, src_id, targ_id = rel
+          if src_start >= chunk_start and src_end <= chunk_end and \
+             targ_start >= chunk_start and targ_end <= chunk_end:
+            targ2src[(targ_start, targ_end)] = (src_start, src_end)
 
-    print('%d total input/output pairs' % len(self.inputs))
-    print('%d total relation instances' % total_rel_count)
-    print('%d inputs over maxlen' % self.in_over_maxlen)
-    print('%d outputs over maxlen' % self.out_over_maxlen)
+        if len(arg2num) == 0:
+          input_str = 'task: RELEXT; text: %s; arg: ' % chunk_text_with_markers
+          input_str = input_str + 'no gold args'
+          output_str = 'no gold events or times'
+          self.inputs.append(input_str)
+          self.outputs.append(output_str)
+          self.metadata.append(metadata_str)
+          continue # to the next chunk
+
+        # iterate over candidate arguments in this chunk
+        sorted_args = sorted(arg2num.items(), key=lambda t: t[0][0])
+        for (arg_start, arg_end), arg_num in sorted_args:
+
+          input_str = 'task: RELEXT; text: %s; arg: ' % chunk_text_with_markers
+          arg = '%s|%s' % (note_text[arg_start:arg_end], arg_num)
+          input_str = input_str + arg
+
+          # is there a source (container) for this target?
+          if (arg_start, arg_end) in targ2src:
+            src_start, src_end = targ2src[(arg_start, arg_end)]
+            src_num = arg2num[(src_start, src_end)]
+            output_str = '%s/%s' % (note_text[src_start:src_end], src_num)
+          else:
+            output_str = 'NONE'  # no container
+
+          self.inputs.append(input_str)
+          self.outputs.append(output_str)
+          self.metadata.append(metadata_str)
 
   def write_xml(self, predicted_relations):
     """Write predictions in anafora XML format"""
@@ -335,7 +331,7 @@ if __name__ == "__main__":
   #   print(note_text[start:end])
   #   print('-'*100)
 
-  index = 6
+  index = 12
   print('T5 INPUT:', rel_data.inputs[index] + '\n')
   print('T5 OUTPUT:', rel_data.outputs[index] + '\n')
   print('T5 METADATA:', rel_data.metadata[index])
