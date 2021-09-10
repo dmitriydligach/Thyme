@@ -156,9 +156,6 @@ class Data(ThymeDataset):
   def model_inputs_and_outputs(self):
     """Prepare i/o pairs to feed to T5"""
 
-    # count relation instances
-    total_rel_count = 0
-
     for note_path in glob.glob(self.text_dir + 'ID*_clinic_*'):
 
       # some notes weren't annotated
@@ -171,45 +168,43 @@ class Data(ThymeDataset):
       # iterate over note chunks
       for chunk_start, chunk_end in self.chunk_generator(note_text):
 
-        # each event/time gets a number
-        entity_num = 0
+        # assign an index to each event and time
+        entity_ind = 0
+        time_offsets2ind = {}
+        event_offsets2ind = {}
 
-        # assign a number to each event and time
-        time_offsets2num = {}
-        event_offsets2num = {}
-
-        # t5 i/o
+        # map indexes to anafora ids
         metadata = []
 
-        # look for times and events in this chunk
+        # record times and events in this chunk
         for time_start, time_end, time_id in self.note2times[note_path]:
           if time_start >= chunk_start and time_end <= chunk_end:
-            time_offsets2num[(time_start, time_end)] = entity_num
-            metadata.append('%s|%s' % (entity_num, time_id))
-            entity_num += 1
+            time_offsets2ind[(time_start, time_end)] = entity_ind
+            metadata.append('%s|%s' % (entity_ind, time_id))
+            entity_ind += 1
         for event_start, event_end, event_id in self.note2events[note_path]:
           if event_start >= chunk_start and event_end <= chunk_end:
-            event_offsets2num[(event_start, event_end)] = entity_num
-            metadata.append('%s|%s' % (entity_num, event_id))
-            entity_num += 1
+            event_offsets2ind[(event_start, event_end)] = entity_ind
+            metadata.append('%s|%s' % (entity_ind, event_id))
+            entity_ind += 1
 
         metadata_str = '||'.join(metadata)
 
-        # add seq numbers and markers to events/times
+        # add indexes and markers to events/times
         offset2str = {}
-        for (start, end), entity_num in time_offsets2num.items():
+        for (start, end), entity_ind in time_offsets2ind.items():
           offset2str[start - chunk_start] = '<t> '
-          offset2str[end - chunk_start] = '/' + str(entity_num) + ' </t>'
-        for (start, end), entity_num in event_offsets2num.items():
+          offset2str[end - chunk_start] = '/' + str(entity_ind) + ' </t>'
+        for (start, end), entity_ind in event_offsets2ind.items():
           offset2str[start - chunk_start] = '<e> '
-          offset2str[end - chunk_start] = '/' + str(entity_num) + ' </e>'
-        chunk_text_with_markers = insert_at_offsets(
+          offset2str[end - chunk_start] = '/' + str(entity_ind) + ' </e>'
+        text_with_markers = insert_at_offsets(
           note_text[chunk_start:chunk_end],
           offset2str)
 
-        # combine time_offsets2num and event_offsets2num
-        arg2num = dict(list(time_offsets2num.items()) +
-                       list(event_offsets2num.items()))
+        # combine time_offsets2ind and event_offsets2ind
+        arg2ind = dict(list(time_offsets2ind.items()) +
+                       list(event_offsets2ind.items()))
 
         targ2src = {} # map contained events to their containers
         for rel in self.note2rels[note_path]:
@@ -218,9 +213,10 @@ class Data(ThymeDataset):
              targ_start >= chunk_start and targ_end <= chunk_end:
             targ2src[(targ_start, targ_end)] = (src_start, src_end)
 
-        if len(arg2num) == 0:
-          input_str = 'task: RELEXT; text: %s; arg: ' % chunk_text_with_markers
-          input_str = input_str + 'no gold args'
+        if len(arg2ind) == 0:
+          input_str = 'task: RELEXT; text: %s; arg: %s' % (
+            text_with_markers,
+            'none')
           output_str = 'no gold events or times'
           self.inputs.append(input_str)
           self.outputs.append(output_str)
@@ -228,20 +224,22 @@ class Data(ThymeDataset):
           continue # to the next chunk
 
         # iterate over candidate arguments in this chunk
-        sorted_args = sorted(arg2num.items(), key=lambda t: t[0][0])
-        for (arg_start, arg_end), arg_num in sorted_args:
-
-          input_str = 'task: RELEXT; text: %s; arg: ' % chunk_text_with_markers
-          arg = '%s|%s' % (note_text[arg_start:arg_end], arg_num)
-          input_str = input_str + arg
+        sorted_args = sorted(arg2ind.items(), key=lambda t: t[0][0])
+        for (arg_start, arg_end), arg_ind in sorted_args:
+          input_str = 'task: RELEXT; text: %s; arg: %s' % (
+            text_with_markers,
+            '%s|%s' % (note_text[arg_start:arg_end], arg_ind))
 
           # is there a source (container) for this target?
           if (arg_start, arg_end) in targ2src:
             src_start, src_end = targ2src[(arg_start, arg_end)]
-            src_num = arg2num[(src_start, src_end)]
-            output_str = '%s/%s' % (note_text[src_start:src_end], src_num)
+            src_ind = arg2ind[(src_start, src_end)]
+            output_str = 'c(%s/%s, %s/%s)' % (
+              note_text[arg_start:arg_end], arg_ind,
+              note_text[src_start:src_end], src_ind)
           else:
-            output_str = 'NONE'  # no container
+            output_str = 'c(%s/%s, _)' % (
+              note_text[arg_start:arg_end], arg_ind)
 
           self.inputs.append(input_str)
           self.outputs.append(output_str)
