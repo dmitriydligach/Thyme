@@ -14,7 +14,6 @@ from transformers import (
 from torch.utils.data import DataLoader
 
 # deterministic determinism
-# todo: anything else needed here?
 torch.manual_seed(2020)
 random.seed(2020)
 
@@ -169,18 +168,20 @@ def generate(model, data_loader, tokenizer):
         continue
 
       # parse metadata and map arg nums to anafora ids
-      arg_num2anaf_id = {}
+      arg_id2anaf_id = {}
       for entry in metadata[i].split('||'):
         elements = entry.split('|')
         if len(elements) == 2:
           # no metadata lost due to length limitation
           arg_num, anafora_id = elements
-          arg_num2anaf_id[arg_num] = anafora_id
+          arg_id2anaf_id[arg_num] = anafora_id
 
       # convert generated relations to anafora id pairs
       for arg1, arg2 in matched_args:
-        if arg1 in arg_num2anaf_id and arg2 in arg_num2anaf_id:
-          pred_rels.append((arg_num2anaf_id[arg1], arg_num2anaf_id[arg2]))
+        arg_id1 = arg1.split('/')[-1]
+        arg_id2 = arg2.split('/')[-1]
+        if arg_id1 in arg_id2anaf_id and arg_id2 in arg_id2anaf_id:
+          pred_rels.append((arg_id2anaf_id[arg_id1], arg_id2anaf_id[arg_id2]))
 
   return pred_rels
 
@@ -299,7 +300,7 @@ if __name__ == "__main__":
     gener_batch_size=16,
     num_beams=3,
     weight_decay=0.01,
-    print_predictions=False,
+    print_predictions=True,
     print_metadata=False,
     print_errors=False,
     do_train=True,

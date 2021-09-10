@@ -226,9 +226,10 @@ class Data(ThymeDataset):
         # iterate over candidate arguments in this chunk
         sorted_args = sorted(arg2ind.items(), key=lambda t: t[0][0])
         for (arg_start, arg_end), arg_ind in sorted_args:
-          input_str = 'task: RELEXT; text: %s; arg: %s' % (
+          input_str = 'task: RELEXT; text: %s; arg: %s/%s' % (
             text_with_markers,
-            '%s|%s' % (note_text[arg_start:arg_end], arg_ind))
+            note_text[arg_start:arg_end],
+            arg_ind)
 
           # is there a source (container) for this target?
           if (arg_start, arg_end) in targ2src:
@@ -329,7 +330,7 @@ if __name__ == "__main__":
   #   print(note_text[start:end])
   #   print('-'*100)
 
-  index = 12
+  index = 23
   print('T5 INPUT:', rel_data.inputs[index] + '\n')
   print('T5 OUTPUT:', rel_data.outputs[index] + '\n')
   print('T5 METADATA:', rel_data.metadata[index])
