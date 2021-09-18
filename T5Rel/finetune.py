@@ -300,7 +300,7 @@ if __name__ == "__main__":
     gener_batch_size=16,
     num_beams=3,
     weight_decay=0.01,
-    print_predictions=True,
+    print_predictions=False,
     print_metadata=False,
     print_errors=False,
     do_train=True,

@@ -235,11 +235,11 @@ class Data(ThymeDataset):
           if (arg_start, arg_end) in targ2src:
             src_start, src_end = targ2src[(arg_start, arg_end)]
             src_ind = arg2ind[(src_start, src_end)]
-            output_str = 'c(%s/%s, %s/%s)' % (
+            output_str = 'c(%s/%s; %s/%s)' % (
               note_text[arg_start:arg_end], arg_ind,
               note_text[src_start:src_end], src_ind)
           else:
-            output_str = 'c(%s/%s, _)' % (
+            output_str = 'c(%s/%s; _)' % (
               note_text[arg_start:arg_end], arg_ind)
 
           self.inputs.append(input_str)
