@@ -226,21 +226,17 @@ class Data(ThymeDataset):
         # iterate over candidate arguments in this chunk
         sorted_args = sorted(arg2ind.items(), key=lambda t: t[0][0])
         for (arg_start, arg_end), arg_ind in sorted_args:
-          input_str = 'task: RELEXT; text: %s; arg: %s/%s' % (
+          input_str = 'task: RELEXT; text: %s; arg: %s' % (
             text_with_markers,
-            note_text[arg_start:arg_end],
             arg_ind)
 
           # is there a source (container) for this target?
           if (arg_start, arg_end) in targ2src:
             src_start, src_end = targ2src[(arg_start, arg_end)]
             src_ind = arg2ind[(src_start, src_end)]
-            output_str = 'c(%s/%s; %s/%s)' % (
-              note_text[arg_start:arg_end], arg_ind,
-              note_text[src_start:src_end], src_ind)
+            output_str = 'c(%s; %s)' % (arg_ind, src_ind)
           else:
-            output_str = 'c(%s/%s; _)' % (
-              note_text[arg_start:arg_end], arg_ind)
+            output_str = 'c(%s; _)' % arg_ind
 
           self.inputs.append(input_str)
           self.outputs.append(output_str)

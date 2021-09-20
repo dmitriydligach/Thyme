@@ -178,10 +178,8 @@ def generate(model, data_loader, tokenizer):
 
       # convert generated relations to anafora id pairs
       for arg1, arg2 in matched_args:
-        arg_id1 = arg1.split('/')[-1]
-        arg_id2 = arg2.split('/')[-1]
-        if arg_id1 in arg_id2anaf_id and arg_id2 in arg_id2anaf_id:
-          pred_rels.append((arg_id2anaf_id[arg_id1], arg_id2anaf_id[arg_id2]))
+        if arg1 in arg_id2anaf_id and arg2 in arg_id2anaf_id:
+          pred_rels.append((arg_id2anaf_id[arg1], arg_id2anaf_id[arg2]))
 
   return pred_rels
 
