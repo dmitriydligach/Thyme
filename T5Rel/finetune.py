@@ -293,7 +293,7 @@ if __name__ == "__main__":
     max_input_length=512,
     max_output_length=512,
     n_files='all',
-    learning_rate=1e-3,
+    learning_rate=1e-4,
     train_batch_size=16,
     gener_batch_size=16,
     num_beams=3,
@@ -302,7 +302,7 @@ if __name__ == "__main__":
     print_metadata=False,
     print_errors=False,
     do_train=True,
-    n_epochs=5)
+    n_epochs=1)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
