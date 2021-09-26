@@ -28,7 +28,7 @@ def fit(model, train_loader, val_loader, tokenizer):
     model.parameters(),
     lr=args.learning_rate,
     weight_decay=args.weight_decay)
-  scheduler = get_linear_schedule_with_warmup(optimizer, 100, 1500)
+  # scheduler = get_linear_schedule_with_warmup(optimizer, 100, 1500)
 
   optimal_epochs = 0
   best_loss = float('inf')
@@ -56,7 +56,7 @@ def fit(model, train_loader, val_loader, tokenizer):
 
       torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
       optimizer.step()
-      scheduler.step()
+      # scheduler.step()
 
       train_loss += loss.item()
       num_train_steps += 1
@@ -297,7 +297,7 @@ if __name__ == "__main__":
     train_batch_size=16,
     gener_batch_size=16,
     num_beams=3,
-    weight_decay=0.01,
+    weight_decay=0.001,
     print_predictions=False,
     print_metadata=False,
     print_errors=False,
