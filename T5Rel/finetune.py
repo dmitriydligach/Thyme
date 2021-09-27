@@ -302,7 +302,7 @@ if __name__ == "__main__":
     print_metadata=False,
     print_errors=False,
     do_train=True,
-    n_epochs=1)
+    n_epochs=2)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
