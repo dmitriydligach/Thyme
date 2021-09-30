@@ -226,7 +226,7 @@ class Data(ThymeDataset):
         # iterate over candidate arguments in this chunk
         sorted_args = sorted(arg2ind.items(), key=lambda t: t[0][0])
         for (arg_start, arg_end), arg_ind in sorted_args:
-          input_str = 'task: RELEXT; text: %s; arg: %s' % (
+          input_str = 'task: RELEXT | text: %s | %s' % (
             text_with_markers,
             arg_ind)
 
@@ -234,9 +234,11 @@ class Data(ThymeDataset):
           if (arg_start, arg_end) in targ2src:
             src_start, src_end = targ2src[(arg_start, arg_end)]
             src_ind = arg2ind[(src_start, src_end)]
-            output_str = 'c(%s; %s)' % (arg_ind, src_ind)
+            # output_str = 'c(%s; %s)' % (arg_ind, src_ind)
+            output_str = str(src_ind)
           else:
-            output_str = 'c(%s; _)' % arg_ind
+            # output_str = 'c(%s; _)' % arg_ind
+            output_str = '_'
 
           self.inputs.append(input_str)
           self.outputs.append(output_str)

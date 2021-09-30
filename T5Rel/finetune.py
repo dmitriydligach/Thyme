@@ -156,13 +156,6 @@ def generate(model, data_loader, tokenizer):
       if args.print_metadata:
         print('[metadata]', metadata[i], '\n')
 
-      # match arguments in predictions: c(contained, container)
-      regex_str = r'c\((.+?); (.+?)\)'
-      matched_args = re.findall(regex_str, predictions[i], re.DOTALL)
-      if len(matched_args) == 0:
-        # 'no relations found' string generated
-        continue
-
       if len(metadata[i]) == 0:
         # no gold events or times in this chunk
         continue
@@ -176,10 +169,16 @@ def generate(model, data_loader, tokenizer):
           arg_num, anafora_id = elements
           arg_id2anaf_id[arg_num] = anafora_id
 
+      # contained event or time (get it from the input)
+      arg1 = inputs[i].split('|')[-1].lstrip()
+      # container or none (get it from the output)
+      arg2 = predictions[i]
+
       # convert generated relations to anafora id pairs
-      for arg1, arg2 in matched_args:
-        if arg1 in arg_id2anaf_id and arg2 in arg_id2anaf_id:
-          pred_rels.append((arg_id2anaf_id[arg1], arg_id2anaf_id[arg2]))
+      if arg1 in arg_id2anaf_id and arg2 in arg_id2anaf_id:
+        pred_rels.append((arg_id2anaf_id[arg1], arg_id2anaf_id[arg2]))
+      else:
+        print('no metadata for %s or %s:' % (arg1, arg2))
 
   return pred_rels
 
@@ -297,7 +296,7 @@ if __name__ == "__main__":
     train_batch_size=16,
     gener_batch_size=16,
     num_beams=3,
-    weight_decay=0.001,
+    weight_decay=0.0001,
     print_predictions=False,
     print_metadata=False,
     print_errors=False,
