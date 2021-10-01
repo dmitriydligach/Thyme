@@ -177,8 +177,6 @@ def generate(model, data_loader, tokenizer):
       # convert generated relations to anafora id pairs
       if arg1 in arg_id2anaf_id and arg2 in arg_id2anaf_id:
         pred_rels.append((arg_id2anaf_id[arg1], arg_id2anaf_id[arg2]))
-      else:
-        print('no metadata for %s or %s:' % (arg1, arg2))
 
   return pred_rels
 
@@ -288,7 +286,7 @@ if __name__ == "__main__":
     data_reader='dataset_rel',
     model_dir='Model/',
     model_name='t5-base',
-    chunk_size=75,
+    chunk_size=200,
     max_input_length=512,
     max_output_length=512,
     n_files='all',
