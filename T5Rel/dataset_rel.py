@@ -213,15 +213,9 @@ class Data(ThymeDataset):
              targ_start >= chunk_start and targ_end <= chunk_end:
             targ2src[(targ_start, targ_end)] = (src_start, src_end)
 
+        # next chunk if no gold events/times
         if len(arg2ind) == 0:
-          input_str = 'task: RELEXT; text: %s; arg: %s' % (
-            text_with_markers,
-            'none')
-          output_str = 'no gold events or times'
-          self.inputs.append(input_str)
-          self.outputs.append(output_str)
-          self.metadata.append(metadata_str)
-          continue # to the next chunk
+          continue
 
         # iterate over candidate arguments in this chunk
         sorted_args = sorted(arg2ind.items(), key=lambda t: t[0][0])
