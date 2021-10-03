@@ -17,6 +17,9 @@ from torch.utils.data import DataLoader
 torch.manual_seed(2020)
 random.seed(2020)
 
+# will be added to tokenizer
+new_tokens = ['<t>', '</t>', '<e>', '</e>']
+
 def fit(model, train_loader, val_loader, tokenizer):
   """Training routine"""
 
@@ -198,7 +201,7 @@ def perform_fine_tuning():
   model = T5ForConditionalGeneration.from_pretrained(args.model_name)
 
   # add event markers to tokenizer
-  tokenizer.add_tokens(['<t>', '</t>', '<e>', '</e>'])
+  tokenizer.add_tokens(new_tokens)
   model.resize_token_embeddings(len(tokenizer))
 
   train_dataset = data.Data(
@@ -250,7 +253,7 @@ def perform_generation():
   model = T5ForConditionalGeneration.from_pretrained(args.model_dir)
 
   # add event markers to tokenizer
-  tokenizer.add_tokens(['<t>', '</t>', '<e>', '</e>'])
+  tokenizer.add_tokens(new_tokens)
   model.resize_token_embeddings(len(tokenizer)) # todo: need this?
 
   test_dataset = data.Data(

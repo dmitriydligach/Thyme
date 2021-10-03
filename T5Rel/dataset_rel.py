@@ -67,10 +67,6 @@ class Data(ThymeDataset):
     self.out_dir = out_dir
     self.xml_regex = xml_regex
 
-    # count inputs/outputs that are too long
-    self.in_over_maxlen = 0
-    self.out_over_maxlen = 0
-
     # key: note path, value: (source, target) tuples
     self.note2rels = defaultdict(list)
 
@@ -303,8 +299,9 @@ if __name__ == "__main__":
     max_output_length=512)
   args = argparse.Namespace(**arg_dict)
 
+  new_tokens = ['<t>', '</t>', '<e>', '</e>']
   tokenizer = T5Tokenizer.from_pretrained(args.model_name)
-  tokenizer.add_tokens(['<t>', '</t>', '<e>', '</e>'])
+  tokenizer.add_tokens(new_tokens)
 
   rel_data = Data(
     xml_dir=args.xml_dir,
@@ -316,9 +313,9 @@ if __name__ == "__main__":
     max_input_length=args.max_input_length,
     max_output_length=args.max_output_length)
 
-  # note_path = os.path.join(args.text_dir, 'ID133_clinic_390')
+  # note_path = os.path.join(args.text_dir, 'ID164_clinic_480')
   # note_text = open(note_path).read()
-  # for start, end in rel_data.chunk_generator2(note_text):
+  # for start, end in rel_data.chunk_generator(note_text):
   #   print(note_text[start:end])
   #   print('-'*100)
 
