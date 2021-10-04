@@ -13,6 +13,10 @@ from dataset_base import ThymeDataset
 # skip sections defined in eval/THYMEData.java
 sections_to_skip = {'20104', '20105', '20116', '20138'}
 
+# new tokens to be added to tokenizer
+no_container_token = '[none]'
+new_tokens = ['<t>', '</t>', '<e>', '</e>', no_container_token]
+
 def insert_at_offsets(text, offset2string):
   """Insert strings at specific offset"""
 
@@ -224,11 +228,9 @@ class Data(ThymeDataset):
           if (arg_start, arg_end) in targ2src:
             src_start, src_end = targ2src[(arg_start, arg_end)]
             src_ind = arg2ind[(src_start, src_end)]
-            # output_str = 'c(%s; %s)' % (arg_ind, src_ind)
             output_str = str(src_ind)
           else:
-            # output_str = 'c(%s; _)' % arg_ind
-            output_str = '_'
+            output_str = no_container_token
 
           self.inputs.append(input_str)
           self.outputs.append(output_str)
@@ -299,7 +301,6 @@ if __name__ == "__main__":
     max_output_length=512)
   args = argparse.Namespace(**arg_dict)
 
-  new_tokens = ['<t>', '</t>', '<e>', '</e>']
   tokenizer = T5Tokenizer.from_pretrained(args.model_name)
   tokenizer.add_tokens(new_tokens)
 

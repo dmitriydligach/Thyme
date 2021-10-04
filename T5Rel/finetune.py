@@ -17,8 +17,9 @@ from torch.utils.data import DataLoader
 torch.manual_seed(2020)
 random.seed(2020)
 
-# will be added to tokenizer
-new_tokens = ['<t>', '</t>', '<e>', '</e>']
+# new tokens to be added to tokenizer
+no_container_token = '[none]'
+new_tokens = ['<t>', '</t>', '<e>', '</e>', no_container_token]
 
 def fit(model, train_loader, val_loader, tokenizer):
   """Training routine"""
