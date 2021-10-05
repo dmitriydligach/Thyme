@@ -14,8 +14,8 @@ from dataset_base import ThymeDataset
 sections_to_skip = {'20104', '20105', '20116', '20138'}
 
 # new tokens to be added to tokenizer
-no_container_token = '[none]'
-new_tokens = ['<t>', '</t>', '<e>', '</e>', no_container_token]
+no_container_token = '_'
+new_tokens = ['<t>', '</t>', '<e>', '</e>']
 
 def insert_at_offsets(text, offset2string):
   """Insert strings at specific offset"""
@@ -227,8 +227,7 @@ class Data(ThymeDataset):
           # is there a source (container) for this target?
           if (arg_start, arg_end) in targ2src:
             src_start, src_end = targ2src[(arg_start, arg_end)]
-            src_ind = arg2ind[(src_start, src_end)]
-            output_str = str(src_ind)
+            output_str = str(arg2ind[(src_start, src_end)])
           else:
             output_str = no_container_token
 
