@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import sys, re, glob, argparse, shutil, os, random, numpy
+import sys, re, glob, argparse, shutil, os, random, numpy, logging
 from collections import defaultdict
 
 sys.dont_write_bytecode = True
@@ -14,8 +14,11 @@ from dataset_base import ThymeDataset
 sections_to_skip = {'20104', '20105', '20116', '20138'}
 
 # new tokens to be added to tokenizer
-no_container_token = '_'
+no_container_token = '0'
 new_tokens = ['<t>', '</t>', '<e>', '</e>']
+
+# disable tokenizer len over 512 warning
+logging.getLogger('transformers.tokenization_utils_base').setLevel(logging.ERROR)
 
 def insert_at_offsets(text, offset2string):
   """Insert strings at specific offset"""
@@ -169,7 +172,7 @@ class Data(ThymeDataset):
       for chunk_start, chunk_end in self.chunk_generator(note_text):
 
         # assign an index to each event and time
-        entity_ind = 0
+        entity_ind = 1
         time_offsets2ind = {}
         event_offsets2ind = {}
 
