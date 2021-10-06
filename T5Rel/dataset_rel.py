@@ -14,7 +14,7 @@ from dataset_base import ThymeDataset
 sections_to_skip = {'20104', '20105', '20116', '20138'}
 
 # new tokens to be added to tokenizer
-no_container_token = '0'
+no_container_token = '_'
 new_tokens = ['<t>', '</t>', '<e>', '</e>']
 
 # disable tokenizer len over 512 warning
@@ -154,8 +154,9 @@ class Data(ThymeDataset):
             (src_start, src_end, targ_start, targ_end, src.id, targ.id))
 
       # sort events, times, and relations by offsets
-      self.note2times[note_path].sort(key=lambda t: t[0])
-      self.note2events[note_path].sort(key=lambda t: t[0])
+      # for some reason this hurts the performance, so remove
+      # self.note2times[note_path].sort(key=lambda t: t[0])
+      # self.note2events[note_path].sort(key=lambda t: t[0])
 
   def model_inputs_and_outputs(self):
     """Prepare i/o pairs to feed to T5"""
@@ -173,7 +174,7 @@ class Data(ThymeDataset):
       for chunk_start, chunk_end in self.chunk_generator(note_text):
 
         # assign an index to each event and time
-        entity_ind = 1
+        entity_ind = 0
         time_offsets2ind = {}
         event_offsets2ind = {}
 
