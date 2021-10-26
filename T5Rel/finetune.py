@@ -69,6 +69,13 @@ def fit(model, train_loader, val_loader, tokenizer):
     print('ep: %d, steps: %d, tr loss: %.3f, val loss: %.3f' % \
           (epoch, num_train_steps, av_loss, val_loss))
 
+    # no early stopping, just save the model
+    if not args.early_stopping:
+      print('saving model after epoch %d...' % epoch)
+      model.save_pretrained(args.model_dir)
+      continue
+
+    # early stopping, only save if loss decreased
     if val_loss < best_loss:
       print('loss improved, saving model...')
       model.save_pretrained(args.model_dir)
@@ -302,6 +309,7 @@ if __name__ == "__main__":
     print_metadata=False,
     print_errors=False,
     do_train=True,
+    early_stopping=True,
     n_epochs=2)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
