@@ -305,7 +305,7 @@ if __name__ == "__main__":
     n_files='all',
     learning_rate=1e-3,
     train_batch_size=16,
-    gener_batch_size=16,
+    gener_batch_size=64,
     num_beams=3,
     weight_decay=0.01,
     print_predictions=False,
