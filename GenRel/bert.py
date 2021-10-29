@@ -130,11 +130,11 @@ def predict(model, data_loader, tokenizer):
       batch[key] = batch[key].to(device)
 
     with torch.no_grad():
-      [logits] = model(batch['input_ids'])
+      result = model(batch['input_ids'])
 
-    batch_logits = logits.detach().cpu().numpy()
-    batch_labels = batch['labels'].to('cpu').numpy()
-    batch_preds = np.argmax(batch_logits, axis=1)
+    # batch_logits = result.logits.detach().cpu().numpy()
+    # batch_labels = batch['labels'].to('cpu').numpy()
+    # batch_preds = np.argmax(batch_logits, axis=1)
 
     inputs = tokenizer.batch_decode(
       batch['input_ids'],
@@ -143,7 +143,7 @@ def predict(model, data_loader, tokenizer):
       batch['labels'],
       skip_special_tokens=True)
     predictions = tokenizer.batch_decode(
-      predictions,
+      torch.argmax(result.logits, dim=1),
       skip_special_tokens=True,
       clean_up_tokenization_spaces=True)
 
@@ -151,40 +151,37 @@ def predict(model, data_loader, tokenizer):
     for i in range(len(predictions)):
       if args.print_predictions:
         print('[input]', inputs[i], '\n')
-        print('[targets]', targets[i], '\n')
-        print('[predict]', predictions[i], '\n')
+        print('[targets]', targets[i].replace(' ', ''), '\n')
+        print('[predict]', predictions[i].replace(' ', ''), '\n')
       if args.print_errors:
         if targets[i] != predictions[i]:
           print('[input]', inputs[i], '\n')
-          print('[targets]', targets[i], '\n')
-          print('[predict]', predictions[i], '\n')
+          print('[targets]', targets[i].replace(' ', ''), '\n')
+          print('[predict]', predictions[i].replace(' ', ''), '\n')
       if args.print_metadata:
         print('[metadata]', metadata[i], '\n')
-
-      # match arguments in predictions: c(contained, container)
-      regex_str = r'c\((.+?); (.+?)\)'
-      matched_args = re.findall(regex_str, predictions[i], re.DOTALL)
-      if len(matched_args) == 0:
-        # 'no relations found' string generated
-        continue
 
       if len(metadata[i]) == 0:
         # no gold events or times in this chunk
         continue
 
       # parse metadata and map arg nums to anafora ids
-      arg_num2anaf_id = {}
+      arg_id2anaf_id = {}
       for entry in metadata[i].split('||'):
         elements = entry.split('|')
         if len(elements) == 2:
           # no metadata lost due to length limitation
           arg_num, anafora_id = elements
-          arg_num2anaf_id[arg_num] = anafora_id
+          arg_id2anaf_id[arg_num] = anafora_id
+
+      # contained event or time (get it from the input)
+      arg1 = inputs[i].split('|')[-1].lstrip()
+      # container or none (get it from the output)
+      arg2 = predictions[i].replace(' ', '')
 
       # convert generated relations to anafora id pairs
-      for arg1, arg2 in matched_args:
-        if arg1 in arg_num2anaf_id and arg2 in arg_num2anaf_id:
-          pred_rels.append((arg_num2anaf_id[arg1], arg_num2anaf_id[arg2]))
+      if arg1 in arg_id2anaf_id and arg2 in arg_id2anaf_id:
+        pred_rels.append((arg_id2anaf_id[arg1], arg_id2anaf_id[arg2]))
 
   return pred_rels
 
@@ -306,12 +303,12 @@ if __name__ == "__main__":
     gener_batch_size=64,
     num_beams=3,
     weight_decay=0.01,
-    print_predictions=False,
+    print_predictions=True,
     print_metadata=False,
     print_errors=False,
-    do_train=True,
+    do_train=False,
     early_stopping=False,
-    n_epochs=1)
+    n_epochs=2)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
