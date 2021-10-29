@@ -64,9 +64,9 @@ def fit(model, train_loader, val_loader):
       num_train_steps += 1
 
     av_loss = train_loss / num_train_steps
-    # val_loss = evaluate(model, val_loader)
-    # print('ep: %d, steps: %d, tr loss: %.3f, val loss: %.3f' % \
-    #       (epoch, num_train_steps, av_loss, val_loss))
+    val_loss = evaluate(model, val_loader)
+    print('ep: %d, steps: %d, tr loss: %.3f, val loss: %.3f' % \
+          (epoch, num_train_steps, av_loss, val_loss))
 
     # no early stopping, just save the model
     if not args.early_stopping:
@@ -75,11 +75,11 @@ def fit(model, train_loader, val_loader):
       continue
 
     # early stopping, only save if loss decreased
-    # if val_loss < best_loss:
-    #   print('loss improved, saving model...')
-    #   model.save_pretrained(args.model_dir)
-    #   best_loss = val_loss
-    #   optimal_epochs = epoch
+    if val_loss < best_loss:
+      print('loss improved, saving model...')
+      model.save_pretrained(args.model_dir)
+      best_loss = val_loss
+      optimal_epochs = epoch
 
   return best_loss, optimal_epochs
 
@@ -306,9 +306,9 @@ if __name__ == "__main__":
     print_predictions=True,
     print_metadata=False,
     print_errors=False,
-    do_train=False,
-    early_stopping=False,
-    n_epochs=2)
+    do_train=True,
+    early_stopping=True,
+    n_epochs=5)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
