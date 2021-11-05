@@ -297,5 +297,5 @@ if __name__ == "__main__":
     print('starting training...')
     perform_fine_tuning()
 
-  print('starting generation...')
+  print('starting evaluation...')
   perform_evaluation()
