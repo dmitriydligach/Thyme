@@ -12,15 +12,13 @@ class ThymeDataset(Dataset):
   def __init__(
    self,
    tokenizer,
-   max_input_length,
-   max_output_length):
+   max_input_length):
     """Thyme data"""
 
     self.tokenizer = tokenizer
     self.max_input_length = max_input_length
-    self.max_output_length = max_output_length
 
-    # seq2seq i/o(s)
+    # input seqs and their labels
     self.inputs = []
     self.outputs = []
 
@@ -36,28 +34,32 @@ class ThymeDataset(Dataset):
   def __getitem__(self, index):
     """Required by pytorch"""
 
+    # call PreTrainedTokenizerBase.__call__()
     input = self.tokenizer(
       self.inputs[index],
       max_length=self.max_input_length,
+      add_special_tokens=True,
+      return_token_type_ids=False,
+      return_attention_mask=True,
       padding='max_length',
       truncation=True,
-      return_tensors='pt')
+      return_tensors='pt',
+      verbose=True)
 
+    # for now tokenizer labels too
+    # to handle things like '_' and other non-numbers
+    # later might try using actual labels (but use 0 instead of '_')
     output = self.tokenizer(
       self.outputs[index],
-      max_length=self.max_output_length,
-      padding='max_length',
-      truncation=True,
-      return_tensors='pt')
-
-    input_ids = input.input_ids.squeeze()
-    attention_mask = input.attention_mask.squeeze()
-    label = output.input_ids.squeeze()
+      add_special_tokens=False,
+      return_token_type_ids=False,
+      return_attention_mask=False,
+      verbose=True)
 
     return dict(
-      input_ids=input_ids,
-      attention_mask=attention_mask,
-      labels=label[1],
+      input_ids=input.input_ids.squeeze(),
+      attention_mask=input.attention_mask.squeeze(),
+      labels=output.input_ids[0],
       metadata=self.metadata[index])
 
 if __name__ == "__main__":

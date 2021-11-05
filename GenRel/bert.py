@@ -3,17 +3,14 @@
 import sys
 sys.path.append('../Lib/')
 
-import random, argparse, os, shutil, importlib, torch, re
-
-import numpy as np
-
+import random, argparse, os, shutil, importlib, torch
 from transformers import (
     AdamW,
     BertForSequenceClassification,
     BertTokenizer,
     get_linear_schedule_with_warmup)
-
 from torch.utils.data import DataLoader
+import dataset_rel
 
 # deterministic determinism
 torch.manual_seed(2020)
@@ -188,49 +185,42 @@ def predict(model, data_loader, tokenizer):
 def perform_fine_tuning():
   """Fine-tune and save model"""
 
-  # import data provider (e.g. dtr, rel, or events)
-  data = importlib.import_module(args.data_reader)
-
   # need this to save a fine-tuned model
   if os.path.isdir(args.model_dir):
     shutil.rmtree(args.model_dir)
   os.mkdir(args.model_dir)
 
-  # load pretrained T5 tokenizer
+  # load pretrained bert tokenizer and add new tokens
   tokenizer = BertTokenizer.from_pretrained(args.model_name)
+  tokenizer.add_tokens(new_tokens)
 
-  # load a pretrained T5 model
+  # load a pretrained bert model
   model = BertForSequenceClassification.from_pretrained(
     args.model_name,
-    num_labels=tokenizer.vocab_size)
-
-  # add event markers to tokenizer
-  tokenizer.add_tokens(new_tokens)
+    num_labels=len(tokenizer))
   model.resize_token_embeddings(len(tokenizer))
 
-  train_dataset = data.Data(
+  train_dataset = dataset_rel.Data(
     xml_dir=args.xml_train_dir,
     text_dir=args.text_train_dir,
     out_dir=args.xml_out_dir,
     xml_regex=args.xml_regex,
     tokenizer=tokenizer,
     chunk_size=args.chunk_size,
-    max_input_length=args.max_input_length,
-    max_output_length=args.max_output_length)
+    max_input_length=args.max_input_length)
   train_data_loader = DataLoader(
     train_dataset,
     shuffle=True,
     batch_size=args.train_batch_size)
 
-  test_dataset = data.Data(
+  test_dataset = dataset_rel.Data(
     xml_dir=args.xml_test_dir,
     text_dir=args.text_test_dir,
     out_dir=args.xml_out_dir,
     xml_regex=args.xml_regex,
     tokenizer=tokenizer,
     chunk_size=args.chunk_size,
-    max_input_length=args.max_input_length,
-    max_output_length=args.max_output_length)
+    max_input_length=args.max_input_length)
   val_data_loader = DataLoader(
     test_dataset,
     shuffle=False,
@@ -246,36 +236,30 @@ def perform_fine_tuning():
 def perform_evaluation():
   """Load fine-tuned model and generate"""
 
-  # import data provider (e.g. dtr, rel, or events)
-  data = importlib.import_module(args.data_reader)
-
-  # load pretrained T5 tokenizer
+  # load pretrained bert tokenizer and add new tokens
   tokenizer = BertTokenizer.from_pretrained(args.model_name)
-
-  # load the saved model
-  model = BertForSequenceClassification.from_pretrained(
-    args.model_dir,
-    num_labels=tokenizer.vocab_size)
-
-  # add event markers to tokenizer
   tokenizer.add_tokens(new_tokens)
-  model.resize_token_embeddings(len(tokenizer)) # todo: need this?
 
-  test_dataset = data.Data(
+  # load a pretrained bert model
+  model = BertForSequenceClassification.from_pretrained(
+    args.model_name,
+    num_labels=len(tokenizer))
+  model.resize_token_embeddings(len(tokenizer))
+
+  test_dataset = dataset_rel.Data(
     xml_dir=args.xml_test_dir,
     text_dir=args.text_test_dir,
     out_dir=args.xml_out_dir,
     xml_regex=args.xml_regex,
     tokenizer=tokenizer,
     chunk_size=args.chunk_size,
-    max_input_length=args.max_input_length,
-    max_output_length=args.max_output_length)
+    max_input_length=args.max_input_length)
   test_data_loader = DataLoader(
     test_dataset,
     shuffle=False,
     batch_size=args.gener_batch_size)
 
-  # generate output from the saved model
+  # make predictions using the saved model
   predicted_relations = predict(model, test_data_loader, tokenizer)
   print('writing xml...')
   test_dataset.write_xml(predicted_relations)
@@ -291,17 +275,14 @@ if __name__ == "__main__":
     text_test_dir=os.path.join(base, 'Thyme/Text/dev/'),
     xml_out_dir='./Xml/',
     xml_regex='.*[.]Temporal.*[.]xml',
-    data_reader='dataset_rel',
     model_dir='Model/',
     model_name='bert-base-uncased',
     chunk_size=200,
     max_input_length=512,
-    max_output_length=512,
     n_files='all',
     learning_rate=5e-5,
     train_batch_size=48,
     gener_batch_size=64,
-    num_beams=3,
     weight_decay=0.01,
     print_predictions=True,
     print_metadata=False,
