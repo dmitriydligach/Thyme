@@ -136,20 +136,24 @@ def predict(model, data_loader, tokenizer):
     inputs = tokenizer.batch_decode(
       batch['input_ids'],
       skip_special_tokens=True)
-    targets = tokenizer.batch_decode(
-      batch['labels'],
-      skip_special_tokens=True)
-    predictions = tokenizer.batch_decode(
-      torch.argmax(result.logits, dim=1),
-      skip_special_tokens=True,
-      clean_up_tokenization_spaces=True)
+
+    # targets = tokenizer.batch_decode(
+    #   batch['labels'],
+    #   skip_special_tokens=True)
+    # predictions = tokenizer.batch_decode(
+    #   torch.argmax(result.logits, dim=1),
+    #   skip_special_tokens=True,
+    #   clean_up_tokenization_spaces=True)
+
+    targets = batch['labels'].to('cpu').numpy()
+    predictions = torch.argmax(result.logits, dim=1).to('cpu').numpy()
 
     # iterate over samples in this batch
     for i in range(len(predictions)):
       if args.print_predictions:
         print('[input]', inputs[i], '\n')
-        print('[targets]', targets[i].replace(' ', ''), '\n')
-        print('[predict]', predictions[i].replace(' ', ''), '\n')
+        print('[targets]', targets[i], '\n')
+        print('[predict]', predictions[i], '\n')
       if args.print_errors:
         if targets[i] != predictions[i]:
           print('[input]', inputs[i], '\n')
@@ -174,7 +178,7 @@ def predict(model, data_loader, tokenizer):
       # contained event or time (get it from the input)
       arg1 = inputs[i].split('|')[-1].lstrip()
       # container or none (get it from the output)
-      arg2 = predictions[i].replace(' ', '')
+      arg2 = predictions[i]
 
       # convert generated relations to anafora id pairs
       if arg1 in arg_id2anaf_id and arg2 in arg_id2anaf_id:
@@ -197,7 +201,8 @@ def perform_fine_tuning():
   # load a pretrained bert model
   model = BertForSequenceClassification.from_pretrained(
     args.model_name,
-    num_labels=len(tokenizer))
+    # num_labels=len(tokenizer))
+    num_labels=101)
   model.resize_token_embeddings(len(tokenizer))
 
   train_dataset = dataset_rel.Data(

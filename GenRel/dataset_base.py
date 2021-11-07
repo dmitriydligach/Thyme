@@ -49,17 +49,22 @@ class ThymeDataset(Dataset):
     # for now tokenizer labels too
     # to handle things like '_' and other non-numbers
     # later might try using actual labels (but use 0 instead of '_')
-    output = self.tokenizer(
-      self.outputs[index],
-      add_special_tokens=False,
-      return_token_type_ids=False,
-      return_attention_mask=False,
-      verbose=True)
+    # output = self.tokenizer(
+    #   self.outputs[index],
+    #   add_special_tokens=False,
+    #   return_token_type_ids=False,
+    #   return_attention_mask=False,
+    #   verbose=True)
+
+    label = self.outputs[index]
+    if label == '_':
+      label = 100 # should be zero instead at some point
 
     return dict(
       input_ids=input.input_ids.squeeze(),
       attention_mask=input.attention_mask.squeeze(),
-      labels=output.input_ids[0],
+      # labels=output.input_ids[0],
+      labels=int(label),
       metadata=self.metadata[index])
 
 if __name__ == "__main__":
