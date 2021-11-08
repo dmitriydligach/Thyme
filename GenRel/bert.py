@@ -19,6 +19,9 @@ random.seed(2020)
 # new tokens to add to tokenizer
 new_tokens = ['<t>', '</t>', '<e>', '</e>']
 
+# output space size
+total_labels = 100
+
 def fit(model, train_loader, val_loader):
   """Training routine"""
 
@@ -127,38 +130,24 @@ def predict(model, data_loader, tokenizer):
       batch[key] = batch[key].to(device)
 
     with torch.no_grad():
-      result = model(batch['input_ids'])
-
-    # batch_logits = result.logits.detach().cpu().numpy()
-    # batch_labels = batch['labels'].to('cpu').numpy()
-    # batch_preds = np.argmax(batch_logits, axis=1)
+      outputs = model(batch['input_ids'])
 
     inputs = tokenizer.batch_decode(
       batch['input_ids'],
       skip_special_tokens=True)
-
-    # targets = tokenizer.batch_decode(
-    #   batch['labels'],
-    #   skip_special_tokens=True)
-    # predictions = tokenizer.batch_decode(
-    #   torch.argmax(result.logits, dim=1),
-    #   skip_special_tokens=True,
-    #   clean_up_tokenization_spaces=True)
-
-    targets = batch['labels'].to('cpu').numpy()
-    predictions = torch.argmax(result.logits, dim=1).to('cpu').numpy()
+    predictions = torch.argmax(outputs.logits, dim=1)
 
     # iterate over samples in this batch
     for i in range(len(predictions)):
       if args.print_predictions:
         print('[input]', inputs[i], '\n')
-        print('[targets]', targets[i], '\n')
-        print('[predict]', predictions[i], '\n')
+        print('[targets]', batch['labels'][i].item(), '\n')
+        print('[predict]', predictions[i].item(), '\n')
       if args.print_errors:
-        if targets[i] != predictions[i]:
+        if batch['labels'][i].item() != predictions[i].item():
           print('[input]', inputs[i], '\n')
-          print('[targets]', targets[i].replace(' ', ''), '\n')
-          print('[predict]', predictions[i].replace(' ', ''), '\n')
+          print('[targets]', batch['labels'][i].item(), '\n')
+          print('[predict]', predictions[i].item(), '\n')
       if args.print_metadata:
         print('[metadata]', metadata[i], '\n')
 
@@ -166,23 +155,23 @@ def predict(model, data_loader, tokenizer):
         # no gold events or times in this chunk
         continue
 
-      # parse metadata and map arg nums to anafora ids
-      arg_id2anaf_id = {}
+      # parse metadata and map arg indexes to anafora ids
+      arg_ind2anaf_id = {}
       for entry in metadata[i].split('||'):
         elements = entry.split('|')
         if len(elements) == 2:
           # no metadata lost due to length limitation
-          arg_num, anafora_id = elements
-          arg_id2anaf_id[arg_num] = anafora_id
+          arg_ind, anafora_id = elements
+          arg_ind2anaf_id[arg_ind] = anafora_id
 
       # contained event or time (get it from the input)
       arg1 = inputs[i].split('|')[-1].lstrip()
       # container or none (get it from the output)
-      arg2 = predictions[i]
+      arg2 = str(predictions[i].item())
 
       # convert generated relations to anafora id pairs
-      if arg1 in arg_id2anaf_id and arg2 in arg_id2anaf_id:
-        pred_rels.append((arg_id2anaf_id[arg1], arg_id2anaf_id[arg2]))
+      if arg1 in arg_ind2anaf_id and arg2 in arg_ind2anaf_id:
+        pred_rels.append((arg_ind2anaf_id[arg1], arg_ind2anaf_id[arg2]))
 
   return pred_rels
 
@@ -201,8 +190,7 @@ def perform_fine_tuning():
   # load a pretrained bert model
   model = BertForSequenceClassification.from_pretrained(
     args.model_name,
-    # num_labels=len(tokenizer))
-    num_labels=101)
+    num_labels=total_labels)
   model.resize_token_embeddings(len(tokenizer))
 
   train_dataset = dataset_rel.Data(
@@ -247,8 +235,8 @@ def perform_evaluation():
 
   # load a pretrained bert model
   model = BertForSequenceClassification.from_pretrained(
-    args.model_name,
-    num_labels=len(tokenizer))
+    args.model_dir,
+    num_labels=total_labels)
   model.resize_token_embeddings(len(tokenizer))
 
   test_dataset = dataset_rel.Data(
@@ -289,7 +277,7 @@ if __name__ == "__main__":
     train_batch_size=48,
     gener_batch_size=64,
     weight_decay=0.01,
-    print_predictions=True,
+    print_predictions=False,
     print_metadata=False,
     print_errors=False,
     do_train=True,
