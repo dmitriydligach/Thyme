@@ -48,12 +48,11 @@ class ThymeDataset(Dataset):
 
     label = self.outputs[index]
     if label == '_':
-      label = 99
+      label = 100
 
     return dict(
       input_ids=input.input_ids.squeeze(),
       attention_mask=input.attention_mask.squeeze(),
-      # labels=output.input_ids[0],
       labels=int(label),
       metadata=self.metadata[index])
 

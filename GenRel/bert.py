@@ -20,7 +20,7 @@ random.seed(2020)
 new_tokens = ['<t>', '</t>', '<e>', '</e>']
 
 # output space size
-total_labels = 100
+total_labels = 101
 
 def fit(model, train_loader, val_loader):
   """Training routine"""
@@ -282,7 +282,7 @@ if __name__ == "__main__":
     print_errors=False,
     do_train=True,
     early_stopping=True,
-    n_epochs=5)
+    n_epochs=3)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
