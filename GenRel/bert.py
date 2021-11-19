@@ -3,7 +3,7 @@
 import sys
 sys.path.append('../Lib/')
 
-import random, argparse, os, shutil, importlib, torch
+import random, argparse, os, shutil, torch
 from transformers import (
     AdamW,
     BertForSequenceClassification,
@@ -22,18 +22,40 @@ new_tokens = ['<t>', '</t>', '<e>', '</e>']
 # output space size
 total_labels = 101
 
+def make_optimizer_and_scheduler(model):
+  """This is still a mystery to me"""
+
+  no_decay = ['bias', 'LayerNorm.weight']
+  optimizer_grouped_parameters = [
+      {'params': [p for n, p in model.named_parameters() \
+        if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
+      {'params': [p for n, p in model.named_parameters() \
+        if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}]
+  optimizer = AdamW(
+    params=optimizer_grouped_parameters,
+    lr=args.learning_rate,
+    weight_decay=args.weight_decay)
+  scheduler = get_linear_schedule_with_warmup(
+    optimizer,
+    num_warmup_steps=100,
+    num_training_steps=1500)
+
+  return optimizer, scheduler
+
 def fit(model, train_loader, val_loader):
   """Training routine"""
 
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
   model.to(device)
 
+  optimizer, scheduler = make_optimizer_and_scheduler(model)
+  
   # implements gradient bias correction as well as weight decay
-  optimizer = AdamW(
-    model.parameters(),
-    lr=args.learning_rate,
-    weight_decay=args.weight_decay)
-  scheduler = get_linear_schedule_with_warmup(optimizer, 100, 1500)
+  # optimizer = AdamW(
+  #   model.parameters(),
+  #   lr=args.learning_rate,
+  #   weight_decay=args.weight_decay)
+  # scheduler = get_linear_schedule_with_warmup(optimizer, 100, 1500)
 
   optimal_epochs = 0
   best_loss = float('inf')
