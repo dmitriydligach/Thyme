@@ -49,7 +49,7 @@ def fit(model, train_loader, val_loader):
   model.to(device)
 
   optimizer, scheduler = make_optimizer_and_scheduler(model)
-  
+
   # implements gradient bias correction as well as weight decay
   # optimizer = AdamW(
   #   model.parameters(),

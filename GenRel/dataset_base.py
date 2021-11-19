@@ -6,6 +6,9 @@ import sys
 sys.dont_write_bytecode = True
 sys.path.append('../Anafora')
 
+# output space size
+total_labels = 101
+
 class ThymeDataset(Dataset):
   """Thyme data"""
 
@@ -46,9 +49,10 @@ class ThymeDataset(Dataset):
       return_tensors='pt',
       verbose=True)
 
+    # range of values: 0 ... total_labels-1
     label = self.outputs[index]
     if label == '_':
-      label = 100
+      label = total_labels - 1
 
     return dict(
       input_ids=input.input_ids.squeeze(),
