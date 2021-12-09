@@ -194,12 +194,12 @@ def predict(model, data_loader, tokenizer):
     for i in range(len(predictions)):
       if args.print_predictions:
         print('[input]', inputs[i], '\n')
-        print('[targets]', batch['labels'][i].item(), '\n')
+        print('[targets]', batch_labels[i].item(), '\n')
         print('[predict]', predictions[i].item(), '\n')
       if args.print_errors:
         if batch['labels'][i].item() != predictions[i].item():
           print('[input]', inputs[i], '\n')
-          print('[targets]', batch['labels'][i].item(), '\n')
+          print('[targets]', batch_labels[i].item(), '\n')
           print('[predict]', predictions[i].item(), '\n')
       if args.print_metadata:
         print('[metadata]', metadata[i], '\n')
