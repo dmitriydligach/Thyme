@@ -241,7 +241,7 @@ def perform_fine_tuning():
   tokenizer.add_tokens(new_tokens)
 
   model = BertWithSoftmax.from_pretrained(
-    'bert-base-uncased',
+    args.model_name,
     num_classes=total_labels)
   model.resize_token_embeddings(len(tokenizer))
 
@@ -289,7 +289,7 @@ def perform_evaluation():
 
   # load a pretrained bert model
   model = BertWithSoftmax.from_pretrained(
-    'bert-base-uncased',
+    args.model_dir,
     num_classes=total_labels)
   model.resize_token_embeddings(len(tokenizer))
 
