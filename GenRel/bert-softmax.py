@@ -67,13 +67,14 @@ def make_optimizer_and_scheduler(model):
 
   return optimizer, scheduler
 
-def fit(model, train_loader, val_loader):
+def fit(model, train_loader, val_loader, weights):
   """Training routine"""
 
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+  weights = weights.to(device)
   model.to(device)
 
-  cross_entropy_loss = torch.nn.CrossEntropyLoss()
+  cross_entropy_loss = torch.nn.CrossEntropyLoss(weights)
   optimizer, scheduler = make_optimizer_and_scheduler(model)
 
   optimal_epochs = 0
@@ -109,7 +110,7 @@ def fit(model, train_loader, val_loader):
       num_train_steps += 1
 
     av_loss = train_loss / num_train_steps
-    val_loss = evaluate(model, val_loader)
+    val_loss = evaluate(model, val_loader, weights)
     print('ep: %d, steps: %d, tr loss: %.3f, val loss: %.3f' % \
           (epoch, num_train_steps, av_loss, val_loss))
 
@@ -128,13 +129,14 @@ def fit(model, train_loader, val_loader):
 
   return best_loss, optimal_epochs
 
-def evaluate(model, data_loader):
+def evaluate(model, data_loader, weights):
   """Just compute the loss on the validation set"""
 
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+  weights = weights.to(device)
   model.to(device)
 
-  cross_entropy_loss = torch.nn.CrossEntropyLoss()
+  cross_entropy_loss = torch.nn.CrossEntropyLoss(weights)
   total_loss, num_steps = 0, 0
   model.eval()
 
@@ -163,7 +165,6 @@ def evaluate(model, data_loader):
 def predict(model, data_loader, tokenizer):
   """Generate outputs for validation set samples"""
 
-  cross_entropy_loss = torch.nn.CrossEntropyLoss()
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
   model.to(device)
   model.eval()
@@ -245,8 +246,6 @@ def perform_fine_tuning():
     num_classes=total_labels)
   model.resize_token_embeddings(len(tokenizer))
 
-  # TODO: add class weights
-
   train_dataset = dataset_rel.Data(
     xml_dir=args.xml_train_dir,
     text_dir=args.text_train_dir,
@@ -273,11 +272,19 @@ def perform_fine_tuning():
     shuffle=False,
     batch_size=args.train_batch_size)
 
+  # TODO: what to do about inf weights?
+  # can set weights to none to disable
+  ys = [int(y) if y != '_' else 100 for y in train_dataset.outputs]
+  y_counts = torch.bincount(torch.IntTensor(ys))
+  weights = len(train_dataset.outputs) / (2.0 * y_counts)
+  print('classs weights:', weights)
+
   # fine-tune model on thyme data and save it
   best_loss, optimal_epochs = fit(
     model,
     train_data_loader,
-    val_data_loader)
+    val_data_loader,
+    weights)
   print('best loss %.3f after %d epochs\n' % (best_loss, optimal_epochs))
 
 def perform_evaluation():
