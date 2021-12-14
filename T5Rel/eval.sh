@@ -6,11 +6,11 @@ CURRENT_DIR=$PWD
 
 cd ../Anafora/
 
-echo 'No closure:'
-python -m anafora.evaluate -r $DATA_ROOT$REF -p $PRED -x ".*_clinic_.*[.]Temporal-Relation.*[.]xml" -i TLINK:Type:CONTAINS
+# echo 'No closure:'
+# python -m anafora.evaluate -r $DATA_ROOT$REF -p $PRED -x ".*_clinic_.*[.]Temporal-Relation.*[.]xml" -i TLINK:Type:CONTAINS
 
-echo
-echo 'Closure:'
+# echo
+# echo 'Closure:'
 
 python -m anafora.evaluate -r $DATA_ROOT$REF -p $PRED -x ".*_clinic_.*[.]Temporal-Relation.*[.]xml" -i TLINK:Type:CONTAINS --temporal-closure
 
