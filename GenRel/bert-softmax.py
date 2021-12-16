@@ -272,12 +272,10 @@ def perform_fine_tuning():
     shuffle=False,
     batch_size=args.train_batch_size)
 
-  # TODO: what to do about inf weights?
-  # can set weights to none to disable
+  # add a small number to counts to avoid inf weights
   ys = [int(y) if y != '_' else 100 for y in train_dataset.outputs]
-  y_counts = torch.bincount(torch.IntTensor(ys))
+  y_counts = torch.bincount(torch.IntTensor(ys)) + 0.0001
   weights = len(train_dataset.outputs) / (2.0 * y_counts)
-  print('classs weights:', weights)
 
   # fine-tune model on thyme data and save it
   best_loss, optimal_epochs = fit(
