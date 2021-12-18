@@ -67,14 +67,13 @@ def make_optimizer_and_scheduler(model):
 
   return optimizer, scheduler
 
-def fit(model, train_loader, val_loader, weights):
+def fit(model, train_loader, val_loader):
   """Training routine"""
 
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-  weights = weights.to(device)
   model.to(device)
 
-  cross_entropy_loss = torch.nn.CrossEntropyLoss(weights)
+  cross_entropy_loss = torch.nn.CrossEntropyLoss()
   optimizer, scheduler = make_optimizer_and_scheduler(model)
 
   optimal_epochs = 0
@@ -110,7 +109,7 @@ def fit(model, train_loader, val_loader, weights):
       num_train_steps += 1
 
     av_loss = train_loss / num_train_steps
-    val_loss = evaluate(model, val_loader, weights)
+    val_loss = evaluate(model, val_loader)
     print('ep: %d, steps: %d, tr loss: %.3f, val loss: %.3f' % \
           (epoch, num_train_steps, av_loss, val_loss))
 
@@ -129,14 +128,13 @@ def fit(model, train_loader, val_loader, weights):
 
   return best_loss, optimal_epochs
 
-def evaluate(model, data_loader, weights):
+def evaluate(model, data_loader):
   """Just compute the loss on the validation set"""
 
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-  weights = weights.to(device)
   model.to(device)
 
-  cross_entropy_loss = torch.nn.CrossEntropyLoss(weights)
+  cross_entropy_loss = torch.nn.CrossEntropyLoss()
   total_loss, num_steps = 0, 0
   model.eval()
 
@@ -272,17 +270,11 @@ def perform_fine_tuning():
     shuffle=False,
     batch_size=args.train_batch_size)
 
-  # add a small number to counts to avoid inf weights
-  ys = [int(y) if y != '_' else 100 for y in train_dataset.outputs]
-  y_counts = torch.bincount(torch.IntTensor(ys)) + 0.0001
-  weights = len(train_dataset.outputs) / (2.0 * y_counts)
-
   # fine-tune model on thyme data and save it
   best_loss, optimal_epochs = fit(
     model,
     train_data_loader,
-    val_data_loader,
-    weights)
+    val_data_loader)
   print('best loss %.3f after %d epochs\n' % (best_loss, optimal_epochs))
 
 def perform_evaluation():
@@ -329,7 +321,7 @@ if __name__ == "__main__":
     xml_regex='.*[.]Temporal.*[.]xml',
     model_dir='Model/',
     model_name='bert-base-uncased',
-    chunk_size=200,
+    chunk_size=50,
     max_input_length=512,
     n_files='all',
     learning_rate=5e-5,
