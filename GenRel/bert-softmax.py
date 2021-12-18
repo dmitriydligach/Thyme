@@ -20,9 +20,6 @@ random.seed(2020)
 # new tokens to add to tokenizer
 new_tokens = ['<t>', '</t>', '<e>', '</e>']
 
-# output space size
-total_labels = 101
-
 class BertWithSoftmax(BertPreTrainedModel):
   """Linear layer on top of pre-trained BERT"""
 
@@ -241,7 +238,7 @@ def perform_fine_tuning():
 
   model = BertWithSoftmax.from_pretrained(
     args.model_name,
-    num_classes=total_labels)
+    num_classes=args.num_labels)
   model.resize_token_embeddings(len(tokenizer))
 
   train_dataset = dataset_rel.Data(
@@ -251,6 +248,7 @@ def perform_fine_tuning():
     xml_regex=args.xml_regex,
     tokenizer=tokenizer,
     chunk_size=args.chunk_size,
+    num_labels=args.num_labels,
     max_input_length=args.max_input_length)
   train_data_loader = DataLoader(
     train_dataset,
@@ -264,6 +262,7 @@ def perform_fine_tuning():
     xml_regex=args.xml_regex,
     tokenizer=tokenizer,
     chunk_size=args.chunk_size,
+    num_labels=args.num_labels,
     max_input_length=args.max_input_length)
   val_data_loader = DataLoader(
     test_dataset,
@@ -287,7 +286,7 @@ def perform_evaluation():
   # load a pretrained bert model
   model = BertWithSoftmax.from_pretrained(
     args.model_dir,
-    num_classes=total_labels)
+    num_classes=args.num_labels)
   model.resize_token_embeddings(len(tokenizer))
 
   test_dataset = dataset_rel.Data(
@@ -297,6 +296,7 @@ def perform_evaluation():
     xml_regex=args.xml_regex,
     tokenizer=tokenizer,
     chunk_size=args.chunk_size,
+    num_labels=args.num_labels,
     max_input_length=args.max_input_length)
   test_data_loader = DataLoader(
     test_dataset,
@@ -322,6 +322,7 @@ if __name__ == "__main__":
     model_dir='Model/',
     model_name='bert-base-uncased',
     chunk_size=50,
+    num_labels=101, # 100 possible indicies + 1 for no relation
     max_input_length=512,
     n_files='all',
     learning_rate=5e-5,
