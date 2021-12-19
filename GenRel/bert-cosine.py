@@ -34,27 +34,22 @@ class BertWithSoftmax(BertPreTrainedModel):
     """Forward pass"""
 
     # (batch_size, seq_len, hidden_size=768)
-    output = self.bert(input_ids, attention_mask)[0]
+    transformer_output = self.bert(input_ids, attention_mask)[0]
 
     # (batch_size, hidden_size=768)
-    output = output[:, 0, :]
+    cls_tokens = transformer_output[:, 0, :]
 
-    # score [cls] against all tokens in vocabulary
-    torch.mm(self.bert.embeddings.word_embeddings.weight, torch.transpose(output, 0, 1))
+    # add an extra dimension
+    cls_tokens = cls_tokens.unsqueeze(2)
 
-    # (30k, hidden_size=768)
-    token_embed = self.bert.embeddings.word_embeddings.weight
+    # score cls token against every output token
+    # output dimensions: (bach_size, seq_len, 1)
+    result = torch.bmm(transformer_output, cls_tokens)
 
-    # (hidden_size=768, batch_size)
-    output = output.transpose(0, 1)
+    # get rid of the extra dimension
+    result = result.squeeze(2)
 
-    # (30k, batch_size)
-    scores = torch.mm(token_embed, output)
-
-    # (batch_size, 30k)
-    scores = scores.transpose(0, 1)
-
-    return scores
+    return result
 
 def make_optimizer_and_scheduler(model):
   """This is still a mystery to me"""
