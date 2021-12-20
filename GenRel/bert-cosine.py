@@ -29,6 +29,7 @@ class BertWithSoftmax(BertPreTrainedModel):
     super(BertWithSoftmax, self).__init__(config)
 
     self.bert = BertModel(config)
+    self.softmax = torch.nn.LogSoftmax(1)
 
   def forward(self, input_ids, attention_mask):
     """Forward pass"""
@@ -48,6 +49,9 @@ class BertWithSoftmax(BertPreTrainedModel):
 
     # get rid of the extra dimension
     result = result.squeeze(2)
+
+    # normalize dot products
+    result = self.softmax(result)
 
     return result
 
@@ -77,7 +81,9 @@ def fit(model, train_loader, val_loader):
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
   model.to(device)
 
-  cross_entropy_loss = torch.nn.CrossEntropyLoss()
+  # cross_entropy_loss = torch.nn.CrossEntropyLoss()
+
+  criterion = torch.nn.NLLLoss()
   optimizer, scheduler = make_optimizer_and_scheduler(model)
 
   optimal_epochs = 0
@@ -102,7 +108,7 @@ def fit(model, train_loader, val_loader):
 
       # model only needs inputs ids and attention masks
       batch_logits = model(**batch)
-      loss = cross_entropy_loss(batch_logits, batch_labels)
+      loss = criterion(batch_logits, batch_labels)
       loss.backward()
 
       torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -138,7 +144,9 @@ def evaluate(model, data_loader):
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
   model.to(device)
 
-  cross_entropy_loss = torch.nn.CrossEntropyLoss()
+  # cross_entropy_loss = torch.nn.CrossEntropyLoss()
+
+  criterion = torch.nn.NLLLoss()
   total_loss, num_steps = 0, 0
   model.eval()
 
@@ -156,7 +164,7 @@ def evaluate(model, data_loader):
 
     with torch.no_grad():
       batch_logits = model(**batch)
-      loss = cross_entropy_loss(batch_logits, batch_labels)
+      loss = criterion(batch_logits, batch_labels)
 
     total_loss += loss.item()
     num_steps += 1
@@ -329,7 +337,7 @@ if __name__ == "__main__":
     model_dir='Model/',
     model_name='bert-base-uncased',
     chunk_size=50,
-    num_labels=513, # 512 possible tokens + 1 for no relation
+    num_labels=512, # 512 possible tokens + 1 for no relation? 
     max_input_length=512,
     n_files='all',
     learning_rate=5e-5,
