@@ -192,19 +192,21 @@ def predict(model, data_loader, tokenizer):
     inputs = tokenizer.batch_decode(
       batch['input_ids'],
       skip_special_tokens=True)
-    predictions = torch.argmax(batch_logits, dim=1)
+    batch_predictions = torch.argmax(batch_logits, dim=1)
+    batch_labels = tokenizer.batch_decode(batch_labels)
+    batch_predictions = tokenizer.batch_decode(batch_predictions)
 
     # iterate over samples in this batch
-    for i in range(len(predictions)):
+    for i in range(len(batch_predictions)):
       if args.print_predictions:
         print('[input]', inputs[i], '\n')
-        print('[targets]', batch_labels[i].item(), '\n')
-        print('[predict]', predictions[i].item(), '\n')
+        print('[targets]', batch_labels[i], '\n')
+        print('[predict]', batch_predictions[i], '\n')
       if args.print_errors:
-        if batch['labels'][i].item() != predictions[i].item():
+        if batch['labels'][i].item() != batch_predictions[i].item():
           print('[input]', inputs[i], '\n')
-          print('[targets]', batch_labels[i].item(), '\n')
-          print('[predict]', predictions[i].item(), '\n')
+          print('[targets]', batch_labels[i], '\n')
+          print('[predict]', batch_predictions[i], '\n')
       if args.print_metadata:
         print('[metadata]', metadata[i], '\n')
 
@@ -224,7 +226,7 @@ def predict(model, data_loader, tokenizer):
       # contained event or time (get it from the input)
       arg1 = inputs[i].split('|')[-1].lstrip()
       # container or none (get it from the output)
-      arg2 = str(predictions[i].item())
+      arg2 = str(batch_predictions[i])
 
       # convert generated relations to anafora id pairs
       if arg1 in arg_ind2anaf_id and arg2 in arg_ind2anaf_id:
@@ -337,12 +339,12 @@ if __name__ == "__main__":
     train_batch_size=48,
     gener_batch_size=64,
     weight_decay=0.01,
-    print_predictions=True,
+    print_predictions=False,
     print_metadata=False,
     print_errors=False,
     do_train=True,
     early_stopping=True,
-    n_epochs=1)
+    n_epochs=3)
   args = argparse.Namespace(**arg_dict)
   print('hyper-parameters: %s\n' % args)
 
