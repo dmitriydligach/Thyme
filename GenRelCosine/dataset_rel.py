@@ -59,13 +59,11 @@ class Data(ThymeDataset):
     xml_regex,
     tokenizer,
     chunk_size,
-    num_labels,
     max_input_length):
     """Constructor"""
 
     super(Data, self).__init__(
       tokenizer,
-      num_labels,
       max_input_length)
 
     self.chunk_size = chunk_size

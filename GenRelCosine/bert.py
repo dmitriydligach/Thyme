@@ -23,7 +23,7 @@ new_tokens = ['<t>', '</t>', '<e>', '</e>']
 class BertWithSoftmax(BertPreTrainedModel):
   """Linear layer on top of pre-trained BERT"""
 
-  def __init__(self, config, num_classes):
+  def __init__(self, config):
     """Constructor"""
 
     super(BertWithSoftmax, self).__init__(config)
@@ -246,9 +246,7 @@ def perform_fine_tuning():
   tokenizer = BertTokenizer.from_pretrained(args.model_name)
   tokenizer.add_tokens(new_tokens)
 
-  model = BertWithSoftmax.from_pretrained(
-    args.model_name,
-    num_classes=args.num_labels)
+  model = BertWithSoftmax.from_pretrained(args.model_name)
   model.resize_token_embeddings(len(tokenizer))
 
   train_dataset = dataset_rel.Data(
@@ -258,7 +256,6 @@ def perform_fine_tuning():
     xml_regex=args.xml_regex,
     tokenizer=tokenizer,
     chunk_size=args.chunk_size,
-    num_labels=args.num_labels,
     max_input_length=args.max_input_length)
   train_data_loader = DataLoader(
     train_dataset,
@@ -272,7 +269,6 @@ def perform_fine_tuning():
     xml_regex=args.xml_regex,
     tokenizer=tokenizer,
     chunk_size=args.chunk_size,
-    num_labels=args.num_labels,
     max_input_length=args.max_input_length)
   val_data_loader = DataLoader(
     test_dataset,
@@ -294,9 +290,7 @@ def perform_evaluation():
   tokenizer.add_tokens(new_tokens)
 
   # load a pretrained bert model
-  model = BertWithSoftmax.from_pretrained(
-    args.model_dir,
-    num_classes=args.num_labels)
+  model = BertWithSoftmax.from_pretrained(args.model_dir)
   model.resize_token_embeddings(len(tokenizer))
 
   test_dataset = dataset_rel.Data(
@@ -306,7 +300,6 @@ def perform_evaluation():
     xml_regex=args.xml_regex,
     tokenizer=tokenizer,
     chunk_size=args.chunk_size,
-    num_labels=args.num_labels,
     max_input_length=args.max_input_length)
   test_data_loader = DataLoader(
     test_dataset,
@@ -332,7 +325,6 @@ if __name__ == "__main__":
     model_dir='Model/',
     model_name='bert-base-uncased',
     chunk_size=50,
-    num_labels=30527, # 30526 possible tokens + 1 for no relation
     max_input_length=512,
     n_files='all',
     learning_rate=5e-5,

@@ -12,12 +12,10 @@ class ThymeDataset(Dataset):
   def __init__(
    self,
    tokenizer,
-   num_labels,
    max_input_length):
     """Thyme data"""
 
     self.tokenizer = tokenizer
-    self.num_labels = num_labels
     self.max_input_length = max_input_length
 
     # input seqs and their labels
