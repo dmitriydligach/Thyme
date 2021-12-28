@@ -46,6 +46,9 @@ class BertWithSoftmax(BertPreTrainedModel):
     # score [cls] against vocabulary; (batch_size, 30k)
     scores = torch.mm(cls, vocab)
 
+    # apply softmax
+    scores = self.softmax(scores)
+
     return scores
 
 def make_optimizer_and_scheduler(model):
@@ -73,8 +76,6 @@ def fit(model, train_loader, val_loader):
 
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
   model.to(device)
-
-  # cross_entropy_loss = torch.nn.CrossEntropyLoss()
 
   criterion = torch.nn.NLLLoss()
   optimizer, scheduler = make_optimizer_and_scheduler(model)
@@ -136,8 +137,6 @@ def evaluate(model, data_loader):
 
   device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
   model.to(device)
-
-  # cross_entropy_loss = torch.nn.CrossEntropyLoss()
 
   criterion = torch.nn.NLLLoss()
   total_loss, num_steps = 0, 0
