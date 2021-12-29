@@ -1,7 +1,7 @@
 #!/bin/bash
 
 REF=Thyme/Official/thymedata/coloncancer/Dev/
-PRED=../GenRel/Xml/
+PRED=../GenClassif/Xml/
 CURRENT_DIR=$PWD
 
 cd ../Anafora/
