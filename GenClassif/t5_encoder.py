@@ -234,12 +234,12 @@ def perform_fine_tuning():
 
   # load pretrained bert tokenizer and add new tokens
   tokenizer = T5Tokenizer.from_pretrained(args.model_name)
-  tokenizer.add_tokens(new_tokens)
+  # tokenizer.add_tokens(new_tokens)
 
   model = T5EncoderOnly.from_pretrained(
     args.model_name,
     num_classes=args.num_labels)
-  model.resize_token_embeddings(len(tokenizer))
+  # model.resize_token_embeddings(len(tokenizer))
 
   train_dataset = dataset_rel.Data(
     xml_dir=args.xml_train_dir,
@@ -281,13 +281,13 @@ def perform_evaluation():
 
   # load pretrained bert tokenizer and add new tokens
   tokenizer = T5Tokenizer.from_pretrained(args.model_name)
-  tokenizer.add_tokens(new_tokens)
+  # tokenizer.add_tokens(new_tokens)
 
   # load a pretrained bert model
   model = T5EncoderOnly.from_pretrained(
     args.model_dir,
     num_classes=args.num_labels)
-  model.resize_token_embeddings(len(tokenizer))
+  # model.resize_token_embeddings(len(tokenizer))
 
   test_dataset = dataset_rel.Data(
     xml_dir=args.xml_test_dir,
