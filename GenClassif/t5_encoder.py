@@ -50,7 +50,7 @@ def make_optimizer_and_scheduler(model):
   no_decay = ['bias', 'LayerNorm.weight']
   optimizer_grouped_parameters = [
       {'params': [p for n, p in model.named_parameters() \
-        if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
+        if not any(nd in n for nd in no_decay)], 'weight_decay': args.weight_decay},
       {'params': [p for n, p in model.named_parameters() \
         if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}]
   optimizer = AdamW(
@@ -328,7 +328,7 @@ if __name__ == "__main__":
     learning_rate=5e-5,
     train_batch_size=48,
     gener_batch_size=64,
-    weight_decay=0.01,
+    weight_decay=0.001,
     print_predictions=False,
     print_metadata=False,
     print_errors=False,
