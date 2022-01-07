@@ -18,7 +18,7 @@ torch.manual_seed(2020)
 random.seed(2020)
 
 # new tokens to add to tokenizer
-new_tokens = ['<t>', '</t>', '<e>', '</e>']
+new_tokens = ['<t>', '</t>', '<e>', '</e>', '[cls]']
 
 class T5EncoderOnly(T5Model):
   """Linear layer on top of pre-trained BERT"""

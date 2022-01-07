@@ -38,7 +38,7 @@ class ThymeDataset(Dataset):
 
     # call PreTrainedTokenizerBase.__call__()
     input = self.tokenizer(
-      self.inputs[index],
+      '[cls] ' + self.inputs[index],
       max_length=self.max_input_length,
       add_special_tokens=True,
       return_token_type_ids=False,

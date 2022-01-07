@@ -15,7 +15,7 @@ sections_to_skip = {'20104', '20105', '20116', '20138'}
 
 # new tokens to be added to tokenizer
 no_container_token = '_'
-new_tokens = ['<t>', '</t>', '<e>', '</e>']
+new_tokens = ['<t>', '</t>', '<e>', '</e>', '[cls]']
 
 # disable tokenizer len over 512 warning
 logging.getLogger('transformers.tokenization_utils_base').setLevel(logging.ERROR)
