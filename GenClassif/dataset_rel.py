@@ -225,7 +225,9 @@ class Data(ThymeDataset):
         # iterate over candidate arguments in this chunk
         sorted_args = sorted(arg2ind.items(), key=lambda t: t[0][0])
         for (arg_start, arg_end), arg_ind in sorted_args:
-          input_str = '%s | %s' % (text_with_markers, arg_ind)
+          input_str = 'task: RELEXT | text: %s | %s' % (
+            text_with_markers,
+            arg_ind)
 
           # is there a source (container) for this target?
           if (arg_start, arg_end) in targ2src:
@@ -299,6 +301,7 @@ if __name__ == "__main__":
     model_dir='Model/',
     model_name='t5-base',
     chunk_size=100,
+    num_labels=101,  # 100 possible indicies + 1 for no relation
     max_input_length=512,
     max_output_length=512)
   args = argparse.Namespace(**arg_dict)
@@ -313,6 +316,7 @@ if __name__ == "__main__":
     xml_regex=args.xml_regex,
     tokenizer=tokenizer,
     chunk_size=args.chunk_size,
+    num_labels=args.num_labels,
     max_input_length=args.max_input_length)
 
   # note_path = os.path.join(args.text_dir, 'ID164_clinic_480')
