@@ -1,7 +1,7 @@
 #!/bin/bash
 
 REF=Thyme/Official/thymedata/coloncancer/Dev/
-PRED=../EvalT5/Xml/
+PRED=../T5Dtr/Xml/
 CURRENT_DIR=$PWD
 
 cd ../Anafora/
