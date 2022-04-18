@@ -69,7 +69,7 @@ def main():
     logging_dir='./Logs',
     disable_tqdm=True,
     predict_with_generate=True,
-    load_best_model_at_end=True)
+    load_best_model_at_end=False)
 
   trainer = Seq2SeqTrainer(
     model=model,
@@ -81,18 +81,18 @@ def main():
   trainer.save_model(args.model_dir)
   print('done training...')
 
-  results = trainer.predict(
-    test_dataset=test_dataset,
-    max_length=args.max_output_length,
-    num_beams=1)
-
-  predictions = tokenizer.batch_decode(
-    results.predictions,
-    skip_special_tokens=True,
-    clean_up_tokenization_spaces=True)
-
-  for prediction in predictions:
-    print(prediction)
+  # results = trainer.predict(
+  #   test_dataset=test_dataset,
+  #   max_length=args.max_output_length,
+  #   num_beams=args.num_beams)
+  #
+  # predictions = tokenizer.batch_decode(
+  #   results.predictions,
+  #   skip_special_tokens=True,
+  #   clean_up_tokenization_spaces=True)
+  #
+  # for prediction in predictions:
+  #   print(prediction)
 
 if __name__ == "__main__":
   "My kind of street"
@@ -113,7 +113,7 @@ if __name__ == "__main__":
     max_output_length=512,
     n_files='all',
     learning_rate=1e-4,
-    train_batch_size=16,
+    train_batch_size=12,
     gener_batch_size=128,
     num_beams=3,
     weight_decay=0.0001,
